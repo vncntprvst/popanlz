@@ -63,5 +63,5 @@ smmd_alleffects=smmd_cx_sacnr(alleffects(smmdidx));
 cx_sacnrtasklist=sacnrtasklist(tcxidx | bcxidx);
 smmd_cx_sacnrtasklist=cx_sacnrtasklist(smmdidx);
 
-%SummaryPlot('to load',smmd_alleffects,smmd_cx_sacnrtasklist((alleffects(smmdidx))));
-
+SummaryPlot('to load',smmd_alleffects,smmd_cx_sacnrtasklist((alleffects(smmdidx))));
+close all force;
