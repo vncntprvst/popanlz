@@ -1,4 +1,4 @@
-[sacnr,sacnrsessionlist,sacnrlocationlist,sacnrdepthlist,sacnrtasklist,compart,statscompile]=rec_class(1);
+[sacnr,sacnrsessionlist,sacnrlocationlist,sacnrdepthlist,sacnrtasklist,compart,statscompile]=rec_class(2);
 
 tcxidx=~cellfun(@isempty,regexp(compart,'top_cortex'));
 cdnidx=~cellfun(@isempty,regexp(compart,'dentate'));
@@ -32,7 +32,8 @@ smmd_cx_sacnr=cx_sacnr(smmdidx);
 %then top files - strongest effect
 se_sacnr=smmd_cx_sacnr(1:5);
 
-%best examples for each type of response 
+%best examples for each type of response (effectype calculated based
+%bestmeandiff)
 stbeff=sum(cellfun(@(x) strcmp([x],'sactobase'), effectype),2);
 ppeff=sum(cellfun(@(x) strcmp([x],'pre_post'), effectype),2);
 sharpeff=sum(cellfun(@(x) strcmp([x],'sharp'), effectype),2);
@@ -63,5 +64,41 @@ smmd_alleffects=smmd_cx_sacnr(alleffects(smmdidx));
 cx_sacnrtasklist=sacnrtasklist(tcxidx | bcxidx);
 smmd_cx_sacnrtasklist=cx_sacnrtasklist(smmdidx);
 
-SummaryPlot('to load',smmd_alleffects,smmd_cx_sacnrtasklist((alleffects(smmdidx))));
+%% plotting files by category
+% only sac to baseline
+effectcat='onlystb';
+SummaryPlot(effectcat,smmd_onlystb,smmd_cx_sacnrtasklist(onlystb(smmdidx)));
 close all force;
+% only pre post sac
+effectcat='prepost';
+SummaryPlot(effectcat,smmd_onlypp,smmd_cx_sacnrtasklist(onlypp(smmdidx)));
+close all force;
+% only sharp sac
+effectcat='sharpsac';
+SummaryPlot(effectcat,smmd_onlysharp,smmd_cx_sacnrtasklist(onlysharp(smmdidx)));
+close all force;
+% sac to baseline and prepost
+effectcat='stbpp';
+SummaryPlot(effectcat,smmd_stb_pp,smmd_cx_sacnrtasklist(stb_pp(smmdidx)));
+close all force;
+% sac to baseline and sharp
+effectcat='stbsh';
+SummaryPlot(effectcat,smmd_stb_sharp,smmd_cx_sacnrtasklist(stb_sharp(smmdidx)));
+close all force;
+% prepost and sharp
+effectcat='ppsh';
+SummaryPlot(effectcat,smmd_pp_sharp,smmd_cx_sacnrtasklist(pp_sharp(smmdidx)));
+close all force;
+% all effects
+effectcat='alleffects';
+SummaryPlot(effectcat,smmd_alleffects,smmd_cx_sacnrtasklist(alleffects(smmdidx)));
+close all force;
+
+%just looking at stats from statscompile:
+% filetoget=smmd_onlystb{1};
+% ismember(filetoget,sacnr);
+% [~,fidx]=ismember(filetoget,sacnr);
+% statscompile(fidx).p{:}{:};
+% statscompile(fidx).h{:}{:};
+
+
