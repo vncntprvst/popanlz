@@ -1,5 +1,29 @@
-[sacnr,sacnrsessionlist,sacnrlocationlist,sacnrdepthlist,sacnrtasklist,compart,statscompile]=rec_class(2);
+if strcmp(getenv('username'),'SommerVD') || strcmp(getenv('username'),'DangerZone')
+    directory = 'C:\Data\Recordings\';
+else
+    directory = 'B:\data\Recordings\';
+end
+slash = '\';
 
+
+%[sacnr,sacnrsessionlist,sacnrlocationlist,sacnrdepthlist,sacnrtasklist,compart,statscompile]=rec_class(2);
+[rsacnr,rsacnrsessionlist,rsacnrlocationlist,rsacnrdepthlist,rsacnrtasklist,rcompart,rstatscompile]=rec_class(1);
+[ssacnr,ssacnrsessionlist,ssacnrlocationlist,ssacnrdepthlist,ssacnrtasklist,scompart,sstatscompile]=rec_class(2);
+sacnr=[rsacnr;ssacnr];
+sacnrsessionlist=[rsacnrsessionlist;ssacnrsessionlist];
+sacnrlocationlist=[rsacnrlocationlist;ssacnrlocationlist];
+sacnrdepthlist=[rsacnrdepthlist;ssacnrdepthlist];
+sacnrtasklist=[rsacnrtasklist;ssacnrtasklist];
+compart=[rcompart;scompart];
+% add empty fields to sstatcompile to concatenate with rstatcompile
+for i=1:length(sstatscompile)
+    emptystruct(i,1:size(rstatscompile,2)-1)=struct('p',[],'h',[],'bestmeandiff',[],'recrasters',[]);
+end
+sstatscompile=[sstatscompile emptystruct];
+statscompile=[rstatscompile;sstatscompile];
+
+rigelfiles=~cellfun(@isempty,regexp(sacnr,'^R'));
+sixxfiles=~cellfun(@isempty,regexp(sacnr,'^S'));
 tcxidx=~cellfun(@isempty,regexp(compart,'top_cortex'));
 cdnidx=~cellfun(@isempty,regexp(compart,'dentate'));
 bcxidx=~cellfun(@isempty,regexp(compart,'bottom_cortex'));
@@ -18,17 +42,64 @@ for i=1:size(statscompile,1)
         end
         effectype(i,1:sum(logical(summeffect)))=effectcategories(logical(summeffect));
     else
-    effectype(i,1:sum(logical(treffectype{:})))=effectcategories(logical([treffectype{:}]));
+        effectype(i,1:sum(logical(treffectype{:})))=effectcategories(logical([treffectype{:}]));
+    end
+end
+%% writing rough loc and max mean diff to xls file
+%packaging data
+rmaxmdiff=maxmdiff(rigelfiles);
+smaxmdiff=maxmdiff(sixxfiles);
+
+% get number of row in "database"
+exl = actxserver('excel.application');
+exlWkbk = exl.Workbooks;
+exlFile = exlWkbk.Open([directory 'procdata.xlsx']);
+for monknum=1:2
+    exlSheet(monknum) = exlFile.Sheets.Item(monknum);% e.g.: 2 = Sixx
+    robj(monknum) = exlSheet(monknum).Columns.End(4);
+    numrows(monknum) = robj(monknum).row;
+    if numrows(monknum)==1048576 %empty document
+        numrows(monknum)=1;
+    end 
+end
+Quit(exl);
+
+for monknum=1:2
+    [~,pfilelist] = xlsread([directory,'procdata.xlsx'],monknum,['A2:A' num2str(numrows(monknum))]);
+    if monknum==1
+        for mkfl=1:size(rsacnr,1)
+            wline=find(ismember(pfilelist,rsacnr(mkfl)))+1;
+            xlswrite('procdata.xlsx', {rcompart(mkfl)}, monknum, sprintf('I%d',wline));
+            xlswrite('procdata.xlsx', {rmaxmdiff(mkfl)}, monknum, sprintf('J%d',wline));
+            
+        end
+    elseif monknum==2
+    elseif monknum==3
     end
 end
 
+
+%% continue analysis on cortex files
 %all files from (crude classification) cortex, looking for strongest effect
 cx_maxmdiff=maxmdiff(tcxidx | bcxidx);
 cx_sacnr=sacnr(tcxidx | bcxidx);
-tcx_sacnr=sacnr(tcxidx);
-bcx_sacnr=sacnr(bcxidx);
-[ord_cx_maxmdiff,smmdidx]=sort(cx_maxmdiff,'descend');
+[~,smmdidx]=sort(cx_maxmdiff,'descend');
 smmd_cx_sacnr=cx_sacnr(smmdidx);
+
+%'top cx' data
+tcx_sacnr=sacnr(tcxidx);
+tcx_maxmdiff=maxmdiff(tcxidx);
+[smmd_tcx_maxmdiff,smmdidx]=sort(tcx_maxmdiff,'descend');
+smmd_tcx_sacnr=tcx_sacnr(smmdidx);
+tcxdata=[smmd_tcx_sacnr num2cell(smmd_tcx_maxmdiff)];
+
+%'bottom cx' data
+bcx_sacnr=sacnr(bcxidx);
+bcx_maxmdiff=maxmdiff(bcxidx);
+[smmd_bcx_maxmdiff,smmdidx]=sort(bcx_maxmdiff,'descend');
+smmd_bcx_sacnr=bcx_sacnr(smmdidx);
+bcxdata=[smmd_bcx_sacnr num2cell(smmd_bcx_maxmdiff)];
+
 %then top files - strongest effect
 se_sacnr=smmd_cx_sacnr(1:5);
 

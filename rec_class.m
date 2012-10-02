@@ -27,7 +27,7 @@ sessionlist = xlsread([directory 'procdata.xlsx'],monknum,['B2:B' num2str(numrow
 [~,locationlist] = xlsread([directory 'procdata.xlsx'],monknum,['C2:C' num2str(numrows)]);
 depthlist = xlsread([directory 'procdata.xlsx'],monknum,['D2:D' num2str(numrows)]);
 [~,tasklist] = xlsread([directory 'procdata.xlsx'],monknum,['F2:F' num2str(numrows)]);
-activlist = xlsread([directory 'procdata.xlsx'],monknum,['I2:I' num2str(numrows)]);
+activlist = xlsread([directory 'procdata.xlsx'],monknum,['J2:J' num2str(numrows)]);
 recnumlist = xlsread([directory 'procdata.xlsx'],monknum,['E2:E' num2str(numrows)]);
 
 %parse data
