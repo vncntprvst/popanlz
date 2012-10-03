@@ -69,20 +69,20 @@ for monknum=1:2
     if monknum==1
         for mkfl=1:size(rsacnr,1)
             wline=find(ismember(pfilelist,rsacnr(mkfl)))+1;
-            xlswrite('procdata.xlsx', {rcompart(mkfl)}, monknum, sprintf('I%d',wline));
-            xlswrite('procdata.xlsx', {rmaxmdiff(mkfl)}, monknum, sprintf('J%d',wline));
+            xlswrite([directory,'procdata.xlsx'], rcompart(mkfl), monknum, sprintf('G%d',wline));
+            xlswrite([directory,'procdata.xlsx'], {rmaxmdiff(mkfl)}, monknum, sprintf('L%d',wline));
         end
     elseif monknum==2
-            for mkfl=1:size(ssacnr,1)
+        for mkfl=1:size(ssacnr,1)
             wline=find(ismember(pfilelist,ssacnr(mkfl)))+1;
-            xlswrite('procdata.xlsx', {scompart(mkfl)}, monknum, sprintf('I%d',wline));
-            xlswrite('procdata.xlsx', {smaxmdiff(mkfl)}, monknum, sprintf('J%d',wline));
+            xlswrite([directory,'procdata.xlsx'], scompart(mkfl), monknum, sprintf('G%d',wline));
+            xlswrite([directory,'procdata.xlsx'], {smaxmdiff(mkfl)}, monknum, sprintf('L%d',wline));
         end
     elseif monknum==3
-                for mkfl=1:size(hsacnr,1)
+        for mkfl=1:size(hsacnr,1)
             wline=find(ismember(pfilelist,hsacnr(mkfl)))+1;
-            xlswrite('procdata.xlsx', {hcompart(mkfl)}, monknum, sprintf('I%d',wline));
-            xlswrite('procdata.xlsx', {hmaxmdiff(mkfl)}, monknum, sprintf('J%d',wline));
+            xlswrite([directory,'procdata.xlsx'], {hcompart(mkfl)}, monknum, sprintf('G%d',wline));
+            xlswrite([directory,'procdata.xlsx'], {hmaxmdiff(mkfl)}, monknum, sprintf('L%d',wline));
         end
     end
 end
@@ -92,8 +92,12 @@ end
 %all files from (crude classification) cortex, looking for strongest effect
 cx_maxmdiff=maxmdiff(tcxidx | bcxidx);
 cx_sacnr=sacnr(tcxidx | bcxidx);
-[~,smmdidx]=sort(cx_maxmdiff,'descend');
+[smmd_cx_maxmdiff,smmdidx]=sort(cx_maxmdiff,'descend');
 smmd_cx_sacnr=cx_sacnr(smmdidx);
+
+%applying cortex treatment to tasklist
+cx_sacnrtasklist=sacnrtasklist(tcxidx | bcxidx);
+smmd_cx_sacnrtasklist=cx_sacnrtasklist(smmdidx);
 
 %'top cx' data
 tcx_sacnr=sacnr(tcxidx);
@@ -109,7 +113,7 @@ bcx_maxmdiff=maxmdiff(bcxidx);
 smmd_bcx_sacnr=bcx_sacnr(smmdidx);
 bcxdata=[smmd_bcx_sacnr num2cell(smmd_bcx_maxmdiff)];
 
-%then top files - strongest effect
+%top files - strongest effect
 se_sacnr=smmd_cx_sacnr(1:5);
 
 %best examples for each type of response (effectype calculated based
@@ -140,9 +144,7 @@ smmd_stb_sharp=smmd_cx_sacnr(stb_sharp(smmdidx));
 smmd_pp_sharp=smmd_cx_sacnr(pp_sharp(smmdidx));
 smmd_alleffects=smmd_cx_sacnr(alleffects(smmdidx));
 
-%applying cortex treatment to tasklist
-cx_sacnrtasklist=sacnrtasklist(tcxidx | bcxidx);
-smmd_cx_sacnrtasklist=cx_sacnrtasklist(smmdidx);
+
 
 %% plotting files by category
 % only sac to baseline
@@ -174,11 +176,17 @@ effectcat='alleffects';
 SummaryPlot(effectcat,smmd_alleffects,smmd_cx_sacnrtasklist(alleffects(smmdidx)));
 close all force;
 
+% over 19 max mean diff
+effectcat='20over';
+SummaryPlot(effectcat,smmd_cx_sacnr(find(smmd_cx_maxmdiff>20)),smmd_cx_sacnrtasklist(find(smmd_cx_maxmdiff>20)));
+close all force;
+
 %just looking at stats from statscompile:
 % filetoget=smmd_onlystb{1};
 % ismember(filetoget,sacnr);
 % [~,fidx]=ismember(filetoget,sacnr);
 % statscompile(fidx).p{:}{:};
 % statscompile(fidx).h{:}{:};
+
 
 
