@@ -71,10 +71,19 @@ for monknum=1:2
             wline=find(ismember(pfilelist,rsacnr(mkfl)))+1;
             xlswrite('procdata.xlsx', {rcompart(mkfl)}, monknum, sprintf('I%d',wline));
             xlswrite('procdata.xlsx', {rmaxmdiff(mkfl)}, monknum, sprintf('J%d',wline));
-            
         end
     elseif monknum==2
+            for mkfl=1:size(ssacnr,1)
+            wline=find(ismember(pfilelist,ssacnr(mkfl)))+1;
+            xlswrite('procdata.xlsx', {scompart(mkfl)}, monknum, sprintf('I%d',wline));
+            xlswrite('procdata.xlsx', {smaxmdiff(mkfl)}, monknum, sprintf('J%d',wline));
+        end
     elseif monknum==3
+                for mkfl=1:size(hsacnr,1)
+            wline=find(ismember(pfilelist,hsacnr(mkfl)))+1;
+            xlswrite('procdata.xlsx', {hcompart(mkfl)}, monknum, sprintf('I%d',wline));
+            xlswrite('procdata.xlsx', {hmaxmdiff(mkfl)}, monknum, sprintf('J%d',wline));
+        end
     end
 end
 
