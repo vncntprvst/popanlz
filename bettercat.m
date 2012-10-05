@@ -7,10 +7,7 @@ else
 end
 slash = '\';
 
-%% get peak cross-correlation values: pretty reliable indicator to sort out presac, perisac and postsac activities
-% possible limits are:
-% pressac <-10ms before sac , >-10ms perisac <+10ms, <10ms postsac
-
+%% get list of filename
 postsacfiles={'R105L7A2_25160'
 'R106L7A2_18600'
 'R123L5P5_18400'
@@ -29,6 +26,10 @@ rampfiles={'R113L6A2_18900'
 'S107L4A4_9151'
 };
 cat_files=postsacfiles;
+
+%% get peak cross-correlation values: pretty reliable indicator to sort out presac, perisac and postsac activities
+% possible limits are:
+% pressac <-10ms before sac , >-10ms perisac <+10ms, <10ms postsac
 peakcc=cell(length(cat_files),1);
 for fnm=1:length(cat_files)
     peakcc{fnm}=crosscorel(cat_files{fnm},'active',0); %Get peakcc for all directions. Don't plot
