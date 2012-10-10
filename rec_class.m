@@ -155,11 +155,18 @@ for getstat=1:size(sacnr,1)
         end
     end
 end
+
+%% [~,uniquefilelist] = xlsread([directory 'procdata.xlsx'],4,'A2:A64');
+% wilandfried=logical(activlist==2);
+% wilonly=logical(activlist==1);
+% friedonly=logical(activlist==0.5);
+% activeuniquefiles=uniquefiles(ismember(uniquefiles,pfilelist(wilandfried | wilonly | friedonly)));
+% trulyactiveuniquefiles=uniquefiles(ismember(uniquefiles,pfilelist(wilandfried)));
+% nonactiveuniquefiles=uniquefiles(~ismember(uniquefiles,pfilelist(wilandfried | wilonly | friedonly)))
+% look at unique files that were discarded
+
 end
 
 
-% [~,uniquefilelist] = xlsread([directory 'procdata.xlsx'],4,'A2:A64');
-% foo=ismember(uniquefilelist,activefile);
-% activeuniquefiles=uniquefilelist(foo);
-% look at unique files that were discarded
+
 
