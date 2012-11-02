@@ -67,7 +67,7 @@ if export
         else
             continue
         end
-        xlswrite('procdata.xlsx', {results{SHfn,2}}, monknum, sprintf('I%d',wline));
+        xlswrite('procdata.xlsx', {results{SHfn,2}}, monknum, sprintf('J%d',wline));
     end
 end
 end

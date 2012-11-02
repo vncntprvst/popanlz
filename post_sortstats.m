@@ -102,12 +102,12 @@ numrows = robj.row;
 Quit(exl);
 
 %% import data
-[allnuminfo,allstrinfo] = xlsread([directory 'procdata.xlsx'],monknum,['A2:O' num2str(numrows)]);
+[allnuminfo,allstrinfo] = xlsread([directory 'procdata.xlsx'],monknum,['A2:P' num2str(numrows)]);
 allnuminfo=allnuminfo(:,[1 3 4 9 11]);
 allstrinfo=allstrinfo(:,[1 3 6 7 8 9 11 13 14 15]);
 
 %% parse data
-allnuminfo(isnan(allnuminfo(:,4)),4)=0;
+allnuminfo(isnan(allnuminfo(:,4)),4)=0; %probably change 4 to something else
 
 %% narrow down files found to be active
 % or_pfilelist=pfilelist;
@@ -173,11 +173,11 @@ end
 %% just getting the leadtime, should have done this before
 leadtimes=cell(length(cxfilelist),3);
 for cxf=1:length(cxfilelist)
-    %cxf
+    cxf
     modulationinfo_task=cell(length(ucxfn_task{cxf}),1);
     originalbestfile=find( ismember(ucxfn_task{cxf},cxfilelist));
     for cxf_task=1:length(ucxfn_task{cxf})
-        %cxf_task
+        cxf_task
         load([algdir,ucxfn_task{cxf}{cxf_task},'_sac.mat']);        
         %alldirs=find(~cellfun(@isempty, {dataaligned.alignidx}));
         gooddirs=find(arrayfun(@(x) nansum(x{:}.h), {dataaligned(~cellfun(@isempty, {dataaligned.stats})).stats}));
@@ -212,8 +212,8 @@ end
 
 %% plotting leadtimes histogram
 % find cells with multiple recordings
-multitaskcxn=cellfun(@(x) sum(~cellfun('isempty',x)), leadtimes);
-multtleadtimes=leadtimes(multitaskcxn(:,2)>1,:);
+% multitaskcxn=cellfun(@(x) sum(~cellfun('isempty',x)), leadtimes);
+% multtleadtimes=leadtimes(multitaskcxn(:,2)>1,:);
 
 %separate by tasks
 stsacidx=cellfun(@(x) strcmp('st_saccades',x), leadtimes(:,2),'UniformOutput', false);

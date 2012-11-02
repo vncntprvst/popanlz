@@ -134,20 +134,20 @@ for monknum=1:2
     if monknum==1
         for mkfl=1:size(rsacnr,1)
             wline=find(ismember(pfilelist,rsacnr(mkfl)))+1;
-            xlswrite([directory,'procdata.xlsx'], rcompart(mkfl), monknum, sprintf('G%d',wline));
-            xlswrite([directory,'procdata.xlsx'], {rmaxmdiff(mkfl)}, monknum, sprintf('L%d',wline));
+            xlswrite([directory,'procdata.xlsx'], rcompart(mkfl), monknum, sprintf('H%d',wline));
+            xlswrite([directory,'procdata.xlsx'], {rmaxmdiff(mkfl)}, monknum, sprintf('M%d',wline));
         end
     elseif monknum==2
         for mkfl=1:size(ssacnr,1)
             wline=find(ismember(pfilelist,ssacnr(mkfl)))+1;
-            xlswrite([directory,'procdata.xlsx'], scompart(mkfl), monknum, sprintf('G%d',wline));
-            xlswrite([directory,'procdata.xlsx'], {smaxmdiff(mkfl)}, monknum, sprintf('L%d',wline));
+            xlswrite([directory,'procdata.xlsx'], scompart(mkfl), monknum, sprintf('H%d',wline));
+            xlswrite([directory,'procdata.xlsx'], {smaxmdiff(mkfl)}, monknum, sprintf('M%d',wline));
         end
     elseif monknum==3
         for mkfl=1:size(hsacnr,1)
             wline=find(ismember(pfilelist,hsacnr(mkfl)))+1;
-            xlswrite([directory,'procdata.xlsx'], {hcompart(mkfl)}, monknum, sprintf('G%d',wline));
-            xlswrite([directory,'procdata.xlsx'], {hmaxmdiff(mkfl)}, monknum, sprintf('L%d',wline));
+            xlswrite([directory,'procdata.xlsx'], {hcompart(mkfl)}, monknum, sprintf('H%d',wline));
+            xlswrite([directory,'procdata.xlsx'], {hmaxmdiff(mkfl)}, monknum, sprintf('M%d',wline));
         end
     end
 end

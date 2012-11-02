@@ -25,10 +25,10 @@ Quit(exl);
 [~,pfilelist] = xlsread([directory 'procdata.xlsx'],monknum,['A2:A' num2str(numrows)]);
 sessionlist = xlsread([directory 'procdata.xlsx'],monknum,['B2:B' num2str(numrows)]);
 [~,locationlist] = xlsread([directory 'procdata.xlsx'],monknum,['C2:C' num2str(numrows)]);
-depthlist = xlsread([directory 'procdata.xlsx'],monknum,['D2:D' num2str(numrows)]);
-recnumlist = xlsread([directory 'procdata.xlsx'],monknum,['E2:E' num2str(numrows)]);
-[~,tasklist] = xlsread([directory 'procdata.xlsx'],monknum,['F2:F' num2str(numrows)]);
-activlist = xlsread([directory 'procdata.xlsx'],monknum,['J2:J' num2str(numrows)]);
+depthlist = xlsread([directory 'procdata.xlsx'],monknum,['E2:E' num2str(numrows)]);
+recnumlist = xlsread([directory 'procdata.xlsx'],monknum,['F2:F' num2str(numrows)]);
+[~,tasklist] = xlsread([directory 'procdata.xlsx'],monknum,['G2:G' num2str(numrows)]);
+activlist = xlsread([directory 'procdata.xlsx'],monknum,['K2:K' num2str(numrows)]);
 
 %parse data
 activlist(isnan(activlist))=0;
