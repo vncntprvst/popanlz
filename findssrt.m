@@ -144,7 +144,7 @@ else
     end
 end
 
-clearvars -except allnccssd allccssd allsacdelay alldlbincnt filestoload numfile;
+clearvars -except allnccssd allccssd allsacdelay alldlbincnt filestoload numfile splitdataaligned;
 end
 
 %% old code for single file processing
@@ -170,6 +170,9 @@ end
 % end
 
 %% calculating probabilities
+global probaresp;
+global narssdbins;
+
 allnccssd=vertcat(allnccssd{:});
 allccssd=vertcat(allccssd{:});
 allsacdelay=vertcat(allsacdelay{:});
