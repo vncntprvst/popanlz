@@ -63,7 +63,8 @@ allccssd=cell(length(filestoload),1);
 allsacdelay=cell(length(filestoload),1);
 alldlbincnt=cell(length(filestoload),1);
 allmeanssrt=cell(length(filestoload),1);
-alldata=struct('dir',[],'NSSsacdelay',[],'NSSsuccessrate',[],'SRsacdelay',[],'ssd',[],'inhibfun',[],'meanIntSSRT',[],'meanSSRT',[],'overallMeanSSRT',[]);
+alldata=struct('dir',[],'NSSsacdelay',[],'NSSsuccessrate',[],'SRsacdelay',[],'ssd',[],...
+    'inhibfun',[],'NRMSE',[],'meanIntSSRT',[],'meanSSRT',[],'overallMeanSSRT',[]);
 
 
 %% get data
@@ -299,6 +300,43 @@ if ~(isempty(narssdbins) || length(narssdbins)==1)
 %     end
 % end
 
+%plot inhibition function and sigmoid
+        % plot mean of actual data
+%         IFploth=figure;
+%         plot(narssdbins,probaresp,'LineWidth',1.5);
+%         hold on
+        % calculate sigmoid fit
+        fittime=0:10:500;
+        [fitresult,gof] = sigmoidfit(narssdbins, probaresp);
+        % the goodness of fit contains
+        % sse Sum of squares due to error
+        % R2  Coefficient of determination
+        % adjustedR2  Degree-of-freedom adjusted coefficient of determination
+        % stdError    Root mean squared error (standard error)
+
+        yfitval=fitresult(fittime); % This gives us the templates for the SSD range-dependant inhibition functions (six for Sixx, ha ha)
+%         % do some alignement between sigmoid and actual data
+%         ifstart=fittime(find(round(yfitval{bins}.*100)./100>=mean(fdsplitif{bins}(1,:),2),1)); %finds when the sig has same value has mean first inhibfun value
+%         ssdstart=fittime(find(fittime>mean(fdsplitssd{bins}(1,:),2),1));% fnd when mean first ssd value occurs
+%         sigdiff=ifstart-ssdstart;
+%         try
+%         fittime=fittime-sigdiff; %shift time
+%         catch
+%             sigdiff
+%         end
+        % plot sigmoid
+%         plot(fittime(fittime>0),yfitval(fittime>0),'Color','blue','LineStyle','.','LineWidth',0.8);
+        
+        %From the stdError we can calculate the normalized root-mean-square deviation or error (NRMSD or NRMSE),...
+        %that is the RMSD divided by the range of observed values of a variable being predicted.
+        NRMSE=gof.rmse/(max(probaresp)-min(probaresp));
+        %The value is often expressed as a percentage, where lower values indicate less residual variance.
+        NRMSE=round(NRMSE*100);
+%         text(300,0.9,['Residual variance is ',num2str(NRMSE),char(37)]);
+%         hold off
+%         close(IFploth)        
+
+
 %% calculate SSRT with Boucher et al's method    
 try
     [meanIntSSRT, meanSSRT, overallMeanSSRT]= ...
@@ -310,6 +348,7 @@ allmeanssrt{numfile}=overallMeanSSRT;
 alldata(numfile).meanIntSSRT=meanIntSSRT;
 alldata(numfile).meanSSRT=meanSSRT;
 alldata(numfile).overallMeanSSRT=overallMeanSSRT;
+alldata(numfile).NRMSE=NRMSE;
 end
 clearvars -except allnccssd allccssd allsacdelay alldlbincnt filestoload ...
     numfile splitdataaligned allmeanssrt alldata andir emdirections subject ...
@@ -352,6 +391,18 @@ if ~isempty(fourdata)
     % hold on
     % plot(fourdatassd(4,:),'linewidth',2,'LineStyle','-.','color',[0.8 0.5 0.2])
     % subplot(2,1,2)
+    
+    %history of inhibition functions
+    allmat=nan(400,size(fourdatassd,2)); % min(min(fourdatainhibfun)).*ones
+    for session=1:size(allmat,2)
+    allmat(fourdatassd(1,session)-50:fourdatassd(1,session),session)=fourdatainhibfun(1,session);
+    allmat(fourdatassd(1,session)+1:fourdatassd(2,session),session)=fourdatainhibfun(2,session);
+    allmat(fourdatassd(2,session)+1:fourdatassd(3,session),session)=fourdatainhibfun(3,session);
+    allmat(fourdatassd(3,session)+1:fourdatassd(4,session),session)=fourdatainhibfun(4,session);
+%     allmat(fourdatassd(3,session):end,session)=fourdatainhibfun(4,session);
+    end
+    figure
+    mesh(allmat)
     
     %sort nss sac delays
     fourdatanssdelay=cellfun(@(x) x.all, {fourdata(~cellfun('isempty',{fourdata.NSSsacdelay})).NSSsacdelay}, 'UniformOutput', false);

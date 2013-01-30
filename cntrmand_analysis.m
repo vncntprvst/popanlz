@@ -1,7 +1,7 @@
 
 subject={'Rigel','Sixx','Hilda'};
-emdirections={'upward','up_left','leftward','down_left','downward','down_right','rightward','up_right','all'};
-% emdirections={'all'};
+%emdirections={'upward','up_left','leftward','down_left','downward','down_right','rightward','up_right','all'};
+emdirections={'all'};
 for monknum=1:2
 alldata=findssrt_batch(monknum,emdirections);
 
