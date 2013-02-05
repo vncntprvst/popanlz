@@ -62,7 +62,8 @@ allsacdelay=cell(length(filestoload),1);
 alldlbincnt=cell(length(filestoload),1);
 allmeanssrt=cell(length(filestoload),1);
 alldata=struct('dir',[],'NSSsacdelay',[],'NSSsuccessrate',[],'SRsacdelay',[],'SSDs',[],'meanRT',[],...
-    'inhibfun',[],'t_inhibfun',[],'NRMSE',[],'monotonic',[],'meanIntSSRT',[],'meanSSRT',[],'overallMeanSSRT',[]);
+    'inhibfun',[],'t_inhibfun',[],'NRMSE',[],'monotonic',[],'meanIntSSRT',[],'meanSSRT',[],'overallMeanSSRT',[],...
+    'simpleSSRT',[],'substrSSRT',[]);
 
 
 %% get data
@@ -289,17 +290,52 @@ sactime=dataaligned(1,1).alignidx;
 NSS_targ=allcodes(floor(allcodes(:,7)./10)==684,8);
 alldata(numfile).NSSsuccessrate=sum(floor(NSS_targ./10)==704)/length(NSS_targ);
 
+%% comparing probability density of RTs on trials with or without stop signal
+% alldata(numfile).SRsacdelay % stop signal trials
+% nccssd % corresponding ssd
+% sacdelay.all % no-stop signal trials
+[saclatquant,saclatxlims]=hist(sacdelay.all,[0:50:max([max(sacdelay.all) 500])]);
+saclatfreq=saclatquant./sum(saclatquant);
+%unique ssds index
+[~,~,ussdidx]=unique(nccssd);
+%allocate
+numdpperssd=nan(1,max(ussdidx));
+simpleSSRT=nan(1,max(ussdidx));
+% plots
+% figure;
+% cc=lines(max(ussdidx))+0.25;
+% cc(cc>1)=1;
+% plot(saclatxlims,saclatfreq,'Color','k','LineWidth',1.8);
+% legendstr{1}=('no-stop signal')
+% hold on
+for plotrt=1:max(ussdidx)
+    srsaclat=alldata(numfile).SRsacdelay(ussdidx==plotrt);
+	numdpperssd(plotrt)=length(srsaclat);
+    srsaclatfreq=hist(srsaclat,length(srsaclat))./length(srsaclat);
+%     plot(srsaclat,srsaclatfreq,'Color',cc(plotrt,:),'LineWidth',1.8);
+%     legendstr{plotrt+1}=(['ssd= ' num2str(nccssd(find(ussdidx==plotrt,1)))]);
+    
+    % substract SSD from earlist saccade latencies of non-cenceled trials
+    if length(srsaclat)>1
+    simpleSSRT(plotrt)=round(mean(srsaclat)-nccssd(find(ussdidx==plotrt,1)));
+    end
+end
+alldata(numfile).simpleSSRT=simpleSSRT;
+% legend(legendstr{:})
+% set(gca,'ylim',[0 1.1]);
+
 %% collecting data
 if ~isfield(dataaligned,'ssd')
         allnccssd{numfile}=nccssd;
         allccssd{numfile}=ccssd;
         allsacdelay{numfile}=sacdelay.all;
-        if length(ccssd)>4
-            [~,delaybincenters]=hist([ccssd;nccssd],4);
+%         if length(ccssd)>4
+%         adjust delay bin centers to number of data par ssd value 
+            [~,delaybincenters]=hist([ccssd;nccssd],round(median(numdpperssd)));
             alldlbincnt{numfile}=round(delaybincenters');
-        else
-            alldlbincnt{numfile}=ccssd;
-        end
+%         else
+%             alldlbincnt{numfile}=ccssd;
+%         end
 else
         allnccssd{numfile}=dataaligned(end).ssd(:,1);
         allccssd{numfile}=dataaligned(end-1).ssd(:,1);
@@ -381,10 +417,10 @@ if all(diff(probaresp)>=0) || all(diff(t_probaresp)>=0)
 
 %%plot inhibition function and sigmoid
         % plot mean of actual data
-        IFploth=figure;
-        plot(narssdbins,probaresp,'LineWidth',1.5);
-        hold on
-        plot(t_ssdbins,t_probaresp,'LineWidth',1.5,'Color','green');
+%         IFploth=figure;
+%         plot(narssdbins,probaresp,'LineWidth',1.5);
+%         hold on
+%         plot(t_ssdbins,t_probaresp,'LineWidth',1.5,'Color','green');
         % calculate sigmoid fit
         fittime=0:10:500;
         [fitresult,gof] = sigmoidfit(narssdbins, probaresp);
@@ -414,7 +450,7 @@ if all(diff(probaresp)>=0) || all(diff(t_probaresp)>=0)
 %             sigdiff
 %         end
         % plot sigmoid
-        plot(fittime(fittime>0),yfitval(fittime>0),'Color','blue','LineStyle','.','LineWidth',0.8);
+%         plot(fittime(fittime>0),yfitval(fittime>0),'Color','blue','LineStyle','.','LineWidth',0.8);
 %         plot(fittime(fittime>0),t_yfitval(fittime>0),'Color','green','LineStyle','.','LineWidth',0.8);
 
 %% get residuals
@@ -490,16 +526,22 @@ else
     end
 end
 
+%% simple substraction method: SSRT is the difference between the mean RT 
+% on no-signal trials and the midpoint of the inhibition function,
+theta=atan((probaresp(2)-probaresp(1))/(narssdbins(2)-narssdbins(1)));
+midpoint=round(cos(theta)*((0.5-probaresp(1))/sin(theta))+narssdbins(1));
+alldata(numfile).substrSSRT=mean(sacdelay.all)-midpoint;
+
 if abs(diff([mean(intssrt),meanIntSSRT]))<10
 
 %% print more values
-        text(280,0.9,['meanRT ',num2str(meanRT)]);
-        text(280,0.8,['SSDs ',num2str(narssdbins')]);
-        text(280,0.7,['meanIntSSRT ',num2str(meanIntSSRT)]);
-        text(280,0.6,['intssrt ', num2str(intssrt')]);
-        text(280,0.5,['overall SSRT ', num2str(mean([intssrt; meanIntSSRT]))]);
-
-        hold off;
+%         text(280,0.9,['meanRT ',num2str(meanRT)]);
+%         text(280,0.8,['SSDs ',num2str(narssdbins')]);
+%         text(280,0.7,['meanIntSSRT ',num2str(meanIntSSRT)]);
+%         text(280,0.6,['intssrt ', num2str(intssrt')]);
+%         text(280,0.5,['overall SSRT ', num2str(mean([intssrt; meanIntSSRT]))]);
+% 
+%         hold off;
 %         close(IFploth);
    
 % keep values
@@ -556,10 +598,28 @@ end
 
 %% plot evolution of SSRT with respect to SSDs and RT
 % index of "appropriate" file
-fidx=find(~cellfun('isempty',{alldata.meanRT}));
+fidx=find(~cellfun('isempty',{alldata.substrSSRT}));
 % restrict to legitimate SSRTs
-SSRTs=round([alldata(fidx).overallMeanSSRT]);
-gsidx=(SSRTs>40 & SSRTs<150);
+SSRTs=round([alldata(fidx).substrSSRT]);
+simpleSSRTs=round([alldata(fidx).simpleSSRT]);
+oSSRTs=round([alldata(fidx).overallMeanSSRT]);
+
+% final, overall value
+foSSRT=mean([nanmean(oSSRTs(oSSRTs>50 & oSSRTs<150))...
+    nanmean(simpleSSRTs(simpleSSRTs>50 & simpleSSRTs<150))...
+    nanmean(SSRTs(SSRTs>50 & SSRTs<150))]);
+
+% evolution over time
+red_simpleSSRTs=cellfun(@(x) round(nanmean(x)), {alldata(fidx).simpleSSRT});
+nsidx=(SSRTs>50 & SSRTs<150) & (red_simpleSSRTs>50 & red_simpleSSRTs<150); % & (oSSRTs>50 & oSSRTs<150)
+meanvalsevol=round(mean([SSRTs(nsidx);red_simpleSSRTs(nsidx)])/2)+round(foSSRT/2);
+plot(fidx(nsidx),meanvalsevol);
+set(gca,'ylim',[0 150]);
+xlabel('recording session')
+ylabel('SSRT (ms)');
+title('evolution of SSRTs over time');
+
+gsidx=(SSRTs>50 & SSRTs<150);
 SSRTs=SSRTs(gsidx); % round(mean(SSRTs)) Rigel=89;
 meanRTs=round([alldata(fidx(gsidx)).meanRT]);
 maxSSDs=cellfun(@(x) max(x), {alldata(fidx(gsidx)).SSDs});
