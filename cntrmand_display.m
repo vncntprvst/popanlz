@@ -1,8 +1,8 @@
-recname='S145L2A4_9065';
+recname='S148cnttrain';
 subject={'Rigel','Sixx','Hilda'};
 
-load(recname,'allcodes','alltimes','allbad');
-load([recname,'_sac'],'dataaligned');
+load(recname,'allcodes','alltimes','allbad','saccadeInfo');
+% load([recname,'_sac'],'dataaligned');
 
 %% find stop trials
     trialtypes=floor(allcodes(:,2)./10);%./10 only /10 if pooling data together
@@ -32,12 +32,28 @@ canceltimes=stoptrialtimes(~noncancel,:);
     if bmssd %benchmark
         nccssd=(noncanceltimes(:,9)-noncanceltimes(:,7))-3; %3 ms added by the state transitions
         ccssd=(canceltimes(:,9)-canceltimes(:,7))-3;
+        allssd=nan(size(alltimes,1),1);
+        allssd(stoptrials)=(alltimes(stoptrials,9)-alltimes(stoptrials,7))-3;
     else
         nccssd=(noncanceltimes(:,8)-noncanceltimes(:,7))-2; %2 ms added by the state transitions
         ccssd=(canceltimes(:,8)-canceltimes(:,7))-2;
     end
 
 ssdvalues=unique([ccssd;nccssd]);
+
+% show progression of rt and ssd 
+figure;
+subplot(2,1,1);
+stairs(goodtrials);
+set(gca,'xlim',[1 length(allssd)]);
+title('successful trials');
+allssd=zeros(size(alltimes,1),1);
+allssd(stoptrials(~abortedstoptrials))=...
+    (alltimes(stoptrials(~abortedstoptrials),9)-alltimes(stoptrials(~abortedstoptrials),7))-3;
+subplot(2,1,2);
+plot(find(allssd>0),allssd(allssd>0));
+set(gca,'xlim',[1 length(allssd)]);
+hold on;
 
 %% get saccade delay for signal-respond (noncancel) trial
 
@@ -47,21 +63,35 @@ ssdvalues=unique([ccssd;nccssd]);
         alldata.SRsacdelay=(noncanceltimes(:,9)-noncanceltimes(:,7))-6;
     end
 
-%% saccade delay for non-stop trials
-sacdataalign=find(arrayfun(@(x) strcmp(x.alignlabel,'sac'),dataaligned));
-sacdelay=struct('all',[],'left',[],'right',[]);
-for sacda=1:length(sacdataalign)
-cuetimes=cellfun(@(x) x(1,1),dataaligned(1,sacdataalign(sacda)).allgreyareas);
-sactime=dataaligned(1,sacdataalign(sacda)).alignidx;
-    %left / right assymetry
-    if sum(dataaligned(1,sacdataalign(sacda)).amplitudes)>0
-        sacdelay.right=sactime-cuetimes; %anywhere to the right
-    else
-        sacdelay.left=sactime-cuetimes;  %anywhere to the left
-    end
-end
-sacdelay.all=[sacdelay.left sacdelay.right];
+%% saccade delay for non-stop trials: all good saccade from non-stop trials 
+%(may yield slightly different results than with left/right parsing method 
+% used previously)
+
+alllats=reshape({saccadeInfo.latency},size(saccadeInfo));
+alllats=alllats';%needs to be transposed because the logical indexing below will be done column by column, not row by row
+allgoodsacs=~cellfun('isempty',reshape({saccadeInfo.latency},size(saccadeInfo)));
+    %removing bad trials
+    allgoodsacs(logical(allbad),:)=0;
+    %removing stop trials that may be included
+    allgoodsacs(floor(allcodes(:,2)./1000)~=6,:)=0;
+    %indexing good sac trials
+    % if saccade detection corrected, there may two 'good' saccades
+    if max(sum(allgoodsacs,2))>1
+        twogoods=find(sum(allgoodsacs,2)>1);
+        for dblsac=1:length(twogoods)
+            allgoodsacs(twogoods(dblsac),find(allgoodsacs(twogoods(dblsac),:),1))=0;
+        end
+    end 
+sacdelay.all=(cell2mat(alllats(allgoodsacs')))';
+    
 alldata.NSSsacdelay=sacdelay;%[sacdelay{:}];
+
+% plot RTs on top of SSDs
+alllats=zeros(size(allgoodsacs,1),1);
+alllats(logical(sum(allgoodsacs,2)))=sacdelay.all;
+plot(find(alllats>0),alllats(alllats>0),'r');
+title('evolution of SSDs and RTs across trials')
+legend('ssd','rt');
 
 % NSS success rate
 % NSS_targ=allcodes(floor(allcodes(:,7)./10)==684,8);
@@ -126,8 +156,8 @@ end
 % plot overall inhibition function
 subplot(1,2,1);
 plot(narssdbins,probaresp,'Color',[0.25 0.25 0.25],'LineWidth',1.8);
-hold on
-plot([50:10:400],yfitval,'Color',[0.2 0.4 0.6],'LineStyle','-.','LineWidth',1.5);
+% hold on
+% plot([50:10:400],yfitval,'Color',[0.2 0.4 0.6],'LineStyle','-.','LineWidth',1.5);
 title('Inhibition function','FontName','calibri','FontSize',15);
 hxlabel=xlabel(gca,'Stop Signal Delays','FontName','calibri','FontSize',12);
 set(gca,'Xlim',[50 400],'XTick',[100:50:350],'TickDir','out','box','off'); %'XTickLabel',[50:50:400]
