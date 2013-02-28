@@ -1,6 +1,10 @@
-recname='S148cnttrain';
-subject={'Rigel','Sixx','Hilda'};
+% Analyze and display results from a single session of countermanding task
 
+subjects={'Rigel','Sixx','Hilda'};
+
+% best use a recording made with gapstop training and lots of trials
+subject=subjects{3};
+recname='H48L5A1_18102'; % S148cnttrain
 load(recname,'allcodes','alltimes','allbad','saccadeInfo');
 % load([recname,'_sac'],'dataaligned');
 
@@ -24,7 +28,7 @@ end
 
 %% find "desired" delay times (keep in mind that video synch adds ~65ms, so real ssd are variable)
 
-% calculate ssd if field doesn't exist
+% calculate ssd
 stoptrialtimes=alltimes(stoptrials(~abortedstoptrials,:),:);
 noncanceltimes=stoptrialtimes(noncancel,:);
 canceltimes=stoptrialtimes(~noncancel,:);
@@ -42,18 +46,18 @@ canceltimes=stoptrialtimes(~noncancel,:);
 ssdvalues=unique([ccssd;nccssd]);
 
 % show progression of rt and ssd 
-figure;
-subplot(2,1,1);
-stairs(goodtrials);
-set(gca,'xlim',[1 length(allssd)]);
-title('successful trials');
-allssd=zeros(size(alltimes,1),1);
-allssd(stoptrials(~abortedstoptrials))=...
-    (alltimes(stoptrials(~abortedstoptrials),9)-alltimes(stoptrials(~abortedstoptrials),7))-3;
-subplot(2,1,2);
-plot(find(allssd>0),allssd(allssd>0));
-set(gca,'xlim',[1 length(allssd)]);
-hold on;
+% figure;
+% subplot(2,1,1);
+% stairs(goodtrials);
+% set(gca,'xlim',[1 length(allssd)]);
+% title('successful trials');
+% allssd=zeros(size(alltimes,1),1);
+% allssd(stoptrials(~abortedstoptrials))=...
+%     (alltimes(stoptrials(~abortedstoptrials),9)-alltimes(stoptrials(~abortedstoptrials),7))-3;
+% subplot(2,1,2);
+% plot(find(allssd>0),allssd(allssd>0));
+% set(gca,'xlim',[1 length(allssd)]);
+% hold on;
 
 %% get saccade delay for signal-respond (noncancel) trial
 
@@ -87,17 +91,18 @@ sacdelay.all=(cell2mat(alllats(allgoodsacs')))';
 alldata.NSSsacdelay=sacdelay;%[sacdelay{:}];
 
 % plot RTs on top of SSDs
-alllats=zeros(size(allgoodsacs,1),1);
-alllats(logical(sum(allgoodsacs,2)))=sacdelay.all;
-plot(find(alllats>0),alllats(alllats>0),'r');
-title('evolution of SSDs and RTs across trials')
-legend('ssd','rt');
+% alllats=zeros(size(allgoodsacs,1),1);
+% alllats(logical(sum(allgoodsacs,2)))=sacdelay.all;
+% plot(find(alllats>0),alllats(alllats>0),'r');
+% title('evolution of SSDs and RTs across trials')
+% legend('ssd','rt');
 
 % NSS success rate
 % NSS_targ=allcodes(floor(allcodes(:,7)./10)==684,8);
 % alldata.NSSsuccessrate=sum(floor(NSS_targ./10)==704)/length(NSS_targ);
 
 %% calculating probabilities for this session
+%histo binning method
 [~,delaybincenters]=hist([ccssd;nccssd],4);
 alldlbincnt=round(delaybincenters');
 % sort unique delay bin centers
@@ -117,17 +122,42 @@ catch
     probaresp=1;
     narssdbins=0;    
 end
-alldata.inhibfun=probaresp;
 
-if ~(isempty(narssdbins) || length(narssdbins)==1)
-
-%% calculate SSRT with Boucher et al's method    
+%diff method
+ssdvalues(find(diff(ssdvalues)==1)+1)=ssdvalues(diff(ssdvalues)==1);
+ssdvalues=ssdvalues(diff(ssdvalues)>0);
 try
-    [meanIntSSRT, meanSSRT, overallMeanSSRT]= ...
-    ssrt_bestfit(sacdelay.all', probaresp', narssdbins');
+nccssdhist=hist(nccssd,ssdvalues);
+ccssdhist=hist(ccssd,ssdvalues);
+% find probability to respond
+probaresp_diff=nccssdhist'./(nccssdhist'+ccssdhist');
 catch
-   sacdelay;
+    probaresp_diff=1;  
 end
+
+%% calculate SSRT
+if ~(isempty(narssdbins) || length(narssdbins)==1)
+    
+    % test monotonicity and keep relevant inhibition function 
+if (all(diff(probaresp)>=0) && length(probaresp)>=3) && ~all(diff(probaresp_diff)>=0) 
+    alldata.inhibfun=probaresp;
+        % calculate SSRT with Boucher et al's method    
+        try
+            [meanIntSSRT, meanSSRT, overallMeanSSRT]= ...
+            ssrt_bestfit(sacdelay.all', probaresp', narssdbins');
+        catch
+           sacdelay;
+        end
+else
+    alldata.inhibfun=probaresp_diff;
+        % calculate SSRTs
+        try
+        [meanIntSSRT, meanSSRT, overallMeanSSRT]= ...
+            ssrt_bestfit(sacdelay.all', probaresp_diff', ssdvalues');
+        catch
+        end
+end
+
 allmeanssrt=overallMeanSSRT;
 alldata.meanIntSSRT=meanIntSSRT;
 alldata.meanSSRT=meanSSRT;
@@ -192,7 +222,7 @@ curylim=get(gca,'YLim');
 set(gca,'Ylim',[0 curylim(2)],'TickDir','out','box','off'); 
 
 %% export figure
-exportfigname=['CMdat_',subject{2},'_',recname];
+exportfigname=['CMdat_',subject,'_',recname];
 print(gcf, '-dpng', '-noui', '-opengl','-r600', exportfigname);
 delete(CMdatfig);
 
