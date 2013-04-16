@@ -154,5 +154,7 @@ if ~(isempty(narssdbins) || length(narssdbins)==1)
     catch
         sacdelay;
     end
+else
+    [meanIntSSRT, meanSSRT, overallMeanSSRT, inhibfun, ssds]=deal(NaN);
 end
 end
