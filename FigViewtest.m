@@ -23,7 +23,7 @@ function varargout = FigViewtest(varargin)
 %
 % See also: GUIDE, GUIDATA, GUIHANDLES
 
-% Last Modified by GUIDE v2.5 03-May-2013 21:09:33
+% Last Modified by GUIDE v2.5 04-May-2013 00:23:44
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -51,42 +51,28 @@ function FigViewtest_OpeningFcn(hObject, eventdata, handles, varargin)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 % varargin   command line arguments to FigViewtest (see VARARGIN)
+global directory slash;
+if strcmp(getenv('username'),'SommerVD') ||...
+        strcmp(getenv('username'),'LabV') || ...
+        strcmp(getenv('username'),'Purkinje')|| ...
+        strcmp(getenv('username'),'vp35')
+    directory = 'C:\Data\Recordings\';
+elseif strcmp(getenv('username'),'DangerZone')
+    directory = 'E:\data\Recordings\';
+elseif strcmp(getenv('username'),'Radu')
+        directory = 'E:\Spike_Sorting\';
+else
+    directory = 'B:\data\Recordings\';
+end
+slash = '\';
 
 % Choose default command line output for FigViewtest
 handles.output = hObject;
-global replacespikes;
-replacespikes = 0;
-% tiny design changes
+
 set(hObject,'DefaultTextFontName','Calibri'); %'Color',[0.9 .9 .8]
-% unprocfilebtxt=sprintf('Unprocessed\rfiles');
-% uibutton(findobj('tag','unprocfilebutton'),'string',unprocfilebtxt);
-
-
-% use varargin to allow for direct input of the name of the file to be analyzed.
-% see http://www.mathworks.com/help/techdoc/creating_guis/f10-998580.html
 
 % Update handles structure
 guidata(hObject, handles);
-
-% % determines computer type  % moved it to displaym_files_create
-% archst  = computer('arch');
-%
-% global directory slash;
-%
-% if strcmp(archst, 'maci64')
-%     name = getenv('USER');
-%     if strcmp(name, 'nick')
-%         directory = '/Users/nick/Dropbox/filesforNick/';
-%     elseif strcmp(name, 'Frank')
-%         directory = '/Users/Frank/Desktop/monkeylab/data/';
-%     end
-%     slash = '/';
-% elseif strcmp(archst, 'win32') || strcmp(archst, 'win64')
-%     % for future users, make it name = getenv('username');
-%     directory = 'B:\data\Recordings\';
-%     slash = '\';
-% end
-
 
 % UIWAIT makes FigViewtest wait for user response (see UIRESUME)
 % uiwait(handles.rdd);
@@ -289,25 +275,25 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
     set(hObject,'BackgroundColor','white');
 end
 
-% --- Executes on button press in OpenRawFile.
-function OpenRawFile_Callback(hObject, eventdata, handles)
-% hObject    handle to OpenRawFile (see GCBO)
+% --- Executes on button press in trueeffect.
+function trueeffect_Callback(hObject, eventdata, handles)
+% hObject    handle to trueeffect (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 global directory slash unprocfiles replacespikes;
 
 monkeydirselected=get(get(findobj('Tag','monkeyselect'),'SelectedObject'),'Tag');
 if strcmp(monkeydirselected,'rigelselect')
-    monkeydir = [directory,'Rigel',slash]; %'B:\data\Recordings\Rigel';
+    subjdir = [directory,'Rigel',slash]; %'B:\data\Recordings\Rigel';
     procdir = [directory,'processed',slash,'Rigel',slash];
 elseif strcmp(monkeydirselected,'sixxselect')
-    monkeydir = [directory,'Sixx',slash]; %'B:\data\Recordings\Sixx';
+    subjdir = [directory,'Sixx',slash]; %'B:\data\Recordings\Sixx';
     procdir = [directory,'processed',slash,'Sixx',slash];
 elseif strcmp(monkeydirselected,'hildaselect')
-    monkeydir = [directory,'Hilda',slash]; %'B:\data\Recordings\Sixx';
+    subjdir = [directory,'Hilda',slash]; %'B:\data\Recordings\Sixx';
     procdir = [directory,'processed',slash,'Hilda',slash];
 elseif strcmp(monkeydirselected,'shufflesselect')
-    monkeydir = [directory,'Shuffles',slash]; %'B:\data\Recordings\Sixx';
+    subjdir = [directory,'Shuffles',slash]; %'B:\data\Recordings\Sixx';
     procdir = [directory,'processed',slash,'Shuffles',slash];
 end
 
@@ -315,10 +301,10 @@ end
 archst  = computer('arch');
 if strcmp(archst, 'maci64')
     [rfname, rfpathname]=uigetfile({'*.*','All Files';'*A','A Files'},'raw files directory',...
-        monkeydir);
+        subjdir);
 else
     [rfname, rfpathname]=uigetfile({'*A','A Files';'*.*','All Files'},'raw files directory',...
-        monkeydir);
+        subjdir);
 end
 
 %check if file exists already
@@ -368,7 +354,7 @@ if exist(cat(2,procdir, procname,'.mat'), 'file')==2 %'B:\data\Recordings\proces
     end
 end
 if overwrite
-    [success,outliers]=rex_process_inGUI(rfname,monkeydir); %shouldn't need the rfpathname
+    [success,outliers]=rex_process_inGUI(rfname,subjdir); %shouldn't need the rfpathname
     if success
         if replacespikes
             rfname=[rfname '_Sp2'];
@@ -436,9 +422,9 @@ end
 
 
 % --- If Enable == 'on', executes on mouse press in 5 pixel border.
-% --- Otherwise, executes on mouse press in 5 pixel border or over OpenRawFile.
-function OpenRawFile_ButtonDownFcn(hObject, eventdata, handles)
-% hObject    handle to OpenRawFile (see GCBO)
+% --- Otherwise, executes on mouse press in 5 pixel border or over trueeffect.
+function trueeffect_ButtonDownFcn(hObject, eventdata, handles)
+% hObject    handle to trueeffect (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
@@ -456,24 +442,24 @@ rclk_filename = processedrexfiles{get(findobj('tag','displaymfiles'),'Value')};
 % --- Executes on selection (double click) of file in listbox.
 % this the function that loads data,  puts name in UserData, and display
 % first trial
-function displaymfiles_Callback(hObject, eventdata, handles)
-% hObject    handle to displaymfiles (see GCBO)
+function displayfigs_Callback(hObject, eventdata, handles)
+% hObject    handle to displayfigs (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-global directory slash replacespikes ; %unprocfiles rexloadedname
+global directory slash
 
 monkeydirselected=get(get(findobj('Tag','monkeyselect'),'SelectedObject'),'Tag');
 if strcmp(monkeydirselected,'rigelselect')
-    monkeydir = [directory,'Rigel',slash]; %'B:\data\Recordings\Rigel';
+    subjdir = [directory,'Rigel',slash]; %'B:\data\Recordings\Rigel';
     procdir = [directory,'processed',slash,'Rigel',slash];
 elseif strcmp(monkeydirselected,'sixxselect')
-    monkeydir = [directory,'Sixx',slash]; %'B:\data\Recordings\Sixx';
+    subjdir = [directory,'Sixx',slash]; %'B:\data\Recordings\Sixx';
     procdir = [directory,'processed',slash,'Sixx',slash];
 elseif strcmp(monkeydirselected,'hildaselect')
-    monkeydir = [directory,'Hilda',slash]; %'B:\data\Recordings\Hilda';
+    subjdir = [directory,'Hilda',slash]; %'B:\data\Recordings\Hilda';
     procdir = [directory,'processed',slash,'Hilda',slash];
 elseif strcmp(monkeydirselected,'shufflesselect')
-    monkeydir = [directory,'Shuffles',slash]; %'B:\data\Recordings\Hilda';
+    subjdir = [directory,'Shuffles',slash]; %'B:\data\Recordings\Hilda';
     procdir = [directory,'processed',slash,'Shuffles',slash];
 end
 
@@ -522,7 +508,7 @@ elseif strcmp(get(gcf,'SelectionType'),'open') || strcmp(eventdata,'rightclkevt'
     % display them, since for the moment GUI is designed to display only one
     % file at a time
     if ~get(findobj('Tag','displayfbt_files'),'Value') % if session or grid is selected
-        selectedrawdir=dir(monkeydir);
+        selectedrawdir=dir(subjdir);
         fileNames = {selectedrawdir.name};  % Put the file names in a cell array
         
         if get(findobj('Tag','displayfbt_session'),'Value')
@@ -583,7 +569,7 @@ elseif strcmp(get(gcf,'SelectionType'),'open') || strcmp(eventdata,'rightclkevt'
             procname=allftoanlz{i};
             
             if overwrite
-                [success,outliers]=rex_process_inGUI(procname,monkeydir); %shouldn't need the rfpathname
+                [success,outliers]=rex_process_inGUI(procname,subjdir); %shouldn't need the rfpathname
                 % outliers are stored in file now
                 
                 if success
@@ -893,11 +879,11 @@ save(savealignsh, '-struct','rex2sh','goodtrials','starttrigs',...
     'endtrigs','rewtimes','align','dir','trigtosac','sactotrig','trigtovis','vistotrig','-v7.3');
 
 % --- Executes during object creation, after setting all properties.
-function displaymfiles_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to displaymfiles (see GCBO)
+function displayfigs_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to displayfigs (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    empty - handles not created until after all CreateFcns called
-global directory slash unprocfiles;
+global directory slash
 
 % Hint: listbox controls usually have a white background on Windows.
 %       See ISPC and COMPUTER.
@@ -934,28 +920,48 @@ elseif strcmp(archst, 'win32') || strcmp(archst, 'win64')
     slash = '\';
 end
 
-%setting process directory
-monkeydir= get(get(findobj('Tag','monkeyselect'),'SelectedObject'),'Tag');
-if strcmp(monkeydir,'rigelselect')
+%listing figures directory
+figdir{1} = dir([directory,'figures',slash,'sac',slash]);
+figdir{2} = dir([directory,'figures',slash,'vis',slash]);
+figdir{3} = dir([directory,'figures',slash,'rew',slash]);
+
+subjdir= get(get(findobj('Tag','monkeyselect'),'SelectedObject'),'Tag');
+if strcmp(subjdir,'rigelselect')
     monknum=1;
-elseif strcmp(monkeydir,'sixxselect')
+elseif strcmp(subjdir,'sixxselect')
     monknum=2;
-elseif strcmp(monkeydir,'hildaselect')
+elseif strcmp(subjdir,'hildaselect')
     monknum=3;
-elseif strcmp(monkeydir, 'shufflesselect')
+elseif strcmp(subjdir, 'shufflesselect')
     monknum=4;
+elseif strcmp(subjdir, 'allsubjects')
+    monknum=0;
 end
-dirlisting{1} = dir([directory,'processed',slash,'Rigel',slash]);%('B:\data\Recordings\processed\Rigel');
-dirlisting{2} = dir([directory,'processed',slash,'Sixx',slash]);
-dirlisting{3} = dir([directory,'processed',slash,'Hilda',slash]);
-dirlisting{4} = dir([directory,'processed',slash,'Shuffles',slash]);
 
-%%  add subject ID letter in front of file names for sessions >= 100
-%   change hyphens into underscores
-%   output unprocessed file list
+listcat=get(get(findobj('Tag','displayfigcat'),'SelectedObject'),'Tag');
+if strcmp(listcat,'displaysacfigs')
+    figcat=1;
+elseif strcmp(listcat,'displayvisfigs')
+    figcat=2;
+elseif strcmp(listcat,'displayrewfigs')
+    figcat=3;
+elseif strcmp(listcat, 'displayallfigs')
+    figcat=0;
+end
+%%  list figures
+if figcat>0
+dirfignames={figdir{figcat}.name};
+else
+dirfignames={figdir{:}.name};%incorrect
+end
 
-rawdirs=[{[directory,'Rigel',slash]};{[directory,'Sixx',slash]};{[directory,'Hilda',slash]};{[directory,'Shuffles',slash]}];
-idletters=['R';'S';'H';'S'];
+subjfig=regexpi(dirfignames,'^\w','match');
+subjfig=subjfig(~cellfun('isempty',subjfig));
+
+subjfig=regexpi(dirfignames,'^\w','match');
+subjfig=subjfig(~cellfun('isempty',subjfig));
+
+
 olddir=pwd; %keep current dir in memory
 
 %preallocate
@@ -1043,7 +1049,7 @@ set(eventdata.NewValue, 'BackgroundColor', [0.73 0.83 0.96]);
 %     set(handles.rasterreplot, 'BackgroundColor', [0.93 0.84 0.84]);
 % end
 % for replot: get selectd file's name
-% listboxH = findobj('Tag','displaymfiles');
+% listboxH = findobj('Tag','displayfigs');
 % lbindex_selected = get(listboxH,'Value');
 % lblist = get(listboxH,'String');
 % lbitem_selected = lblist{lbindex_selected}; % Convert from cell array to string
@@ -1422,9 +1428,9 @@ elseif eventdata.NewValue==findobj('Tag','statistics_tab')
 end
 
 
-% --- Executes on button press in unprocfilebutton.
-function unprocfilebutton_Callback(hObject, eventdata, handles)
-% hObject    handle to unprocfilebutton (see GCBO)
+% --- Executes on button press in wrongeffect.
+function wrongeffect_Callback(hObject, eventdata, handles)
+% hObject    handle to wrongeffect (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 global unprocfiles;
@@ -1440,9 +1446,9 @@ ProcUnproc(unprocfiles, selmk, selfd);
 
 
 
-% --- Executes when selected object is changed in displayfbox.
-function displayfbox_SelectionChangeFcn(hObject, eventdata, handles)
-% hObject    handle to the selected object in displayfbox
+% --- Executes when selected object is changed in displayfigcat.
+function displayfigcat_SelectionChangeFcn(hObject, eventdata, handles)
+% hObject    handle to the selected object in displayfigcat
 % eventdata  structure with the following fields (see UIBUTTONGROUP)
 %	EventName: string 'SelectionChanged' (read only)
 %	OldValue: handle of the previously selected object or empty if none was selected
@@ -1605,8 +1611,36 @@ function chanelspanel_SelectionChangeFcn(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 
-% --- Executes on button press in pushbutton21.
-function pushbutton21_Callback(hObject, eventdata, handles)
-% hObject    handle to pushbutton21 (see GCBO)
+% --- Executes on button press in unconfirmedeffect.
+function unconfirmedeffect_Callback(hObject, eventdata, handles)
+% hObject    handle to unconfirmedeffect (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+
+% --- Executes on button press in confirmedeffect.
+function confirmedeffect_Callback(hObject, eventdata, handles)
+% hObject    handle to confirmedeffect (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of confirmedeffect
+
+
+% --- Executes on button press in assumedeffect.
+function assumedeffect_Callback(hObject, eventdata, handles)
+% hObject    handle to assumedeffect (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of assumedeffect
+
+
+% --- Executes on key press with focus on displayvisfigs and none of its controls.
+function displayvisfigs_KeyPressFcn(hObject, eventdata, handles)
+% hObject    handle to displayvisfigs (see GCBO)
+% eventdata  structure with the following fields (see UICONTROL)
+%	Key: name of the key that was pressed, in lower case
+%	Character: character interpretation of the key(s) that was pressed
+%	Modifier: name(s) of the modifier key(s) (i.e., control, shift) pressed
 % handles    structure with handles and user data (see GUIDATA)
