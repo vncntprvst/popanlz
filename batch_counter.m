@@ -1,7 +1,7 @@
 % function [colecalldata,allnccssd,allccssd]=batch_counter(monknum,emdirections)  %% calculate ssrt individually for multiple files, plus overall
 % 
 
-if strcmp(getenv('username'),'SommerVD')
+if strcmp(getenv('username'),'SommerVD') || strcmp(getenv('username'),'vp35')
     directory = 'C:\Data\Recordings\';
 elseif  strcmp(getenv('username'),'DangerZone')
     directory = 'E:\Data\Recordings\';

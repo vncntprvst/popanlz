@@ -1,4 +1,4 @@
-if strcmp(getenv('username'),'SommerVD')
+if strcmp(getenv('username'),'SommerVD') || strcmp(getenv('username'),'vp35')
     directory = 'C:\Data\Recordings\';
 elseif strcmp(getenv('username'),'DangerZone')
     directory = 'E:\data\Recordings\';
