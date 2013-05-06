@@ -950,80 +950,20 @@ elseif strcmp(listcat, 'displayallfigs')
 end
 %%  list figures
 if figcat>0
-dirfignames={figdir{figcat}.name};
+   dirfignames={figdir{figcat}.name};
+   % Order by date
+   filedates=[figdir{figcat}.datenum];
 else
-dirfignames={figdir{:}.name};%incorrect
+    dirfignames={figdir{:}.name}; %incorrect
+    filedates=cell2mat({figdir(:).datenum});
 end
 
-subjfig=regexpi(dirfignames,'^\w','match');
-subjfig=subjfig(~cellfun('isempty',subjfig));
+[filedates,fdateidx] = sort(filedates,'descend');
+dirfignames = dirfignames(fdateidx);
+dirfignames = cellfun(@(x) x(1:end-4), dirfignames, 'UniformOutput', false);
+dirfignames=dirfignames(~cellfun('isempty',regexpi(dirfignames,'^\w','match')));
 
-subjfig=regexpi(dirfignames,'^\w','match');
-subjfig=subjfig(~cellfun('isempty',subjfig));
-
-
-olddir=pwd; %keep current dir in memory
-
-%preallocate
-indfilenames=cell(length(rawdirs),1);
-unprocfiles=cell(length(rawdirs),1);
-
-for rwadirnum=1:length(rawdirs)
-    rawdir=rawdirs{rwadirnum};
-    idletter=idletters(rwadirnum);
-    cd(rawdir); %move to raw files directory
-    rawdirlisting=dir(rawdir);
-    dirfileNames = {rawdirlisting.name};
-    
-    %add subject ID letter in front of file names
-    noidfiles=regexpi(dirfileNames,'^\d+','match'); % output file names that start with digits
-    noidindex=find(~cellfun(@isempty,noidfiles));
-    if logical(sum(noidindex))
-        % Loop through each
-        for id = 1:length(noidindex)
-            movefile(dirfileNames{noidindex(id)}, [idletter,dirfileNames{noidindex(id)}]);
-        end
-    end
-    
-    %change hyphen into underscores
-    hyphenfiles=regexpi(dirfileNames,'^\w+-','match'); % output file names that start with digits
-    hyphenindex=find(~cellfun(@isempty,hyphenfiles));
-    if logical(sum(hyphenindex))
-        % Loop through each
-        for id = 1:length(hyphenindex)
-            movefile(dirfileNames{hyphenindex(id)},...
-                [dirfileNames{hyphenindex(id)}(1:length(hyphenfiles{hyphenindex(id)}{:})-1),'_',dirfileNames{hyphenindex(id)}(length(hyphenfiles{hyphenindex(id)}{:})+1:end)]);
-        end
-    end
-    
-    % refresh dirfileNames
-    rawdirlisting=dir(rawdir);
-    dirfileNames = {rawdirlisting.name};
-    
-    [rawfilenames,filematch]=regexpi(dirfileNames,'\w*A$','match'); % output file names that end with A
-    rawfilenames=rawfilenames(~cellfun('isempty',filematch));
-    rawfilenames=cellfun(@(x) x{:}, rawfilenames, 'UniformOutput', false);
-    indfilenames{rwadirnum}=cellfun(@(x) x(1:end-1), rawfilenames, 'UniformOutput', false);
-    
-    cd(olddir); %go back to original dir
-    
-    % Order by date
-    procdirlist=dirlisting{rwadirnum};
-    filedates=cell2mat({procdirlist(:).datenum});
-    [filedates,fdateidx] = sort(filedates,'descend');
-    procdirlist = {procdirlist(:).name};
-    procdirlist = procdirlist(fdateidx);
-    procdirlist = procdirlist(~cellfun('isempty',strfind(procdirlist,'mat')));
-    procdirlist = procdirlist(cellfun('isempty',strfind(procdirlist,'myBreakpoints')));
-    procdirlist = cellfun(@(x) x(1:end-4), procdirlist, 'UniformOutput', false);
-    dirlisting{rwadirnum}=procdirlist;
-    if sum(~ismember(indfilenames{rwadirnum},procdirlist))
-        % beware if length of ismember is 1, the ~ will make a null
-        % subscript ... Shouldn't happen.
-        unprocfiles{rwadirnum}=indfilenames{rwadirnum}([~ismember(indfilenames{rwadirnum},procdirlist)]);
-    end
-end
-set(hObject,'string',dirlisting{monknum});
+set(hObject,'string',dirfignames);
 
 % --- Executes on button press in LoadFile.
 function LoadFile_Callback(hObject, eventdata, handles)
