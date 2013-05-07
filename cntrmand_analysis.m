@@ -2,9 +2,9 @@
 subject={'Rigel','Sixx','Hilda'};
 %emdirections={'upward','up_left','leftward','down_left','downward','down_right','rightward','up_right','all'};
 emdirections={'all'};
-for monknum=1:2
-alldata=findssrt_batch(monknum,emdirections);
-
+for monknum=1:3
+% alldata=findssrt_batch(monknum,emdirections);
+alldata=SSRT_TachoMP(monknum,emdirections);
 meansaclat=nan(length(emdirections),1);
 for andir=1:length(emdirections)
 dalldata=alldata(arrayfun(@(x) strcmp(x.dir,emdirections{andir}), alldata));
