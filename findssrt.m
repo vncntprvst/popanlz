@@ -1,5 +1,5 @@
 % Find SSRT for single file
-function [overallMeanSSRT,meanIntSSRT,meanSSRT,inhibfun,ssds]=findssrt(recname)
+function [overallMeanSSRT,meanIntSSRT,meanSSRT,inhibfun,ssds,tachomc]=findssrt(recname)
 %subjects={'Rigel','Sixx','Hilda'};
 
 % Beta version: best use a recording made with gapstop training and lots of trials
@@ -24,6 +24,17 @@ else
     noncancel=(stoptrialcodes(~abortedstoptrials,9)==17385) | ...
         (stoptrialcodes(~abortedstoptrials,9)==16386);
 end
+
+        %keep track of trial number
+        goodstoptrials=stoptrials(~abortedstoptrials);
+        noncanceltrials=goodstoptrials(noncancel);
+        canceltrials=goodstoptrials(~noncancel);
+        allsactrials=find(trialtypes==604);
+        if find(stoptrialcodes(:,8)==1503,1)
+            sactrials=allsactrials(floor(allcodes(allsactrials,9)./10)==704);
+        else
+            sactrials=allsactrials(floor(allcodes(allsactrials,8)./10)==704);
+        end
 
 %% find "desired" delay times (keep in mind that video synch adds ~65ms, so real ssd are variable)
 
@@ -61,6 +72,17 @@ alllats=alllats';%needs to be transposed because the logical indexing below will
 allgoodsacs=~cellfun('isempty',reshape({saccadeInfo.latency},size(saccadeInfo)));
 %removing bad trials
 allgoodsacs(logical(allbad),:)=0;
+%keeping sac info of non-canceled SS trials
+        allncsacs=allgoodsacs;
+        allncsacs(floor(allcodes(:,2)./1000)==6,:)=0; % nullifying NSS trials
+        nasstrials=stoptrials(~abortedstoptrials);
+        allncsacs(nasstrials(~noncancel),:)=0; % nullifying CSS trials
+        if max(sum(allncsacs,2))>1
+            twogoods=find(sum(allncsacs,2)>1);
+            for dblsac=1:length(twogoods)
+                allncsacs(twogoods(dblsac),find(allncsacs(twogoods(dblsac),:),1))=0;
+            end
+        end
 %removing stop trials that may be included
 allgoodsacs(floor(allcodes(:,2)./1000)~=6,:)=0;
 %indexing good sac trials
@@ -72,7 +94,7 @@ if max(sum(allgoodsacs,2))>1
     end
 end
 sacdelay.all=(cell2mat(alllats(allgoodsacs')))';
-
+ncsacdelay=cell2mat(alllats(allncsacs'));
 
 %% calculating probabilities for this session
 %histo binning method
@@ -127,6 +149,23 @@ try
 catch
     probaresp_diff=1;
 end
+
+ %% get tachometric curve. Build matrix with 1. SSDs 2. RTs 3. success
+        SSDRTs=inf(length(allbad),3); % may differ from sum(~allbad)
+        ccssd(ismember(ccssd,unique(ccssd-1)))=ccssd(ismember(ccssd,unique(ccssd-1)))+1;
+        SSDRTs(canceltrials,1)=ccssd;
+        nccssd(ismember(nccssd,unique(nccssd-1)))=nccssd(ismember(nccssd,unique(nccssd-1)))+1;
+        SSDRTs(logical(sum(allncsacs,2)),1)=nccssd(ismember(goodstoptrials(noncancel),find(sum(allncsacs,2)))); %got to remove some ssd when sacs are not available
+        SSDRTs(logical(sum(allgoodsacs,2)),2)=sacdelay.all;
+        SSDRTs(logical(sum(allncsacs,2)),2)=ncsacdelay;
+        SSDRTs(logical(sum(allncsacs,2)),3)=0;
+        SSDRTs(logical(allbad),3)=0;
+        SSDRTs([find(sum(allgoodsacs,2));canceltrials],3)=1;
+        try
+            tachomc = tachCM2(SSDRTs);
+        catch
+            tachomc = deal(NaN);
+        end
 
 %% calculate SSRT
 if ~(isempty(narssdbins) || length(narssdbins)==1)

@@ -5,6 +5,10 @@ function [colecalldata,allnccssd,allccssd]=SSRT_TachoMP(monknum,emdirections)  %
 global probaresp;
 global narssdbins;
 
+% subject={'Rigel','Sixx','Hilda'};
+%emdirections={'upward','up_left','leftward','down_left','downward','down_right','rightward','up_right','all'};
+% emdirections={'all'};
+
 if strcmp(getenv('username'),'SommerVD') || strcmp(getenv('username'),'vp35')
     directory = 'C:\Data\Recordings\';
 elseif  strcmp(getenv('username'),'DangerZone')
@@ -66,7 +70,7 @@ for andir=1:length(emdirections)
     allmeanssrt=cell(length(filestoload),1);
     alldata=struct('dir',[],'NSSsacdelay',[],'NSSsuccessrate',[],'SRsacdelay',[],'SSDs',[],'meanRT',[],...
         'inhibfun',[],'t_inhibfun',[],'NRMSE',[],'monotonic',[],'meanIntSSRT',[],'meanSSRT',[],'overallMeanSSRT',[],...
-        'simpleSSRT',[],'substrSSRT',[],'tacho',[],'xctr',[]);
+        'intssrt',[],'simpleSSRT',[],'substrSSRT',[],'synthSSRT',[],'tacho',[],'xctr',[]);
     
     
     %% get data
@@ -81,7 +85,16 @@ for andir=1:length(emdirections)
         
         try
             load(fname,'allcodes','alltimes','allbad','saccadeInfo');
-            load([fname(1:end-4),'_sac'],'dataaligned');
+            try
+                load([fname,'_sactgtrew'],'dataaligned');
+                dataaligned=dataaligned{1}; % keep only sac alignment
+            catch
+                try
+                    load([fname(1:end-4),'_sac'],'dataaligned');
+                catch
+                    continue
+                end
+            end
         catch
             continue;
         end
@@ -249,7 +262,11 @@ for andir=1:length(emdirections)
         sacdataalign=find(arrayfun(@(x) strcmp(x.alignlabel,'sac'),dataaligned));
         sacdelay=struct('all',[],'left',[],'right',[]);
         for sacda=1:length(sacdataalign)
+            try
             cuetimes=cellfun(@(x) x(1,1),dataaligned(1,sacdataalign(sacda)).allgreyareas);
+            catch
+                continue
+            end
             sactime=dataaligned(1,sacdataalign(sacda)).alignidx;
             %left / right assymetry
             if sum(dataaligned(1,sacdataalign(sacda)).amplitudes)>0
@@ -395,17 +412,25 @@ for andir=1:length(emdirections)
         t_ccssd=ccssd;
         for transsd=1:length(noncanceltrials)
             %mean RT value around stop signal trial ("epoch RT")
-            epochRT=mean([sacdelay.all(find(sactrials<noncanceltrials(transsd),1,'last')),...
+                epochRT=nanmean([sacdelay.all(find(sactrials<noncanceltrials(transsd),1,'last')),...
                 sacdelay.all(find(sactrials>noncanceltrials(transsd),1))]);
             %transform
-            t_nccssd(transsd)=t_nccssd(transsd)-round(epochRT-meanRT);
+            try
+                t_nccssd(transsd)=t_nccssd(transsd)-round(epochRT-meanRT);
+            catch
+                continue
+            end
         end
         for transsd=1:length(canceltrials)
             %mean RT value around stop signal trial ("epoch RT")
-            epochRT=mean([sacdelay.all(find(sactrials<canceltrials(transsd),1,'last')),...
+                epochRT=mean([sacdelay.all(find(sactrials<canceltrials(transsd),1,'last')),...
                 sacdelay.all(find(sactrials>canceltrials(transsd),1))]);
             %transform
+            try
             t_ccssd(transsd)=t_ccssd(transsd)-round(epochRT-meanRT);
+            catch
+                continue
+            end
         end
         if length(t_ccssd)>4
             [~,t_delaybincenters]=hist([t_ccssd;t_nccssd],4);
@@ -423,7 +448,7 @@ for andir=1:length(emdirections)
         end
         alldata(numfile).t_inhibfun=t_probaresp;
         
-        %% get tychometric curve. Build matrix with 1. SSDs 2. RTs 3. success
+        %% get tachometric curve. Build matrix with 1. SSDs 2. RTs 3. success
         SSDRTs=inf(length(allbad),3); % may differ from sum(~allbad)
         ccssd(ismember(ccssd,unique(ccssd-1)))=ccssd(ismember(ccssd,unique(ccssd-1)))+1;
         SSDRTs(canceltrials,1)=ccssd;
@@ -435,9 +460,9 @@ for andir=1:length(emdirections)
         SSDRTs(logical(allbad),3)=0;
         SSDRTs([find(sum(allgoodsacs,2));canceltrials],3)=1;
         try
-            [xctr,~,tach] = tachCM2(SSDRTs);
+            [xctr xtach tach rPTc rPTe] = tachCM2(SSDRTs);
         catch
-            [xctr,tach]=deal(NaN);
+            [xctr xtach tach rPTc rPTe] = deal(NaN);
         end
         alldata(numfile).tacho=tach;
         alldata(numfile).xctr=xctr;
@@ -518,6 +543,10 @@ for andir=1:length(emdirections)
                         [meanIntSSRT, meanSSRT, overallMeanSSRT]= ...
                             ssrt_bestfit(sacdelay.all', t_probaresp(t_ssdbins>0)', t_ssdbins(t_ssdbins>0)');
                     end
+                    alldata(numfile).meanIntSSRT=meanIntSSRT;
+                    alldata(numfile).meanSSRT=meanSSRT;
+                    alldata(numfile).overallMeanSSRT=overallMeanSSRT;
+                    
                     %% calculate SSRT with home-made code
                     % finding ssrt - first method: integration (constant SSRT)
                     delaydistribedges=min(sacdelay.all)-1:10:max(sacdelay.all)+1;
@@ -566,12 +595,29 @@ for andir=1:length(emdirections)
                             intssrt(prbr)=stopprocfinishline-t_ssdbins(prbr);
                         end
                     end
+                    alldata(numfile).intssrt=intssrt;
                     
                     %% simple substraction method: SSRT is the difference between the mean RT
                     % on no-signal trials and the midpoint of the inhibition function,
                     theta=atan((probaresp(2)-probaresp(1))/(narssdbins(2)-narssdbins(1)));
                     midpoint=round(cos(theta)*((0.5-probaresp(1))/sin(theta))+narssdbins(1));
                     alldata(numfile).substrSSRT=mean(sacdelay.all)-midpoint;
+                    
+                    % new synthetic SSRT
+                        synthSSRT=[alldata(numfile).substrSSRT round(nanmean(simpleSSRT)) round(nanmean(intssrt))];
+                        try
+                            synthSSRT=mean(synthSSRT(synthSSRT>40 & synthSSRT<150));
+                        catch
+                            synthSSRT=NaN;
+                        end
+                        alldata(numfile).synthSSRT=synthSSRT;
+                    
+%                     if ~isempty(nanmean(simpleSSRT)) && (nanmean(simpleSSRT)>50 && nanmean(simpleSSRT)<150)
+%                         xctr;
+%                         tach;
+%                         xtach;
+%                     end
+                    
                     
                     % keep values
                     alldata(numfile).meanRT=meanRT;
@@ -593,7 +639,7 @@ for andir=1:length(emdirections)
                         %         hold off;
                         %         close(IFploth);
                         
-                        alldata(numfile).overallMeanSSRT=mean([mean(intssrt) meanIntSSRT]);
+%                         alldata(numfile).overallMeanSSRT=mean([mean(intssrt) meanIntSSRT]);
                         
                     end
                 catch
@@ -639,16 +685,66 @@ for andir=1:length(emdirections)
     end
     
     %% plot evolution of SSRT with respect to SSDs and RT
-    % index of "appropriate" file
+SSRTs=cell(7,1);
+    SSRTs{1,:}={alldata.substrSSRT};
+    SSRTs{1,:}=cellfun(@(x) round(x), SSRTs{1,:},'UniformOutput',false);
+    [SSRTs{1,:}{cellfun('isempty',SSRTs{1,:})}]=deal(0);
+    SSRTs{2,:}={alldata.meanSSRT};
+    SSRTs{2,:}=cellfun(@(x) round(x), SSRTs{2,:},'UniformOutput',false);
+    [SSRTs{2,:}{cellfun('isempty',SSRTs{2,:})}]=deal(0);
+    SSRTs{3,:}={alldata.meanIntSSRT};
+    SSRTs{3,:}=cellfun(@(x) round(x), SSRTs{3,:},'UniformOutput',false);
+    [SSRTs{3,:}{cellfun('isempty',SSRTs{3,:})}]=deal(0);
+     SSRTs{4,:}={alldata.intssrt};
+    SSRTs{4,:}=cellfun(@(x) round(nanmean(x)), SSRTs{4,:},'UniformOutput',false);
+    [SSRTs{4,:}{cellfun('isempty',SSRTs{4,:})}]=deal(0);
+    SSRTs{5,:}={alldata.simpleSSRT};
+    SSRTs{5,:}=cellfun(@(x) round(nanmean(x)), SSRTs{5,:},'UniformOutput',false);
+    [SSRTs{5,:}{cellfun('isempty',SSRTs{5,:})}]=deal(0);
+    SSRTs{6,:}={alldata.overallMeanSSRT};
+    SSRTs{6,:}=cellfun(@(x) round(x), SSRTs{6,:},'UniformOutput',false);
+    [SSRTs{6,:}{cellfun('isempty',SSRTs{6,:})}]=deal(0);
+    SSRTs{7,:}={alldata.synthSSRT};
+    SSRTs{7,:}=cellfun(@(x) round(nanmean(x)), SSRTs{7,:},'UniformOutput',false);
+    [SSRTs{7,:}{cellfun('isempty',SSRTs{7,:})}]=deal(0);
+    %look at corresponding tacho midcurve value
+    alltachomc={alldata.xctr};
+    alltachomc=cellfun(@(x) round(nanmean(x)), alltachomc,'UniformOutput',false);
+    [alltachomc{cellfun('isempty',alltachomc)}]=deal(0);
+
+    %look at correlation coefficients
+    figure(22)
+    hold on
+    figure(21);
+    SSRTs_idx=cell(7,1);
+    tachomc_idx=[alltachomc{:}]>20 & [alltachomc{:}]<120; 
+    [tachomcdata,tachomcdata_idx]=sort([alltachomc{tachomc_idx}]);
+    plot(tachomcdata,'LineWidth',1.5,'Color','k')
+    hold on
+%     RTtach={alldata(tachomc_idx).meanRT}; 
+%     RTtach=RTtach(tachomcdata_idx)
+%     plot([RTtach{~cellfun('isempty',RTtach)}],tachomcdata(~cellfun('isempty',RTtach)))
+%     % no correlation detected between RT and tachomc
+cc=lines(size(SSRTs,1));
+    for ssrtidxnum=1:7
+        SSRTs_idx{ssrtidxnum,:}=[SSRTs{ssrtidxnum,:}{:}]>40 & [SSRTs{ssrtidxnum,:}{:}]<150;
+        [SSRTdata,~]=sort([SSRTs{ssrtidxnum,:}{SSRTs_idx{ssrtidxnum,:}}]);
+        if ~isempty(SSRTdata)
+        figure(21)
+        plot(SSRTdata,'Color',cc(ssrtidxnum,:),'LineWidth',1.5)
+        figure(22)
+        tachosssrtidx=tachomc_idx & SSRTs_idx{ssrtidxnum,:};  
+        scatter([alltachomc{tachosssrtidx}],[SSRTs{ssrtidxnum,:}{tachosssrtidx}],50,cc(ssrtidxnum,:))
+        end
+    end
+    figure(21)
+        legend('tachomcdata','substrSSRT','intssrt','simpleSSRT','synthSSRT','Location','SouthEast')
+
+moreplots=0
+if moreplots
+        % index of "appropriate" file
     fidx=find(~cellfun('isempty',{alldata.substrSSRT}));
     % restrict to legitimate SSRTs
-    SSRTs=round([alldata(fidx).substrSSRT]);
-    simpleSSRTs=round([alldata(fidx).simpleSSRT]);
-    oSSRTs=round([alldata(fidx).overallMeanSSRT]);
-    %look at corresponding tacho midcurve value
-    alltachomc={alldata(fidx).xctr};
-    alltachomc=alltachomc;
-    round([cat(1,alltachomc)]);
     
     % final, overall value
     foSSRT=nanmean([nanmean(oSSRTs(oSSRTs>50 & oSSRTs<150))...
@@ -1011,7 +1107,7 @@ for andir=1:length(emdirections)
     % legend({'constant SSRT method','random SSRT method','average different estimates'})
     % xlabel('stop signal delay (ms)');
     % title('Stop signal reaction time');
-    
+end
     %% finally, adding SSRT to canceled trials alignment time, and selecting
     % latency matched non-stop trials
     if splitdataaligned
