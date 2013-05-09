@@ -72,7 +72,7 @@ for andir=1:length(emdirections)
         'inhibfun',[],'t_inhibfun',[],'NRMSE',[],'monotonic',[],'meanIntSSRT',[],'meanSSRT',[],'overallMeanSSRT',[],...
         'intssrt',[],'simpleSSRT',[],'substrSSRT',[],'synthSSRT',[],'tacho',[],'xctr',[]);
     
-    
+ 
     %% get data
     for numfile=1:length(filestoload)
         fname=filestoload{numfile};
@@ -739,22 +739,26 @@ cc=lines(size(SSRTs,1));
     end
     figure(21)
         legend('tachomcdata','substrSSRT','intssrt','simpleSSRT','synthSSRT','Location','SouthEast')
-
-moreplots=0
-if moreplots
-        % index of "appropriate" file
-    fidx=find(~cellfun('isempty',{alldata.substrSSRT}));
-    % restrict to legitimate SSRTs
+        
+%% evolution of SSRT over time
+    % find which SSRTs have appropriate values, and keep mean value
+    nmsssrt=cell(size(SSRTs));
+    for apssrt=1:size(SSRTs,1)
+        if sum([SSRTs{apssrt,:}{:}]>40 & [SSRTs{apssrt,:}{:}]<150)>0
+          nmsssrt{apssrt}=nanmean([SSRTs{apssrt,:}{[SSRTs{apssrt,:}{:}]>40 & [SSRTs{apssrt,:}{:}]<150}]);
+        end
+    end
     
     % final, overall value
-    foSSRT=nanmean([nanmean(oSSRTs(oSSRTs>50 & oSSRTs<150))...
-        nanmean(simpleSSRTs(simpleSSRTs>50 & simpleSSRTs<150))...
-        nanmean(SSRTs(SSRTs>50 & SSRTs<150))]);
+    foSSRT=round(nanmean([nmsssrt{:}]));
     
-    % evolution over time
-    red_simpleSSRTs=cellfun(@(x) round(nanmean(x)), {alldata(fidx).simpleSSRT});
-    nsidx=(SSRTs>50 & SSRTs<150) & (red_simpleSSRTs>50 & red_simpleSSRTs<150); % & (oSSRTs>50 & oSSRTs<150)
-    meanvalsevol=round(mean([SSRTs(nsidx);red_simpleSSRTs(nsidx)])/2)+round(foSSRT/2);
+    % evolution over time (row 1: SSRT, row 2: session)
+    evolSSRT(1,:)=round(([SSRTs{7,:}{[SSRTs{7,:}{:}]>40 & [SSRTs{7,:}{:}]<150}])/2)+round(foSSRT/2);
+    evolSSRT(2,:)=find([SSRTs{7,:}{:}]>40 & [SSRTs{7,:}{:}]<150);
+    
+moreplots=0
+if moreplots
+
     plot(fidx(nsidx),meanvalsevol);
     set(gca,'ylim',[0 150]);
     xlabel('recording session')
