@@ -1,6 +1,10 @@
 % Find SSRT for single file
-function [overallMeanSSRT,meanIntSSRT,meanSSRT,inhibfun,ssds,tachomc]=findssrt(recname)
-%subjects={'Rigel','Sixx','Hilda'};
+function [overallMeanSSRT,meanIntSSRT,meanSSRT,inhibfun,ssds,tachomc,tachowidth]=findssrt(recname, plots)
+global directory;
+
+if nargin < 2 | isempty(plots)
+     plots = 0;
+end
 
 % Beta version: best use a recording made with gapstop training and lots of trials
 %subject=subjects{subjectnb};
@@ -162,9 +166,47 @@ end
         SSDRTs(logical(allbad),3)=0;
         SSDRTs([find(sum(allgoodsacs,2));canceltrials],3)=1;
         try
-            tachomc = tachCM2(SSDRTs);
+            [tachomc xtach tach rPTc rPTe] = tachCM2(SSDRTs);
         catch
-            tachomc = deal(NaN);
+            [tachomc xtach tach rPTc rPTe] = deal(NaN);
+        end
+        
+        if plots
+            tachoh=figure;
+            filttach=gauss_filtconv(tach,4);
+            coretach=filttach(xtach>-20 & xtach<170);
+            tachowidth=length(coretach(coretach>=0.1 & coretach<=0.9));
+            plot(xtach(xtach>-20 & xtach<170),coretach,'LineWidth',3);
+            title('Tachometric curve','FontName','calibri','FontSize',15);
+            hxlabel=xlabel(gca,'rPT (ms)','FontName','calibri','FontSize',12);
+            set(gca,'Xlim',[-20 170],'XTick',[0:50:150],'TickDir','out','box','off'); %'XTickLabel',[50:50:400]
+            hylabel=ylabel(gca,'Fraction cancelled','FontName','calibri','FontSize',12);
+            set(gca,'Ylim',[0 1],'TickDir','out','box','off');
+            exportfigname=[directory,'figures\cmd\',recname,'_tacho'];
+            plot2svg([exportfigname,'.svg'],gcf, 'png');
+            delete(tachoh);
+            
+            sPTdistribh=figure;
+            filtrPTc = gauss_filtconv(rPTc,10);
+            filtrPTe = gauss_filtconv(rPTe,10);
+            plot(xtach,filtrPTc,'r','LineWidth',3);            
+            hold on
+%           plot(xtach,rPTc,'r')
+%           plot(xtach,rPTe,'b')
+            plot(xtach,filtrPTe,'b','LineWidth',3);
+            title('Distribution of rPTs','FontName','calibri','FontSize',15);
+            hxlabel=xlabel(gca,'rPT (ms)','FontName','calibri','FontSize',12);
+            set(gca,'Xlim',[min(xtach) max(xtach)],'XTick',[min(xtach):50:max(xtach)],'TickDir','out','box','off'); %'XTickLabel',[50:50:400]
+            hylabel=ylabel(gca,'Normalized frequency','FontName','calibri','FontSize',12);
+            set(gca,'TickDir','out','box','off');
+            set(gca,'XTick',[-200:100:500]);
+            set(gca,'XTickLabel',[-200:100:500]);
+            legend('rPTc','rPTe');
+            exportfigname=[directory,'figures\cmd\',recname,'_rPT'];
+            plot2svg([exportfigname,'.svg'],gcf, 'png');
+            delete(sPTdistribh);
+        else
+            tachowidth=NaN;
         end
 
 %% calculate SSRT
