@@ -182,8 +182,8 @@ end
             set(gca,'Xlim',[-20 170],'XTick',[0:50:150],'TickDir','out','box','off'); %'XTickLabel',[50:50:400]
             hylabel=ylabel(gca,'Fraction cancelled','FontName','calibri','FontSize',12);
             set(gca,'Ylim',[0 1],'TickDir','out','box','off');
-            exportfigname=[directory,'figures\cmd\',recname,'_tacho'];
-            plot2svg([exportfigname,'.svg'],gcf, 'png');
+%             exportfigname=[directory,'figures\cmd\',recname,'_tacho'];
+%             plot2svg([exportfigname,'.svg'],gcf, 'png');
             delete(tachoh);
             
             sPTdistribh=figure;
@@ -202,8 +202,8 @@ end
             set(gca,'XTick',[-200:100:500]);
             set(gca,'XTickLabel',[-200:100:500]);
             legend('rPTc','rPTe');
-            exportfigname=[directory,'figures\cmd\',recname,'_rPT'];
-            plot2svg([exportfigname,'.svg'],gcf, 'png');
+%             exportfigname=[directory,'figures\cmd\',recname,'_rPT'];
+%             plot2svg([exportfigname,'.svg'],gcf, 'png');
             delete(sPTdistribh);
         else
             tachowidth=NaN;
