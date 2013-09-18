@@ -172,28 +172,26 @@ end
         end
         
         if plots
-            tachoh=figure;
+            psychoplots=figure('color','white','position',[2315	200	524	636]);
+            subplot(3,2,1)
             filttach=gauss_filtconv(tach,4);
             coretach=filttach(xtach>-20 & xtach<170);
             tachowidth=length(coretach(coretach>=0.1 & coretach<=0.9));
-            plot(xtach(xtach>-20 & xtach<170),coretach,'LineWidth',3);
-            title('Tachometric curve','FontName','calibri','FontSize',15);
+            plot(xtach(xtach>-20 & xtach<170),coretach,'LineWidth',2);
+            title('Tachometric curve','FontName','calibri','FontSize',12);
             hxlabel=xlabel(gca,'rPT (ms)','FontName','calibri','FontSize',12);
             set(gca,'Xlim',[-20 170],'XTick',[0:50:150],'TickDir','out','box','off'); %'XTickLabel',[50:50:400]
             hylabel=ylabel(gca,'Fraction cancelled','FontName','calibri','FontSize',12);
             set(gca,'Ylim',[0 1],'TickDir','out','box','off');
-%             exportfigname=[directory,'figures\cmd\',recname,'_tacho'];
-%             plot2svg([exportfigname,'.svg'],gcf, 'png');
-            delete(tachoh);
             
-            sPTdistribh=figure;
+            subplot(3,2,2)
             filtrPTc = gauss_filtconv(rPTc,10);
             filtrPTe = gauss_filtconv(rPTe,10);
-            plot(xtach,filtrPTc,'r','LineWidth',3);            
+            plot(xtach,filtrPTc,'r','LineWidth',2);            
             hold on
 %           plot(xtach,rPTc,'r')
 %           plot(xtach,rPTe,'b')
-            plot(xtach,filtrPTe,'b','LineWidth',3);
+            plot(xtach,filtrPTe,'b','LineWidth',2);
             title('Distribution of rPTs','FontName','calibri','FontSize',15);
             hxlabel=xlabel(gca,'rPT (ms)','FontName','calibri','FontSize',12);
             set(gca,'Xlim',[min(xtach) max(xtach)],'XTick',[min(xtach):50:max(xtach)],'TickDir','out','box','off'); %'XTickLabel',[50:50:400]
@@ -201,10 +199,25 @@ end
             set(gca,'TickDir','out','box','off');
             set(gca,'XTick',[-200:100:500]);
             set(gca,'XTickLabel',[-200:100:500]);
-            legend('rPTc','rPTe');
-%             exportfigname=[directory,'figures\cmd\',recname,'_rPT'];
-%             plot2svg([exportfigname,'.svg'],gcf, 'png');
-            delete(sPTdistribh);
+%             legend('rPTc','rPTe');
+            
+            subplot(3,2,3:6)
+            delaydistribedges=min(sacdelay.all)-1:10:max(sacdelay.all)+1;
+            delaydistribhhist=histc(sort(sacdelay.all),delaydistribedges);
+            delayfreq=delaydistribhhist./sum(delaydistribhhist);
+            delayfreq=fullgauss_filtconv(delayfreq,2,0);
+            plot(delaydistribedges,delayfreq,'-k','LineWidth',2);
+            xlabel('Saccade delay (ms)','FontName','calibri','FontSize',12);
+            title('Saccade delay frequency for no-stop trials','FontName','calibri','FontSize',12);
+            set(gca,'Xlim',[0 600])
+            set(gca,'TickDir','out','box','off');
+            newpos =  get(gcf,'Position')/60;
+            set(gcf,'PaperUnits','inches','PaperPosition',newpos);
+            exportfigname=[cell2mat(regexp(directory,'\w+:\\\w+\\','match')),...
+                  'Analysis\Countermanding\',recname(1:end-4),'_PsyCurves'];
+            print(psychoplots, '-dpng', '-noui', '-opengl','-r600', exportfigname);
+%           plot2svg([exportfigname,'.svg'],psychoplots, 'png');
+            delete(psychoplots);
         else
             tachowidth=NaN;
         end
