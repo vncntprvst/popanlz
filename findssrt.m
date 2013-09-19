@@ -29,7 +29,60 @@ else
         (stoptrialcodes(~abortedstoptrials,9)==16386);
 end
 
-        %keep track of trial number
+%% saccade delay for non-stop trials: all good saccade from non-stop trials
+%(may yield slightly different results than with left/right parsing method
+% used previously)
+
+alllats=reshape({saccadeInfo.latency},size(saccadeInfo));
+alllats=alllats';%needs to be transposed because the logical indexing below will be done column by column, not row by row
+allgoodsacs=~cellfun('isempty',reshape({saccadeInfo.latency},size(saccadeInfo)));
+%weeding out bad trials that are not stop trials
+allgoodsacs(logical(allbad)'&trialtypes~=407,:)=0;
+%keeping sac info of non-canceled SS trials
+        allncsacs=allgoodsacs;
+        allncsacs(floor(allcodes(:,2)./1000)==6,:)=0; % nullifying NSS trials
+        nasstrials=stoptrials(~abortedstoptrials);
+        allncsacs(nasstrials(~noncancel),:)=0; % nullifying CSS trials
+        if max(sum(allncsacs,2))>1
+            twogoods=find(sum(allncsacs,2)>1);
+            for dblsac=1:length(twogoods)
+                allncsacs(twogoods(dblsac),find(allncsacs(twogoods(dblsac),:),1))=0;
+            end
+        end
+%removing stop trials that may be included
+allgoodsacs(trialtypes==407,:)=0;
+%indexing good sac trials
+% if saccade detection corrected, there may two 'good' saccades
+if max(sum(allgoodsacs,2))>1
+    twogoods=find(sum(allgoodsacs,2)>1);
+    for dblsac=1:length(twogoods)
+        allgoodsacs(twogoods(dblsac),find(allgoodsacs(twogoods(dblsac),:),1))=0;
+    end
+end
+sacdelay.all=(cell2mat(alllats(allgoodsacs')))';
+
+%% find trials to the few early saccades that happened just before SSD
+aborsstrials=stoptrials(abortedstoptrials);
+earlyncsac=aborsstrials(ismember(aborsstrials,find(sum(allncsacs,2))));
+
+    % To adjust abortedstoptrials and noncancel (but impractical because can't
+    % calculate ssd from those early trials:
+    % if ~isempty(earlyncsac)
+    %     abortedstoptrials(ismember(stoptrials,earlyncsac))=0;
+    %     if find(stoptrialcodes(:,8)==1503,1)
+    %         noncancel=logical(sum((stoptrialcodes(~abortedstoptrials,9:10)==17385) |...
+    %         (stoptrialcodes(~abortedstoptrials,9:10)==16386),2));
+    %     else
+    %         noncancel=logical(sum((stoptrialcodes(~abortedstoptrials,8:9)==17385) |...
+    %         (stoptrialcodes(~abortedstoptrials,8:9)==16386),2));
+    %     end
+    % end
+    
+    %Instead, adjust allncsacs
+    allncsacs(earlyncsac,:)=0;
+    ncsacdelay=cell2mat(alllats(allncsacs'));
+
+%% keep track of trial number
         goodstoptrials=stoptrials(~abortedstoptrials);
         noncanceltrials=goodstoptrials(noncancel);
         canceltrials=goodstoptrials(~noncancel);
@@ -67,38 +120,7 @@ else
     SRsacdelay=(noncanceltimes(:,9)-noncanceltimes(:,7))-6;
 end
 
-%% saccade delay for non-stop trials: all good saccade from non-stop trials
-%(may yield slightly different results than with left/right parsing method
-% used previously)
 
-alllats=reshape({saccadeInfo.latency},size(saccadeInfo));
-alllats=alllats';%needs to be transposed because the logical indexing below will be done column by column, not row by row
-allgoodsacs=~cellfun('isempty',reshape({saccadeInfo.latency},size(saccadeInfo)));
-%removing bad trials
-allgoodsacs(logical(allbad),:)=0;
-%keeping sac info of non-canceled SS trials
-        allncsacs=allgoodsacs;
-        allncsacs(floor(allcodes(:,2)./1000)==6,:)=0; % nullifying NSS trials
-        nasstrials=stoptrials(~abortedstoptrials);
-        allncsacs(nasstrials(~noncancel),:)=0; % nullifying CSS trials
-        if max(sum(allncsacs,2))>1
-            twogoods=find(sum(allncsacs,2)>1);
-            for dblsac=1:length(twogoods)
-                allncsacs(twogoods(dblsac),find(allncsacs(twogoods(dblsac),:),1))=0;
-            end
-        end
-%removing stop trials that may be included
-allgoodsacs(floor(allcodes(:,2)./1000)~=6,:)=0;
-%indexing good sac trials
-% if saccade detection corrected, there may two 'good' saccades
-if max(sum(allgoodsacs,2))>1
-    twogoods=find(sum(allgoodsacs,2)>1);
-    for dblsac=1:length(twogoods)
-        allgoodsacs(twogoods(dblsac),find(allgoodsacs(twogoods(dblsac),:),1))=0;
-    end
-end
-sacdelay.all=(cell2mat(alllats(allgoodsacs')))';
-ncsacdelay=cell2mat(alllats(allncsacs'));
 
 %% calculating probabilities for this session
 %histo binning method

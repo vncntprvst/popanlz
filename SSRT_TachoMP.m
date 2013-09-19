@@ -285,8 +285,8 @@ for andir=1:length(emdirections)
         alllats=reshape({saccadeInfo.latency},size(saccadeInfo));
         alllats=alllats';%needs to be transposed because the logical indexing below will be done column by column, not row by row
         allgoodsacs=~cellfun('isempty',reshape({saccadeInfo.latency},size(saccadeInfo)));
-        %removing bad trials
-        allgoodsacs(logical(allbad),:)=0;
+        %weeding out bad trials that are not stop trials
+        allgoodsacs(logical(allbad)'&trialtypes~=407,:)=0;
         %keeping sac info of non-canceled SS trials
         allncsacs=allgoodsacs;
         allncsacs(floor(allcodes(:,2)./1000)==6,:)=0; % nullifying NSS trials
