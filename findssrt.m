@@ -1,5 +1,5 @@
 % Find SSRT for single file
-function [overallMeanSSRT,meanIntSSRT,meanSSRT,inhibfun,ssds,tachomc,tachowidth]=findssrt(recname, plots)
+function [mssrt,inhibfun,ccssd,nccssd,ssds,tachomc,tachowidth,sacdelay,rewtimes]=findssrt(recname, plots)
 global directory;
 
 if nargin < 2 | isempty(plots)
@@ -59,7 +59,10 @@ if max(sum(allgoodsacs,2))>1
         allgoodsacs(twogoods(dblsac),find(allgoodsacs(twogoods(dblsac),:),1))=0;
     end
 end
-sacdelay.all=(cell2mat(alllats(allgoodsacs')))';
+sacdelay=(cell2mat(alllats(allgoodsacs')))';
+ %get reward time for NSS trials
+    goodsactimes=alltimes(logical(sum(allgoodsacs,2)),:);
+    rewtimes=goodsactimes(allcodes(logical(sum(allgoodsacs,2)),:)==1030);
 
 %% find trials to the few early saccades that happened just before SSD
 aborsstrials=stoptrials(abortedstoptrials);
@@ -182,7 +185,7 @@ end
         SSDRTs(canceltrials,1)=ccssd;
         nccssd(ismember(nccssd,unique(nccssd-1)))=nccssd(ismember(nccssd,unique(nccssd-1)))+1;
         SSDRTs(logical(sum(allncsacs,2)),1)=nccssd(ismember(goodstoptrials(noncancel),find(sum(allncsacs,2)))); %got to remove some ssd when sacs are not available
-        SSDRTs(logical(sum(allgoodsacs,2)),2)=sacdelay.all;
+        SSDRTs(logical(sum(allgoodsacs,2)),2)=sacdelay;
         SSDRTs(logical(sum(allncsacs,2)),2)=ncsacdelay;
         SSDRTs(logical(sum(allncsacs,2)),3)=0;
         SSDRTs(logical(allbad),3)=0;
@@ -224,8 +227,8 @@ end
 %             legend('rPTc','rPTe');
             
             subplot(3,2,3:6)
-            delaydistribedges=min(sacdelay.all)-1:10:max(sacdelay.all)+1;
-            delaydistribhhist=histc(sort(sacdelay.all),delaydistribedges);
+            delaydistribedges=min(sacdelay)-1:10:max(sacdelay)+1;
+            delaydistribhhist=histc(sort(sacdelay),delaydistribedges);
             delayfreq=delaydistribhhist./sum(delaydistribhhist);
             delayfreq=fullgauss_filtconv(delayfreq,2,0);
             plot(delaydistribedges,delayfreq,'-k','LineWidth',2);
@@ -266,11 +269,38 @@ if ~(isempty(narssdbins) || length(narssdbins)==1)
     % calculate SSRT with Boucher et al's method
     try
         [meanIntSSRT, meanSSRT, overallMeanSSRT]= ...
-            ssrt_bestfit(sacdelay.all', inhibfun', ssds');
+            ssrt_bestfit(sacdelay', inhibfun', ssds');
     catch
         sacdelay;
     end
 else
     [meanIntSSRT, meanSSRT, overallMeanSSRT, inhibfun, ssds]=deal(NaN);
 end
+
+    mssrt=[overallMeanSSRT,meanIntSSRT,meanSSRT];
+    mssrt=round(nanmean(mssrt(mssrt>40 & mssrt<150)));
+    if isnan(mssrt) || ~(mssrt>50 & mssrt<150) %get tachomc and lookup SSRT/tachomc fit. If fit missing, run SSRT_TachoMP
+        try
+            load([recname(1),'_tachoSSRTfit'],'fit');
+        catch
+            %SSRT_TachoMP
+        end
+        %get tacho curve midpoint
+            tachomc=mean(tachomc);
+        if tachomc<20 || isnan(tachomc)
+            tachomc=20;
+        end
+        % find reciprocal SSRT value
+        mssrt=max([round(tachomc*fit.coeff(1)+fit.coeff(2)) 75]);
+    end
+    if ~(mssrt>75 & mssrt<150)
+        load([recname(1),'_evolSSRT'],'evolSSRT','foSSRT');
+        session=regexp(recname,'\d+','match');
+        if min(abs(evolSSRT(2,:)-str2num(session{1})))<=5
+            mssrt=round(mssrt/3+(evolSSRT(1,find(abs(evolSSRT(2,:)-str2num(session{1}))==min(abs(evolSSRT(2,:)-str2num(session{1}))),1)))*2/3);
+        else
+            mssrt=round(mssrt/3+foSSRT*2/3);
+        end
+    end
+
 end

@@ -378,10 +378,10 @@ while ~islast
                             badidx(nummatch)=2; %non-cancelled trials
                         end
                         if ecodeout(8)==1503 %with photodiode state timestamp
-                            allssd(nummatch,1)=etimeout(:,9)-etimeout(:,7);
-                            allssd(nummatch,2)=etimeout(:,8)-etimeout(:,7);
+                            allssd(nummatch,1)=etimeout(:,9)-etimeout(:,7)-3;
+                            allssd(nummatch,2)=etimeout(:,8)-etimeout(:,7)-2;
                         else
-                            allssd(nummatch)=etimeout(:,8)-etimeout(:,7);
+                            allssd(nummatch)=etimeout(:,8)-etimeout(:,7)-2;
                         end
                     end
                     

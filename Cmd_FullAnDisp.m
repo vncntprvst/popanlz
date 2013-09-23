@@ -31,7 +31,8 @@ if length(loadfile)>1
     loadfile=loadfile(~cellfun('isempty',regexpi(loadfile,'Sp2','match')));
 end
 
-% [overallMeanSSRT,meanIntSSRT,meanSSRT,inhibfun,ssds,tachomc,tachowidth]=findssrt(loadfile{:}, 1);
+[mssrt,inhibfun,ccssd,nccssd,ssdvalues,tachomc,tachowidth,sacdelay,rewtimes]=findssrt(loadfile{:}, 1);
+
 %% presets
 tasktype='gapstop';
 
@@ -41,14 +42,14 @@ tasktype='gapstop';
 %aligntype='stop';
 
 % tgt vs stop
-% firstalign=7; 
-% secondalign=8; 
-%aligntype='stop';
+firstalign=7; 
+secondalign=8; 
+aligntype='stop';
 
 % ssd
-firstalign=507; 
-secondalign=[]; 
-aligntype='ssd';
+% firstalign=507; 
+% secondalign=[]; 
+% aligntype='ssd';
 
 includebad=0;
 spikechannel=1;
@@ -67,10 +68,10 @@ getaligndata = prealign(loadfile{:}(1:end-4), trialdirs, tasktype, firstalign,..
      if strcmp(aligntype,'stop') 
         if firstalign==6 % saccade
             %     [p_cancellation,h_cancellation] = cmd_wilco_cancellation(rdd_filename,datalign);
-            disp_cmd([filename,'_Clus',num2str(spikechannel)],datalign,0,0); %0, 0: latmatch, no; triplot, no
+            disp_cmd([loadfile{:}(1:end-4),'_Clus',num2str(spikechannel)],getaligndata,0,0); %0, 0: latmatch, no; triplot, no
             %     disp_cmd(rdd_filename,datalign,1);
         elseif firstalign==7 % target
-            disp_cmd([filename,'_Clus',num2str(spikechannel)],datalign,1,0); % keep triplot off until fixed
+            disp_cmd([loadfile{:}(1:end-4),'_Clus',num2str(spikechannel)],getaligndata,1,0); % keep triplot off until fixed
         end
     elseif strcmp(aligntype,'ssd') % may need task-specific analysis
         if firstalign==507
