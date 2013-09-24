@@ -147,15 +147,14 @@ catch
 end
 
 %diff method
-ssdvalues(find(diff(ssdvalues)==1)+1)=ssdvalues(diff(ssdvalues)==1);
-ssdvalues=ssdvalues(diff(ssdvalues)>0);
-if sum(diff(ssdvalues)==1) % second turn
-    ssdvalues(find(diff(ssdvalues)==1))=ssdvalues(diff(ssdvalues)==1)+1;
-    ssdvalues=ssdvalues(diff(ssdvalues)>0);
+while sum(diff(ssdvalues)==1)
+    ssdvalues(diff(ssdvalues)==1)=ssdvalues(diff(ssdvalues)==1)+1;
 end
+    ssdvalues=unique(ssdvalues);
+
 % find and keep most prevalent ssds
-[ssdtots,ssdtotsidx]=sort((arrayfun(@(x) sum(ccssd==x | ccssd==x-1 | ccssd==x+1),ssdvalues))+...
-    (arrayfun(@(x) sum(nccssd==x | nccssd==x-1 | nccssd==x+1),ssdvalues)));
+[ssdtots,ssdtotsidx]=sort((arrayfun(@(x) sum(ccssd<=x+3 & ccssd>=x-3),ssdvalues))+...
+    (arrayfun(@(x) sum(nccssd<=x+3 & nccssd>=x-3),ssdvalues)));
 prevssds=sort(ssdvalues(ssdtotsidx(ssdtots>ceil(median(ssdtots))+1)));
 try
     if length(prevssds)>=4
@@ -251,15 +250,21 @@ end
 if ~(isempty(narssdbins) || length(narssdbins)==1)
     
     % test monotonicity and keep relevant inhibition function
-    if (all(diff(probaresp)>=0) && length(probaresp)>=3) && ~all(diff(probaresp_diff)>=0)
+    if (all(diff(probaresp)>=0) && length(probaresp)>=4) && ~all(diff(probaresp_diff)>=0)
         inhibfun=probaresp;
         ssds=narssdbins;
-    elseif all(diff(probaresp_diff)>=0)
-        inhibfun=probaresp_diff;
+    elseif all(diff(fullgauss_filtconv(probaresp_diff,1,1))>=0)
+        inhibfun=fullgauss_filtconv(probaresp_diff,1,1);
         if length(prevssds)>=4
             ssds=prevssds;
         else
             ssds=ssdvalues;
+        end
+        if isnan(ssdvalues)
+             if (all(diff(probaresp)>=0) && length(probaresp)>=3) && ~all(diff(probaresp_diff)>=0)
+        inhibfun=probaresp;
+        ssds=narssdbins;
+             end
         end
     else %monotonicity failure
         disp('failed to generate monotonic inhibition function')
@@ -291,7 +296,13 @@ end
             tachomc=20;
         end
         % find reciprocal SSRT value
+        try
         mssrt=max([round(tachomc*fit.coeff(1)+fit.coeff(2)) 75]);
+        catch
+            if (tachomc>50 & tachomc<90)
+                mssrt=tachomc+20;
+            end
+        end
     end
     if ~(mssrt>75 & mssrt<150)
         load([recname(1),'_evolSSRT'],'evolSSRT','foSSRT');
