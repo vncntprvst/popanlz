@@ -38,6 +38,8 @@ alllats=alllats';%needs to be transposed because the logical indexing below will
 allgoodsacs=~cellfun('isempty',reshape({saccadeInfo.latency},size(saccadeInfo)));
 %weeding out bad trials that are not stop trials
 allgoodsacs(logical(allbad)'&trialtypes~=407,:)=0;
+    %also removing those weird trial with 2222 code
+    allgoodsacs(allcodes(:,ceil(find(allcodes==1030,1)/375)-1)==2222,:)=0;
 %keeping sac info of non-canceled SS trials
         allncsacs=allgoodsacs;
         allncsacs(floor(allcodes(:,2)./1000)==6,:)=0; % nullifying NSS trials
@@ -147,22 +149,40 @@ catch
 end
 
 %diff method
+% ssdvalues(find(diff(ssdvalues)==1)+1)=ssdvalues(diff(ssdvalues)==1);
+% ssdvalues=ssdvalues(diff(ssdvalues)>0);
+% if sum(diff(ssdvalues)==1) % second turn
+%     ssdvalues(find(diff(ssdvalues)==1))=ssdvalues(diff(ssdvalues)==1)+1;
+%     ssdvalues=ssdvalues(diff(ssdvalues)>0);
+% end
+
 while sum(diff(ssdvalues)==1)
     ssdvalues(diff(ssdvalues)==1)=ssdvalues(diff(ssdvalues)==1)+1;
 end
     ssdvalues=unique(ssdvalues);
 
 % find and keep most prevalent ssds
-[ssdtots,ssdtotsidx]=sort((arrayfun(@(x) sum(ccssd<=x+3 & ccssd>=x-3),ssdvalues))+...
-    (arrayfun(@(x) sum(nccssd<=x+3 & nccssd>=x-3),ssdvalues)));
-prevssds=sort(ssdvalues(ssdtotsidx(ssdtots>ceil(median(ssdtots))+1)));
+[ssdtots,ssdtotsidx]=sort((arrayfun(@(x) sum(ccssd<=x+3 & ccssd>=x-3),ssdvalues))); %+...
+%     (arrayfun(@(x) sum(nccssd<=x+3 & nccssd>=x-3),ssdvalues)));
+prevssds=sort(ssdvalues(ssdtotsidx(ssdtots>(median(ssdtots)-std(ssdtots)))));
+raise=1;
+while length(prevssds)>4
+    prevssds=sort(ssdvalues(ssdtotsidx(ssdtots>(median(ssdtots)-std(ssdtots)+raise))));
+    raise=raise+1;
+end
 try
-    if length(prevssds)>=4
+    if length(prevssds)>=3
         nccssdhist=hist(nccssd,prevssds);
         ccssdhist=hist(ccssd,prevssds);
+        nccssdhist=nccssdhist(nccssdhist>0);
+        ccssdhist=ccssdhist(nccssdhist>0);
+        prevssds=prevssds(nccssdhist>0);
     else
         nccssdhist=hist(nccssd,ssdvalues);
         ccssdhist=hist(ccssd,ssdvalues);
+        nccssdhist=nccssdhist(nccssdhist>0);
+        ccssdhist=ccssdhist(nccssdhist>0);
+        ssdvalues=ssdvalues(nccssdhist>0);
     end
     % find probability to respond
     probaresp_diff=nccssdhist'./(nccssdhist'+ccssdhist');
@@ -190,9 +210,9 @@ end
         SSDRTs(logical(allbad),3)=0;
         SSDRTs([find(sum(allgoodsacs,2));canceltrials],3)=1;
         try
-            [tachomc xtach tach rPTc rPTe] = tachCM2(SSDRTs);
+            [tachomc, xtach, tach, rPTc, rPTe] = tachCM2(SSDRTs);
         catch
-            [tachomc xtach tach rPTc rPTe] = deal(NaN);
+            [tachomc, xtach, tach, rPTc, rPTe] = deal(NaN);
         end
         
         if plots
@@ -254,18 +274,15 @@ if ~(isempty(narssdbins) || length(narssdbins)==1)
         inhibfun=probaresp;
         ssds=narssdbins;
     elseif all(diff(fullgauss_filtconv(probaresp_diff,1,1))>=0)
-        inhibfun=fullgauss_filtconv(probaresp_diff,1,1);
-        if length(prevssds)>=4
+        inhibfun=probaresp_diff;
+        if length(prevssds)>=3
             ssds=prevssds;
         else
             ssds=ssdvalues;
         end
-        if isnan(ssdvalues)
-             if (all(diff(probaresp)>=0) && length(probaresp)>=3) && ~all(diff(probaresp_diff)>=0)
+    elseif (all(diff(probaresp)>=0) && length(probaresp)>=2) && ~all(diff(probaresp_diff)>=0)
         inhibfun=probaresp;
         ssds=narssdbins;
-             end
-        end
     else %monotonicity failure
         disp('failed to generate monotonic inhibition function')
         [meanIntSSRT, meanSSRT, overallMeanSSRT, inhibfun, ssds]=deal(NaN);
@@ -276,14 +293,14 @@ if ~(isempty(narssdbins) || length(narssdbins)==1)
         [meanIntSSRT, meanSSRT, overallMeanSSRT]= ...
             ssrt_bestfit(sacdelay', inhibfun', ssds');
     catch
-        sacdelay;
+        [meanIntSSRT, meanSSRT, overallMeanSSRT]=deal(NaN);
     end
 else
     [meanIntSSRT, meanSSRT, overallMeanSSRT, inhibfun, ssds]=deal(NaN);
 end
 
     mssrt=[overallMeanSSRT,meanIntSSRT,meanSSRT];
-    mssrt=round(nanmean(mssrt(mssrt>40 & mssrt<150)));
+    mssrt=round(nanmean(mssrt(mssrt>mean(tachomc)+10 & mssrt<130)));
     if isnan(mssrt) || ~(mssrt>50 & mssrt<150) %get tachomc and lookup SSRT/tachomc fit. If fit missing, run SSRT_TachoMP
         try
             load([recname(1),'_tachoSSRTfit'],'fit');
@@ -298,8 +315,14 @@ end
         % find reciprocal SSRT value
         try
         mssrt=max([round(tachomc*fit.coeff(1)+fit.coeff(2)) 75]);
+        if isnan(mssrt)
+            mssrt=tachomc+20;
+        end
         catch
             if (tachomc>50 & tachomc<90)
+                mssrt=tachomc+20;
+            end
+            if isnan(mssrt)
                 mssrt=tachomc+20;
             end
         end

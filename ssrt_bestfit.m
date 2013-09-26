@@ -116,6 +116,15 @@ for x = 1:1:length(SSDall)
         HanesSSRT(x) = NaN;
     end
 end
+if ~isnan(HanesSSRT)
+    if ~all(diff(HanesSSRT)>0)
+        if find(diff(HanesSSRT)<0)==1
+            HanesSSRT=HanesSSRT(2:end);
+        elseif find(diff(HanesSSRT)<0)+1==length(HanesSSRT)
+            HanesSSRT=HanesSSRT(1:end-1);
+        end
+    end
+end
 meanIntSSRT = nanmean(HanesSSRT);
 
 
