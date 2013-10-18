@@ -166,7 +166,7 @@ end
 %     (arrayfun(@(x) sum(nccssd<=x+3 & nccssd>=x-3),ssdvalues)));
 prevssds=sort(ssdvalues(ssdtotsidx(ssdtots>(median(ssdtots)-std(ssdtots)))));
 raise=1;
-while length(prevssds)>4
+while length(prevssds)>4 && raise<4
     prevssds=sort(ssdvalues(ssdtotsidx(ssdtots>(median(ssdtots)-std(ssdtots)+raise))));
     raise=raise+1;
 end
