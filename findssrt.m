@@ -164,22 +164,22 @@ end
 % find and keep most prevalent ssds
 [ssdtots,ssdtotsidx]=sort((arrayfun(@(x) sum(ccssd<=x+3 & ccssd>=x-3),ssdvalues))); %+...
 %     (arrayfun(@(x) sum(nccssd<=x+3 & nccssd>=x-3),ssdvalues)));
-prevssds=sort(ssdvalues(ssdtotsidx(ssdtots>(median(ssdtots)-std(ssdtots)))));
+prevssds=sort(ssdvalues(ssdtotsidx(ssdtots>(median(ssdtots(ssdtots>1))-std(ssdtots)))));
 raise=1;
 while length(prevssds)>4 && raise<4
     prevssds=sort(ssdvalues(ssdtotsidx(ssdtots>(median(ssdtots)-std(ssdtots)+raise))));
     raise=raise+1;
 end
 try
-    if length(prevssds)>=3
+    if length(prevssds)>=2
         nccssdhist=hist(nccssd,prevssds);
         ccssdhist=hist(ccssd,prevssds);
         nccssdhist=nccssdhist(nccssdhist>0);
         ccssdhist=ccssdhist(nccssdhist>0);
         prevssds=prevssds(nccssdhist>0);
     else
-        nccssdhist=hist(nccssd,ssdvalues);
-        ccssdhist=hist(ccssd,ssdvalues);
+        nccssdhist=hist(nccssd,sort(ssdvalues(ssdtotsidx(ssdtots>0))));
+        ccssdhist=hist(ccssd,sort(ssdvalues(ssdtotsidx(ssdtots>0))));
         nccssdhist=nccssdhist(nccssdhist>0);
         ccssdhist=ccssdhist(nccssdhist>0);
         ssdvalues=ssdvalues(nccssdhist>0);
@@ -275,7 +275,7 @@ if ~(isempty(narssdbins) || length(narssdbins)==1)
         ssds=narssdbins;
     elseif all(diff(fullgauss_filtconv(probaresp_diff,1,1))>=0)
         inhibfun=probaresp_diff;
-        if length(prevssds)>=3
+        if length(prevssds)>=2
             ssds=prevssds;
         else
             ssds=ssdvalues;
