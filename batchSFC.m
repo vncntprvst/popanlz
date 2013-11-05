@@ -20,7 +20,7 @@ end
 FileList={listing(sesfilesidx & noSHfiles & aligfilesidx & procfilesidx & clusfilesidx).name};
 
 % cross-correlation window
-corrwind=100;
+corrwind=32; % i.e., ±64 ms window with 2ms bins
 
 for filenm=1:length(FileList)
 filename=FileList{filenm}; 
@@ -32,7 +32,7 @@ end
 % get overall crosscorrelogram, as well as correlation and coherence for
 % x pre-event and y post-event blocks 
 try
-[cohrfreq,cohrmag,SFcorr,ntrials]=SFC(filename,alignment,cluster,corrwind,preblocks,postblocks,1);
+[cohrfreq,cohrmag,STA,ntrials]=SFC(filename,corrwind,preblocks,postblocks);
 catch
     continue;
 end
@@ -49,22 +49,33 @@ zcohrmag_sem{2,compnum}=(1/sqrt(ntrials(compnum)-3))*1.96; %95 confidence interv
 end
 
 %plots
-figure('name',filename,'numbertitle','off')
-subplot(2,1,1)
-plot(cohrfreq{1,1},zcohrmag{1,1});
-hold on
-plot(cohrfreq{1,2},zcohrmag{1,2},'r');
-ylim([0 0.2]);  xlim([3 50])    
-title({'Coherence estimate'},'FontSize',20,'FontName','calibri');
+figure('position',[2200,90,600,900],'name',filename,'numbertitle','off')
+subplot(3,1,1)
+plot(cohrfreq{2,1}(cohrfreq{2,1}>=0),zcohrmag{2,1}(cohrfreq{2,1}>=0),'b');
+hold on 
+plot(cohrfreq{2,2}(cohrfreq{2,2}>=0),zcohrmag{2,2}(cohrfreq{2,2}>=0),'r');
+title({'Coherence (manual method), pre-sac epoch'},'FontSize',20,'FontName','calibri');
 xlabel({'Frequency (Hz)'},'FontSize',16,'FontName','calibri');
 ylabel({'Magnitude'},'FontSize',16,'FontName','calibri');
-subplot(2,1,2)
-plot(SFcorr{1});
+subplot(3,1,2)
+plot(cohrfreq{1,1},zcohrmag{1,1});
+hold on 
+plot(cohrfreq{1,2},zcohrmag{1,2},'r');
+ylim([0 0.5]);  xlim([3 50])    
+title({'z-transformed coherence'},'FontSize',20,'FontName','calibri');
+xlabel({'Frequency (Hz)'},'FontSize',16,'FontName','calibri');
+ylabel({'Magnitude'},'FontSize',16,'FontName','calibri');
+subplot(3,1,3)
+plot(STA{1,1});
 hold on
-plot(SFcorr{2},'r');
-set(gca,'ylim',[-1 1],'xlim',[0 2*corrwind+1],'xtick',1:corrwind:2*corrwind+1,'xticklabel',[-2*corrwind 0 2*corrwind])
-title({'Spike-field correlation'},'FontSize',20,'FontName','calibri');
+plot(STA{1,2},'r');
+try
+set(gca,'ylim',[nanmin([(STA{1,1}) STA{1,2}]) nanmax([STA{1,1} STA{1,2}])],'xlim',[0 2*corrwind+1],'xtick',1:corrwind:2*corrwind+1,'xticklabel',[-2*corrwind 0 2*corrwind])
+catch
+    %bad STA 
+end
+title({['Spike-field correlation, window ' mat2str(corrwind) 'ms']},'FontSize',20,'FontName','calibri');
 xlabel({'Time (ms)'},'FontSize',16,'FontName','calibri');
 ylabel({'Magnitude'},'FontSize',16,'FontName','calibri');
-
+legend('correct trial','incorrect trial','location','SouthEast')
 end
