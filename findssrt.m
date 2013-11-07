@@ -128,25 +128,25 @@ end
 
 
 %% calculating probabilities for this session
-%histo binning method
-[~,delaybincenters]=hist([ccssd;nccssd],4);
-alldlbincnt=round(delaybincenters');
-% sort unique delay bin centers
-ssdbins=unique(sort(alldlbincnt));
-% narrow ssds to those found more than once
-% narssdbins=ssdbins(hist(nccssd,ssdbins)>1); %not for
-% individual SSRT calculation
-narssdbins=ssdbins(hist(nccssd,ssdbins)>0);
-% bin canceled and non-canceled trials according to these ssds
-try
-    nccssdhist=hist(nccssd,narssdbins);
-    ccssdhist=hist(ccssd,narssdbins);
-    % find probability to respond
-    probaresp=nccssdhist'./(nccssdhist'+ccssdhist');
-catch
-    probaresp=1;
-    narssdbins=0;
-end
+%histo binning method: thing of the past 
+% [~,delaybincenters]=hist([ccssd;nccssd],4);
+% alldlbincnt=round(delaybincenters');
+% % sort unique delay bin centers
+% ssdbins=unique(sort(alldlbincnt));
+% % narrow ssds to those found more than once
+% % narssdbins=ssdbins(hist(nccssd,ssdbins)>1); %not for
+% % individual SSRT calculation
+% narssdbins=ssdbins(hist(nccssd,ssdbins)>0);
+% % bin canceled and non-canceled trials according to these ssds
+% try
+%     nccssdhist=hist(nccssd,narssdbins);
+%     ccssdhist=hist(ccssd,narssdbins);
+%     % find probability to respond
+%     probaresp=nccssdhist'./(nccssdhist'+ccssdhist');
+% catch
+%     probaresp=1;
+%     narssdbins=0;
+% end
 
 %diff method
 % ssdvalues(find(diff(ssdvalues)==1)+1)=ssdvalues(diff(ssdvalues)==1);
@@ -224,12 +224,14 @@ end
             [tachomc, xtach, tach, rPTc, rPTe] = deal(NaN);
         end
         
+        % smooth tacho curve and get tachowidth
+        filttach=gauss_filtconv(tach,4);
+        coretach=filttach(xtach>-20 & xtach<170);
+        tachowidth=length(coretach(coretach>=0.1 & coretach<=0.9));
+
         if plots
             psychoplots=figure('color','white','position',[2315	200	524	636]);
             subplot(3,2,1)
-            filttach=gauss_filtconv(tach,4);
-            coretach=filttach(xtach>-20 & xtach<170);
-            tachowidth=length(coretach(coretach>=0.1 & coretach<=0.9));
             plot(xtach(xtach>-20 & xtach<170),coretach,'LineWidth',2);
             title('Tachometric curve','FontName','calibri','FontSize',12);
             hxlabel=xlabel(gca,'rPT (ms)','FontName','calibri','FontSize',12);
@@ -271,27 +273,26 @@ end
             print(psychoplots, '-dpng', '-noui', '-opengl','-r600', exportfigname);
 %           plot2svg([exportfigname,'.svg'],psychoplots, 'png');
             delete(psychoplots);
-        else
-            tachowidth=NaN;
         end
 
 %% calculate SSRT
-if ~(isempty(narssdbins) || length(narssdbins)==1)
+if ~(isempty(prevssds) || length(prevssds)==1)
     
     % test monotonicity and keep relevant inhibition function
-    if (all(diff(probaresp)>=0) && length(probaresp)>=4) && ~all(diff(probaresp_diff)>=0)
-        inhibfun=probaresp;
-        ssds=narssdbins;
-    elseif all(diff(fullgauss_filtconv(probaresp_diff,1,1))>=0)
+%     if (all(diff(probaresp)>=0) && length(probaresp)>=3) && ~all(diff(probaresp_diff)>=0)
+%         inhibfun=probaresp;
+%         ssds=narssdbins;
+%     else
+    if all(diff(fullgauss_filtconv(probaresp_diff,1,1))>=0)
         inhibfun=probaresp_diff;
         if length(prevssds)>=2
             ssds=prevssds;
         else
             ssds=ssdvalues;
         end
-    elseif (all(diff(probaresp)>=0) && length(probaresp)>=2) && ~all(diff(probaresp_diff)>=0)
-        inhibfun=probaresp;
-        ssds=narssdbins;
+%     elseif (all(diff(probaresp)>=0) && length(probaresp)>=2) && ~all(diff(probaresp_diff)>=0)
+%         inhibfun=probaresp;
+%         ssds=narssdbins;
     else %monotonicity failure
         disp('failed to generate monotonic inhibition function')
         [meanIntSSRT, meanSSRT, overallMeanSSRT, inhibfun, ssds]=deal(NaN);

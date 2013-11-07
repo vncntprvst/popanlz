@@ -1,20 +1,22 @@
  function datalign = prealign(filename, trialdirs, tasktype, firstalign,...
      secondalign,  includebad, spikechannel, keepdir,...
-     togrey, singlerastplot)
+     togrey, singlerastplot, option)
  
 % based on rdd_rasters_sdf, made GUI independent
+% the option argument passes some additional data
 
 global directory slash;
 
-% if nargin < 5
-%     showstats = 0;
-% end
-
+if nargin < 11
+    option = [];
+end
+            
 alignsacnum=0;
 alignseccodes=[];
 alignlabel=[];
 secalignlabel=[];
 collapsecode=0;
+optiondat=[];
 
 [fixcode, fixoffcode, tgtcode, tgtoffcode, saccode, ...
     stopcode, rewcode, ~, errcode1, errcode2, ~, basecode] = taskfindecode(tasktype);
@@ -82,8 +84,15 @@ elseif secondalign==9
     alignsacnum=1;
             secalignlabel='corsac';
 else
-    secondcode=[];
+    secondcode=secondalign;
+    if secondcode==507
+            secalignlabel='ssd';
+        if firstalign==7 % tgtshownalign button
+            ecodealign(2)=ecodealign(1); %need to align to NSS trials twice
+        end
+    else   
             secalignlabel='none';
+    end
 end
 
 %% Fusing task type and direction into ecode
@@ -282,10 +291,18 @@ end
 for cnc=1:numcodes
     aligntype=datalign(cnc).alignlabel;
     adjconditions=conditions;
-    if strcmp(aligntype,'stop') %|| (strcmp(tasktype,'gapstop') & cnc==2)
-        includebad=1; %we want to compare cancelled with non-cancelled
-        d_increment=size([aligncodes alignseccodes],1);%make room for additional "non-cancel" data
-        numplots=numcodes+d_increment;
+    if strcmp(tasktype,'gapstop')
+        if strcmp(aligntype,'stop')
+            includebad=1; %we want to compare cancelled with non-cancelled
+            d_increment=size([aligncodes alignseccodes],1);%make room for additional "non-cancel" data
+            numplots=numcodes+d_increment;
+        elseif strcmp(aligntype,'ssd')
+            includebad=1; %we want to compare cancelled with non-cancelled
+            d_increment=size(alignseccodes,1);%make room for additional "non-cancel" data
+            numplots=numcodes+d_increment;
+        elseif strcmp(aligntype,'tgt') && strcmp(secalignlabel,'ssd')
+                optiondat=option(:,cnc);
+        end            
     elseif strcmp(tasktype,'base2rem50')
         adjconditions=[conditions(cnc,:);conditions(cnc+numcodes,:);conditions(cnc+2*numcodes,:)];
         numplots=numcodes;
@@ -297,12 +314,13 @@ for cnc=1:numcodes
     end
     [rasters,aidx, trialidx, trigtosacs, sactotrigs, trigtovis, vistotrigs, eyeh,eyev,eyevel,...
         amplitudes,peakvels,peakaccs,allgreyareas,badidx,ssd] = alignrasters( filename, tasktype, spikechannel, ...
-        allaligncodes(cnc,:), nonecodes, includebad, alignsacnum, aligntype, collapsecode, adjconditions, firstalign);
+        allaligncodes(cnc,:), nonecodes, includebad, alignsacnum, aligntype, collapsecode, adjconditions, firstalign,...
+        optiondat);
     
     if isempty( rasters )
         disp( 'No raster could be generated (rex_rasters_trialtype returned empty raster)' );
         continue;
-    elseif strcmp(aligntype,'stop')
+    elseif strcmp(aligntype,'stop') || strcmp(aligntype,'ssd')
         canceledtrials=~badidx';
         datalign(cnc).alignlabel='stop_cancel';
         datalign(cnc).rasters=rasters(canceledtrials,:);

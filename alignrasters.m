@@ -3,7 +3,8 @@ function [alignedrasters, alignindex, trialindex, alltrigtosac, ...
     eyevelocity, amplitudes, peakvels,...
     peakaccs, allonoffcodetime,badidx,allssd] = ...
     alignrasters( name, tasktype, selclus, aligntocode, noneofcodes,...
-    allowbadtrials, alignsacnum, aligntype, collapse, conditions, firstalign)
+    allowbadtrials, alignsacnum, aligntype, collapse, conditions,...
+    firstalign, option)
 
 % based on rdd_rasters, but GUI independent
 
@@ -11,6 +12,14 @@ global rexnumtrials;
 
 if strcmp(tasktype,'gapstop') || strcmp(tasktype,'base2rem50')
     multicodetask=1;
+    if strcmp(aligntype,'tgt') && round(aligntocode(1)/10)==684
+         addshift = 1;
+         shift=option;
+    elseif strcmp(aligntype,'ssd')
+         addshift = 1;
+    else
+         addshift = 0;
+    end
 else
     multicodetask=0;
 end
@@ -262,7 +271,7 @@ while ~islast
                         end
                     end
                 end
-                
+                                
                 %% now get the time of "grey area" ecodes
                 % used to get only times for selected conditions. Now get
                 % all, and just displaying the requested ones in
@@ -290,8 +299,9 @@ while ~islast
                             goodsacnum=0;
                         end
                         if ~logical(sum(goodsacnum)) && (~strcmp(aligntype,'stop') && ~strcmp(aligntype,'ssd') && ~strcmp(aligntype,'touchbell'))
-                            s = sprintf('cannot display grey area for trial %d because saccade cannot be found. Removing erroneous trial',d);
+                            s = sprintf('alignrasters: cannot display grey area for trial %d because saccade cannot be found. Removing erroneous trial',d);
                             disp(s);
+                            pause
                             alignmentfound = 0;
                         end
                     end
@@ -346,12 +356,22 @@ while ~islast
                 %% filling up alignindexlist with align times
                 %                if alignsacnum == 0
                 
+                % if there's a shift, may add it now
+                if addshift && strcmp(tasktype,'gapstop') && strcmp(aligntype,'tgt')
+                    if ~shift(nummatch + 1)
+                        alignmentfound = 0;
+                        shfidx=true(size(shift));
+                        shfidx(nummatch + 1)=0;
+                        shift=shift(shfidx);
+                    else
+                        aligntime=aligntime+shift(nummatch + 1);
+                    end
+                end
+                
                 if alignmentfound
                     nummatch = nummatch + 1;
-                    alignindexlist( nummatch ) = aligntime;
-                    trialindex(nummatch)=d;
                     badidx(nummatch)=isbadtrial;
-                    if strcmp(aligntype,'stop')
+                    if strcmp(aligntype,'stop') || strcmp(aligntype,'ssd')
                         if ecodeout(9)==17385 || ecodeout(9)==16386
                             badidx(nummatch)=2; %non-cancelled trials
                         end
@@ -361,7 +381,12 @@ while ~islast
                         else
                             allssd(nummatch)=etimeout(:,8)-etimeout(:,7)-2;
                         end
+                        if addshift
+                            aligntime=aligntime+allssd(nummatch);
+                        end
                     end
+                    alignindexlist( nummatch ) = aligntime;
+                    trialindex(nummatch)=d;
                     
                     % trigger times
                     if (tgtcode<=1000)

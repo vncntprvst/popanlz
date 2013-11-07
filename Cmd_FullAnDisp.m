@@ -23,14 +23,14 @@ slash = '\';
 % 
 
 %For cancellation, for the moment keep 
-%  CmdFileName={'S96L2A5_13651';'S115L4A6_12871'};
+CmdFileName={'S96L2A5_13651';'S115L4A6_12871'};
 %+ try to fix 'H53L5A5_20901'
 
 %For conflict 'S114L4A5_13650';
 % CmdFileName={'S119L4A5_14391'};
 
 %Fastigial & Vermis
-CmdFileName={'R167L1A3_20671';'R166L1A3_20371'}
+%CmdFileName={'R167L1A3_20671';'R166L1A3_20371'}
 
 for FileNb=1:length(CmdFileName);
 %% subject and procdir
@@ -70,44 +70,78 @@ tasktype='gapstop';
 % sac vs stop
 % firstalign=6; 
 % secondalign=8; 
-%aligntype='sac';
+% aligntype='failed_fast';
+% triplot = 0; 
 
 % tgt vs stop
-firstalign=7; 
-secondalign=8; 
-aligntype='tgt';
+% firstalign=7; 
+% secondalign=8; 
+% aligntype='correct_slow';
+% triplot = 1; 
 
 % ssd
-% firstalign=507; 
-% secondalign=[]; 
-% aligntype='ssd';
+firstalign=7; % as if align to target
+secondalign=507; 
+aligntype='ssd';
+triplot = 0; 
 
 includebad=0;
-spikechannel=1;
-keepdir='compall'; %alldir
+spikechannel=1; %select appropriate cluster 
+keepdir='compall'; %alldir %which sac directions
 togrey=[];
 singlerastplot=0;
 
+if strcmp(aligntype,'ssd')
+% if aligning to ssd, got to align NSS trials according to latency 
+%allssds=unique([ccssd;nccssd]);
+
+% canceled trials
+ccssdval=unique(ccssd);
+ctmatchlatidx=zeros(length(sacdelay),length(ccssdval));
+for ssdval=1:length(ccssdval)
+ctmatchlatidx(:,ssdval)=sacdelay>ccssdval(ssdval)+round(mssrt);
+end
+nullidx=sum(ctmatchlatidx,2)==0;
+ctmatchlatidx(nullidx,1)=1;
+% getting ssds for each NNS trial, taking the highest ssd. 
+ctmatchlatidx=ccssdval(sum(ctmatchlatidx,2));
+ctmatchlatidx(nullidx,1)=0;
+
+% non-canceled trials
+nccssdval=sort(unique(nccssd));
+nctallmatchlatidx=zeros(length(sacdelay),length(nccssdval));
+for ssdval=1:length(nccssdval)
+nctallmatchlatidx(:,ssdval)=sacdelay>nccssdval(ssdval)+50 & sacdelay<nccssdval(ssdval)+round(mssrt);
+end
+% getting ssds for each NNS trial, taking the lowest ssd. 
+nctmatchlatidx=zeros(size(nctallmatchlatidx,1),1);
+for midx=1:size(nctallmatchlatidx,1)
+    if ~isempty(find(nctallmatchlatidx(midx,:),1))
+        nctmatchlatidx(midx)=nccssdval(find(nctallmatchlatidx(midx,:),1));
+    end
+end
+end
 
 %% use GUI-independent prealign
 getaligndata = prealign(loadfile{:}(1:end-4), trialdirs, tasktype, firstalign,...
      secondalign,  includebad, spikechannel, keepdir,...
-     togrey, singlerastplot); % align data, don't plot rasters
+     togrey, singlerastplot, [ctmatchlatidx nctmatchlatidx]); % align data, don't plot rasters
 
-%% analysis and plots
-     if strcmp(aligntype,'sac') 
-            %     [p_cancellation,h_cancellation] = cmd_wilco_cancellation(rdd_filename,datalign);
-            disp_cmd([loadfile{:}(1:end-4),'_Clus',num2str(spikechannel)],getaligndata,aligntype,0); %0, 0: latmatch, no; triplot, no
-            %     disp_cmd(rdd_filename,datalign,1);
-    elseif strcmp(aligntype,'tgt') 
-            disp_cmd([loadfile{:}(1:end-4),'_Clus',num2str(spikechannel)],getaligndata,aligntype,0); % keep triplot off until fixed
-    elseif strcmp(aligntype,'ssd') % may need task-specific analysis
-        if firstalign==507
 
-        end
-    else
-        
-     end
+%% plots
+disp_cmd([loadfile{:}(1:end-4),'_Clus',num2str(spikechannel)],getaligndata,aligntype,triplot);
+
+%     if strcmp(aligntype,'failed_fast') 
+%             %     [p_cancellation,h_cancellation] = cmd_wilco_cancellation(rdd_filename,datalign);
+%             disp_cmd([loadfile{:}(1:end-4),'_Clus',num2str(spikechannel)],getaligndata,aligntype,triplot);%0, 0: latmatch, no; triplot, no
+%             %     disp_cmd(rdd_filename,datalign,1);
+%     elseif strcmp(aligntype,'correct_slow') 
+%             disp_cmd([loadfile{:}(1:end-4),'_Clus',num2str(spikechannel)],getaligndata,aligntype,triplot); % keep triplot off until fixed
+%     elseif strcmp(aligntype,'ssd') % may need task-specific analysis
+% 
+%     else
+%         
+%      end
 end
 %fsigma, mstart, mstop,
 
