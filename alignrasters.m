@@ -12,11 +12,11 @@ global rexnumtrials;
 
 if strcmp(tasktype,'gapstop') || strcmp(tasktype,'base2rem50')
     multicodetask=1;
-    if strcmp(aligntype,'tgt') && round(aligntocode(1)/10)==684
+    if strcmp(aligntype,'tgt') && ~isempty(option)
          addshift = 1;
          shift=option;
-    elseif strcmp(aligntype,'ssd')
-         addshift = 1;
+%     elseif strcmp(aligntype,'ssd')
+%          addshift = 1;
     else
          addshift = 0;
     end
@@ -301,7 +301,7 @@ while ~islast
                         if ~logical(sum(goodsacnum)) && (~strcmp(aligntype,'stop') && ~strcmp(aligntype,'ssd') && ~strcmp(aligntype,'touchbell'))
                             s = sprintf('alignrasters: cannot display grey area for trial %d because saccade cannot be found. Removing erroneous trial',d);
                             disp(s);
-                            pause
+%                             pause
                             alignmentfound = 0;
                         end
                     end
@@ -381,9 +381,10 @@ while ~islast
                         else
                             allssd(nummatch)=etimeout(:,8)-etimeout(:,7)-2;
                         end
-                        if addshift
-                            aligntime=aligntime+allssd(nummatch);
-                        end
+%                         if addshift %no need to add ssd shift, if it's not
+%                                       %aligned to target
+%                             aligntime=aligntime+allssd(nummatch);
+%                         end
                     end
                     alignindexlist( nummatch ) = aligntime;
                     trialindex(nummatch)=d;
