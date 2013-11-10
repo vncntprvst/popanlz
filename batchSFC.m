@@ -1,8 +1,8 @@
-listing=dir('E:\Data\Recordings\processed\aligned');
+listing=dir('B:\Data\Recordings\processed\aligned');
 session='S190L6A1'; %'H125L6A2'
 alignment='sac'; % ; 'error2sac';'sacstop_cancelstop_non_cancel'
 proc='all'; %REX or Sp2
-cluster='c2'; % cluster number, e.g. '_c1' 'all'
+cluster='c1'; % cluster number, e.g. '_c1' 'all'
 sesfilesidx=~cellfun('isempty',cellfun(@(x) strfind(x,session), {listing.name},'UniformOutput',false ));
 noSHfiles=cellfun('isempty',cellfun(@(x) strfind(x,'2SH'), {listing.name},'UniformOutput',false ));
 aligfilesidx=~cellfun('isempty',cellfun(@(x) strfind(x,alignment), {listing.name},'UniformOutput',false ));
@@ -77,7 +77,7 @@ for filenm=1:length(FileList)
         end
         
         %plots
-        figure('position',[2200,90,600,900],'name',[filename '_' epochlabel{epch}],'numbertitle','off')
+        figure('position',[0,0,500,800],'name',[filename '_' epochlabel{epch}],'numbertitle','off')
         %STA
         subplot(2,1,1) 
         patch([1:length(STA{1,1}),fliplr(1:length(STA{1,1}))],[STA{1,1}-STAsem(1,:),fliplr(STA{1,1}+STAsem(1,:))],'b','EdgeColor','none','FaceAlpha',0.1);
