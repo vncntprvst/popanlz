@@ -22,8 +22,7 @@ slash = '\';
 
 %Pause rebound cells
 CmdFileName={'S119L4A5_14391';'S111L4A5_14392';'S114L4A5_13650';...
-    'S121L4A5_13091';'R132L4P4_20152';'R97L7A1_19001';'S89L4A5_12401';...
-    'S105L1A8_16050'};
+    'S121L4A5_13091';'R132L4P4_20152'}; % 'S105L1A8_16050' %where is that? ;'R97L7A1_19001';'S89L4A5_12401' %too different
 
 % 
 % CmdFileName={''};
@@ -64,7 +63,9 @@ if length(loadfile)>1
 end
 
 %% get countermanding session results 
-[mssrt,inhibfun,ccssd,nccssd,ssdvalues,tachomc,tachowidth,sacdelay,rewtimes]=findssrt(loadfile{:}, 0);
+[mssrt,inhibfun,ccssd,nccssd,ssdvalues,tachomc,tachowidth,sacdelay,rewtimes]=findssrt(loadfile{:}, 1);
+
+mssrt=max([mssrt tachomc+tachowidth/2]);
 
 %% align rasters
 % set presets
@@ -78,18 +79,24 @@ tasktype='gapstop';
 % secondalign=8; 
 % aligntype='failed_fast';
 % triplot = 0; 
-
+    plotstart=1000;
+    plotstop=1000;
+    
 % tgt vs stop
 % firstalign=7; 
 % secondalign=8; 
 % aligntype='correct_slow';
 % triplot = 1; 
+    plotstart=200;
+    plotstop=600;
 
 % ssd
 firstalign=7; % as if align to target
 secondalign=507; 
 aligntype='ssd';
 triplot = 0; 
+    plotstart=800;
+    plotstop=600;
 
 includebad=0;
 spikechannel=1; %select appropriate cluster 
@@ -135,7 +142,7 @@ getaligndata = prealign(loadfile{:}(1:end-4), trialdirs, tasktype, firstalign,..
 
 
 %% plots
-[allsdf,allrast,allalignidx,allviscuetimes]=disp_cmd([loadfile{:}(1:end-4),'_Clus',num2str(spikechannel)],getaligndata,aligntype,triplot);
+[allsdf,allrast,allalignidx,allviscuetimes,allcomp]=disp_cmd([loadfile{:}(1:end-4),'_Clus',num2str(spikechannel)],getaligndata,aligntype,triplot);
 
 %     if strcmp(aligntype,'failed_fast') 
 %             %     [p_cancellation,h_cancellation] = cmd_wilco_cancellation(rdd_filename,datalign);
@@ -149,8 +156,161 @@ getaligndata = prealign(loadfile{:}(1:end-4), trialdirs, tasktype, firstalign,..
 %         
 %      end
     catch
+        [allsdf,allrast,allalignidx,allviscuetimes,allcomp]=deal([]);
         continue
     end
+    CmdData(FileNb).file=loadfile{:};
+    CmdData(FileNb).ssrt=mssrt;
+    CmdData(FileNb).tach=[tachomc tachowidth];
+    CmdData(FileNb).saclat=sacdelay;
+    
+    %z-transform the sdf before further analysis by subtracting its mean (calculated 
+    % from the rasters) and dividing by its standard deviation.
+    for cp=1:size(allsdf,1)
+        for pl=1:size(allsdf,2)
+            sessspikes=reshape(allrast{cp,pl}',1,numel(allrast{cp,pl}));
+            allsdf{cp,pl}=(allsdf{cp,pl}-nanmean(allsdf{cp,pl}))/std(sessspikes);
+        end
+    end
+    CmdData(FileNb).sdf=allsdf;
+    CmdData(FileNb).rast=allrast;
+    CmdData(FileNb).algidx=allalignidx;
+    CmdData(FileNb).grey=allviscuetimes;
+    
 end
-%fsigma, mstart, mstop,
+
+%plotting population
+    figure; 
+    cc=lines(size(CmdData,2)); % one color per file
+    if size(cc,1)==8
+        cc(8,:)=[0 0.75 0];
+    end
+   
+%first condition plots (for ssd align: canceled vs nss)
+    compsdf{1}=nan(size(CmdData,2),size(CmdData(1).sdf{1,1},2));
+    compsdf{2}=nan(size(CmdData,2),size(CmdData(1).sdf{2,1},2));
+    compsdf{3}=nan(size(CmdData,2),size(CmdData(1).sdf{1,2},2));
+    compsdf{4}=nan(size(CmdData,2),size(CmdData(1).sdf{2,2},2));
+    
+for cmdplots=1:size(CmdData,2)
+
+    for sdfp=1:size(CmdData(cmdplots).sdf,1)
+        subplot(size(CmdData(cmdplots).sdf,1),2,sdfp*2-1); hold on 
+        plot(CmdData(cmdplots).sdf{sdfp,1},'color',cc(cmdplots,:));
+        compsdf{sdfp}(cmdplots,:)=CmdData(cmdplots).sdf{sdfp,1};
+    end
+end
+%legend({CmdData.file},'location','WestOutside');
+subplot(size(CmdData(cmdplots).sdf,1),2,2:2:sdfp*2)
+compsdf_ci=std(compsdf{1})/ sqrt(size(compsdf{1},1)) ;
+patch([1:length(mean(compsdf{1})),fliplr(1:length(mean(compsdf{1})))],...
+    [mean(compsdf{1})-compsdf_ci,fliplr(mean(compsdf{1})+compsdf_ci)],'b','EdgeColor','none','FaceAlpha',0.1);
+hold on;
+compsdf_ci=std(compsdf{2})/ sqrt(size(compsdf{2},1)) ;
+patch([1:length(mean(compsdf{2})),fliplr(1:length(mean(compsdf{2})))],...
+    [mean(compsdf{2})-compsdf_ci,fliplr(mean(compsdf{2})+compsdf_ci)],'r','EdgeColor','none','FaceAlpha',0.1);
+lineh(1)=plot(mean(compsdf{1})); 
+lineh(2)=plot(mean(compsdf{2}),'r');
+currylim=get(gca,'ylim');
+patch([plotstart:plotstart+2 fliplr(plotstart:plotstart+2)], ...
+            reshape(repmat(currylim,3,1),1,numel(currylim)*3), ...
+            [1 0 0],'EdgeColor','none','FaceAlpha',0.5);
+%plot SSRT with tach width
+for snum=1:size(CmdData,2)
+patch([plotstart+CmdData(snum).ssrt:plotstart+CmdData(snum).ssrt+2 fliplr(plotstart+CmdData(snum).ssrt:CmdData(snum).ssrt+plotstart+2 )], ...
+            reshape(repmat(currylim,3,1),1,numel(currylim)*3), ...
+            [0 0 0],'EdgeColor','none','FaceAlpha',0.5);
+end
+title('NSS vs CT');
+legend(lineh(1:2),'NSS','CT');
+
+%second condition plots (for ssd align: non-canceled vs nss)
+ figure
+    
+for cmdplots=1:size(CmdData,2)
+
+    for sdfp=1:size(CmdData(cmdplots).sdf,1)
+        subplot(size(CmdData(cmdplots).sdf,1),2,sdfp*2-1); hold on 
+        plot(CmdData(cmdplots).sdf{sdfp,2},'color',cc(cmdplots,:));
+        compsdf{sdfp+size(CmdData(cmdplots).sdf,1)}(cmdplots,:)=CmdData(cmdplots).sdf{sdfp,2};
+    end
+end
+subplot(size(CmdData(cmdplots).sdf,1),2,2:2:sdfp*2)
+compsdf_ci=std(compsdf{1+size(CmdData(cmdplots).sdf,1)})/ sqrt(size(compsdf{1+size(CmdData(cmdplots).sdf,1)},1)) ;
+patch([1:length(mean(compsdf{1+size(CmdData(cmdplots).sdf,1)})),fliplr(1:length(mean(compsdf{1+size(CmdData(cmdplots).sdf,1)})))],...
+    [mean(compsdf{1+size(CmdData(cmdplots).sdf,1)})-compsdf_ci,fliplr(mean(compsdf{1+size(CmdData(cmdplots).sdf,1)})+compsdf_ci)],'b','EdgeColor','none','FaceAlpha',0.1);
+hold on;
+compsdf_ci=std(compsdf{2+size(CmdData(cmdplots).sdf,1)})/ sqrt(size(compsdf{2+size(CmdData(cmdplots).sdf,1)},1)) ;
+patch([1:length(mean(compsdf{2+size(CmdData(cmdplots).sdf,1)})),fliplr(1:length(mean(compsdf{2+size(CmdData(cmdplots).sdf,1)})))],...
+    [mean(compsdf{2+size(CmdData(cmdplots).sdf,1)})-compsdf_ci,fliplr(mean(compsdf{2+size(CmdData(cmdplots).sdf,1)})+compsdf_ci)],'r','EdgeColor','none','FaceAlpha',0.1);
+%put alignment bar
+lineh(1)=plot(mean(compsdf{1+size(CmdData(cmdplots).sdf,1)})); 
+lineh(2)=plot(mean(compsdf{2+size(CmdData(cmdplots).sdf,1)}),'r');
+currylim=get(gca,'ylim');
+patch([plotstart:plotstart+2 fliplr(plotstart:plotstart+2)], ...
+            reshape(repmat(currylim,3,1),1,numel(currylim)*3), ...
+            [1 0 0],'EdgeColor','none','FaceAlpha',0.5);
+%plot SSRT with tach width
+for snum=1:size(CmdData,2)
+patch([plotstart+CmdData(snum).ssrt:plotstart+CmdData(snum).ssrt+2 fliplr(plotstart+CmdData(snum).ssrt:CmdData(snum).ssrt+plotstart+2 )], ...
+            reshape(repmat(currylim,3,1),1,numel(currylim)*3), ...
+            [0 0 0],'EdgeColor','none','FaceAlpha',0.5);
+end
+title('NSS vs NCT');
+legend(lineh(1:2),'NSS','NCT');
+
+% diff plots
+figure(3); hold on
+
+meandiff(1,:)=mean(compsdf{2})-mean(compsdf{1});
+meandiff(2,:)=mean(compsdf{4})-mean(compsdf{3});
+% first sem
+compsdf_ci=std(compsdf{2})/ sqrt(size(compsdf{2},1));     
+patch([1:length(mean(compsdf{2})),fliplr(1:length(mean(compsdf{2})))],...
+    [meandiff(1,:)-compsdf_ci,fliplr(meandiff(1,:)+compsdf_ci)],'b','EdgeColor','none','FaceAlpha',0.1);
+% second sem
+compsdf_ci=std(compsdf{4})/ sqrt(size(compsdf{4},1));
+patch([1:length(mean(compsdf{4})),fliplr(1:length(mean(compsdf{4})))],...
+    [meandiff(2,:)-compsdf_ci,fliplr(meandiff(2,:)+compsdf_ci)],'r','EdgeColor','none','FaceAlpha',0.1);
+lineh(1)=plot(meandiff(1,:));
+lineh(2)=plot(meandiff(2,:),'r');
+
+% looking for statistically significant difference
+        diff_pop=meandiff(2,:)-meandiff(1,:);
+        diff_preal_epoch=diff_pop(plotstart-200:plotstart);
+        difftime_preal=find(abs(diff_preal_epoch)>3*(std(diff_preal_epoch)),1); %three-sigma rule
+        diff_postal_epoch=diff_pop(plotstart:plotstart+200);
+        difftime_postal=find(abs(diff_postal_epoch)>3*(std(diff_postal_epoch)),1);
+            if ~isempty(difftime_preal)
+                end_difftime_preal=find(abs(diff_pop(plotstart-difftime_preal+1:end))<=2*(std(diff_preal_epoch)),1);
+                end_difftime_preal=plotstart-difftime_preal+end_difftime_preal;
+                plot(end_difftime_preal,0,'*b');
+                %recursive time search
+                difftime_preal=difftime_preal-find(abs(diff_pop(plotstart-200+difftime_preal+1:-1:1))<=2*(std(diff_preal_epoch)),1);
+                difftime_preal=plotstart-200+1+difftime_preal;
+                plot(difftime_preal,0,'*r');
+            end
+            if ~isempty(difftime_postal)
+                end_difftime_postal=find(abs(diff_pop(plotstart+difftime_postal+1:end))<=2*(std(diff_preal_epoch)),1);
+                end_difftime_postal=plotstart+difftime_postal+end_difftime_postal;
+                plot(end_difftime_postal,0,'*b');               
+                %recursive time search
+                difftime_postal=difftime_postal-find(abs(diff_pop(plotstart+difftime_postal+1:-1:1))<=2*(std(diff_preal_epoch)),1);
+                difftime_postal=plotstart+1+difftime_postal;
+                plot(difftime_postal,0,'*r');
+            end
+   
+currylim=get(gca,'ylim');
+% alignment bar
+patch([plotstart:plotstart+2 fliplr(plotstart:plotstart+2)], ...
+            reshape(repmat(currylim,3,1),1,numel(currylim)*3), ...
+            [1 0 0],'EdgeColor','none','FaceAlpha',0.5);
+%plot SSRT with tach width
+for snum=1:size(CmdData,2)
+patch([plotstart+CmdData(snum).ssrt:plotstart+CmdData(snum).ssrt+2 fliplr(plotstart+CmdData(snum).ssrt:CmdData(snum).ssrt+plotstart+2 )], ...
+            reshape(repmat(currylim,3,1),1,numel(currylim)*3), ...
+            [0 0 0],'EdgeColor','none','FaceAlpha',0.5);
+end
+title('NC vs NCT');
+legend(lineh(1:2),'CT-lmNSS','NCT-lmNSS'); 
 
