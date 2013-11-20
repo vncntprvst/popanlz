@@ -272,7 +272,7 @@ end
                   'Analysis\Countermanding\',recname(1:end-4),'_PsyCurves'];
 %             print(psychoplots, '-dpng', '-noui', '-opengl','-r600', exportfigname);
 %            plot2svg([exportfigname,'.svg'],psychoplots, 'png');
-            delete(psychoplots);
+             delete(psychoplots);
         end
 
 %% calculate SSRT
