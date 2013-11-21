@@ -74,9 +74,14 @@ elseif secondalign==8
         %not good!
     else
         secondcode=stopcode;
-                secalignlabel='stop';
+            secalignlabel='stop';
         if firstalign==7 % tgtshownalign button
-            ecodealign=ecodealign(1); % no need to align stop trials to target, it will be done later
+            if isnan(option)
+                ecodealign=ecodealign(1); % no need to align stop trials to target, it will be done later
+            elseif strcmp(option,'truealign')
+                ecodealign=tgtcode(1); %except if it's really more convenient
+                secondcode=tgtcode(2);
+            end
         end
     end
 elseif secondalign==9
@@ -296,6 +301,9 @@ for cnc=1:numcodes
             includebad=1; %we want to compare cancelled with non-cancelled
             d_increment=size([aligncodes alignseccodes],1);%make room for additional "non-cancel" data
             numplots=numcodes+d_increment;
+            if ~isnan(option)
+                optiondat=option;
+            end
         elseif strcmp(aligntype,'ssd')
             includebad=1; %we want to compare cancelled with non-cancelled
             d_increment=size(alignseccodes,1);%make room for additional "non-cancel" data

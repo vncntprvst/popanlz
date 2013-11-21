@@ -234,7 +234,7 @@ while ~islast
                 end
                 
                 % If it's a stop alignement code, two different cases
-                if strcmp(aligntype,'stop')
+                if strcmp(aligntype,'stop') && sum(isnan(option))
                     if find(ecodeout==1503)
                         ncecode=10;
                     else
@@ -379,7 +379,7 @@ while ~islast
                             allssd(nummatch,1)=etimeout(:,9)-etimeout(:,7)-3;
                             allssd(nummatch,2)=etimeout(:,8)-etimeout(:,7)-2;
                         else
-                            allssd(nummatch)=etimeout(:,8)-etimeout(:,7)-2;
+                            allssd(nummatch,1)=etimeout(:,8)-etimeout(:,7)-2;
                         end
 %                         if addshift %no need to add ssd shift, if it's not
 %                                       %aligned to target
