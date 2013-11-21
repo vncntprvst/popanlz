@@ -10,23 +10,25 @@ end
 slash = '\';
 %% files
 %dentate
-CmdFileName={'S113L4A5_13500';'S114L4A5_14321';'S122L4A5_14010';'S126A4L6_13690';...
-    'R132L4P4_20152';'S121L4A5_13091';'S112l4a5_12971';...
-    'S117L4A6_12741';'S118L4A5_13081';'S115L4A6_12871';'S116L4A6_15431';...
-    'H62L5A5_22211';'S96L2A5_13651';'S99L2A5_13242';'H56L5A5_21502';...
-    'S116L4A6_15450';'H25L5A5_22760';'H53L5A5_20901';'S123L4A6_13691';...
-    'S125L4A6_13990';'R167L1A3_20671';'R166L1A3_20371';'S120L4A5_12912';...
-    'S105L1A8_16050';...
-    'S101L2A5_11251';'S89L4A5_12401';'S102L3A4_13001';'S111L4A5_13502';...
-    'H56L5A5_21321';'R97L7A1_19001'};
+% CmdFileName={'S113L4A5_13500';'S114L4A5_14321';'S122L4A5_14010';'S126A4L6_13690';...
+%     'R132L4P4_20152';'S121L4A5_13091';'S112l4a5_12971';...
+%     'S117L4A6_12741';'S118L4A5_13081';'S115L4A6_12871';'S116L4A6_15431';...
+%     'H62L5A5_22211';'S96L2A5_13651';'S99L2A5_13242';'H56L5A5_21502';...
+%     'S116L4A6_15450';'H25L5A5_22760';'H53L5A5_20901';'S123L4A6_13691';...
+%     'S125L4A6_13990';'R167L1A3_20671';'R166L1A3_20371';'S120L4A5_12912';...
+%     'S105L1A8_16050';...
+%     'S101L2A5_11251';'S89L4A5_12401';'S102L3A4_13001';'S111L4A5_13502';...
+%     'H56L5A5_21321';'R97L7A1_19001'};
 
 %Pause rebound cells
 % CmdFileName={'S119L4A5_14391';'S111L4A5_14392';'S114L4A5_13650';...
 %     'S121L4A5_13091';'R132L4P4_20152'}; % 'S105L1A8_16050' %where is that? ;'R97L7A1_19001';'S89L4A5_12401' %too different
+
 % % %Ramping cells
-% CmdFileName={'S125L4A6_13990';'S123L4A6_13691';'H53L5A5_20901';...
-%     'H56L5A5_21502';'S96L2A5_13651';'S115L4A6_12871';...
-%     'S118L4A5_13081'}; % 'S114L4A5_14321' FEF like % 'S116L4A6_15450' 'S120L4A5_12912' 'R167L1A3_20671'
+CmdFileName={'S125L4A6_13990';'S123L4A6_13691';'H53L5A5_20901';...
+    'H56L5A5_21502';'S96L2A5_13651';'S115L4A6_12871';...
+    'S118L4A5_13081'}; % 'S114L4A5_14321' FEF like % 'S116L4A6_15450' 'S120L4A5_12912' 'R167L1A3_20671'
+
 % % % poster boyz   
 % CmdFileName={'S119L4A5_14391';'S123L4A6_13691'};
 
@@ -67,8 +69,7 @@ if length(loadfile)>1
 end
 
 %% get countermanding session results 
-[mssrt,inhibfun,ccssd,nccssd,ssdvalues,tachomc,tachowidth,sacdelay,rewtimes]=findssrt(loadfile{:}, 1);
-continue
+[mssrt,inhibfun,ccssd,nccssd,ssdvalues,tachomc,tachowidth,sacdelay,rewtimes]=findssrt(loadfile{:}, 0);
 mssrt=max([mssrt tachomc+tachowidth/2]);
 
 %% align rasters
@@ -79,22 +80,23 @@ tasktype='gapstop';
 %alignments=1:3;
 
 % sac vs stop
-firstalign=6; 
-secondalign=8; 
-aligntype='failed_fast';
-triplot = 0; 
-    plotstart=1000;
-    plotstop=1000;
- [ctmatchlatidx nctmatchlatidx]=deal(NaN);
+% firstalign=6; 
+% secondalign=8; 
+% aligntype='failed_fast';
+% triplot = 0; 
+%     plotstart=1000;
+%     plotstop=1000;
+%  [ctmatchlatidx nctmatchlatidx]=deal(NaN);
     
 % tgt vs stop
-% firstalign=7; 
-% secondalign=8; 
-% aligntype='correct_slow';
-% triplot = 1; 
-% plotstart=200;
-% plotstop=600;
-%  [ctmatchlatidx nctmatchlatidx]=deal(NaN);
+firstalign=7; 
+secondalign=8; 
+aligntype='correct_slow';
+plottype = 3; % 3 for splitting data in three groups: short SSD, med SSD and long SSD
+plotstart=200;
+plotstop=600;
+ [ctmatchlatidx nctmatchlatidx]=deal(NaN);
+
 % ssd
 % firstalign=7; % as if align to target
 % secondalign=507; 
@@ -147,7 +149,7 @@ getaligndata = prealign(loadfile{:}(1:end-4), trialdirs, tasktype, firstalign,..
 
 
 %% plots
-[allsdf,allrast,allalignidx,allviscuetimes,allcomp]=disp_cmd([loadfile{:}(1:end-4),'_Clus',num2str(spikechannel)],getaligndata,aligntype,triplot);
+[allsdf,allrast,allalignidx,allssd,allviscuetimes,allcomp]=disp_cmd([loadfile{:}(1:end-4),'_Clus',num2str(spikechannel)],getaligndata,aligntype,plottype);
 
 %     if strcmp(aligntype,'failed_fast') 
 %             %     [p_cancellation,h_cancellation] = cmd_wilco_cancellation(rdd_filename,datalign);
@@ -161,7 +163,7 @@ getaligndata = prealign(loadfile{:}(1:end-4), trialdirs, tasktype, firstalign,..
 %         
 %      end
     catch
-        [allsdf,allrast,allalignidx,allviscuetimes,allcomp]=deal([]);
+        [allsdf,allrast,allalignidx,allssd,allviscuetimes,allcomp]=deal([]);
         continue
     end
     CmdData(FileNb).file=loadfile{:};
@@ -185,11 +187,13 @@ getaligndata = prealign(loadfile{:}(1:end-4), trialdirs, tasktype, firstalign,..
     CmdData(FileNb).rast=allrast;
     CmdData(FileNb).algidx=allalignidx;
     CmdData(FileNb).grey=allviscuetimes;
+    %get ssd values
+    CmdData(FileNb).ssd=allssd;
     
 end
 
 %% plotting population
-    figure; 
+    figure(1); 
     cc=lines(size(CmdData,2)); % one color per file
     if size(cc,1)==8
         cc(8,:)=[0 0.75 0];
@@ -234,7 +238,7 @@ title('NSS vs CT');
 legend(lineh(1:2),'NSS','CT');
 
 %second condition plots (for ssd align: non-canceled vs nss)
- figure
+ figure(2)
     
 for cmdplots=1:size(CmdData,2)
 
