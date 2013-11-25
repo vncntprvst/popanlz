@@ -201,7 +201,7 @@ for FileNb=1:length(CmdFileName);
     CmdData(FileNb).ssd=allssd;
     CmdData(FileNb).protocol=protocol;
 end
-
+plots = 0;
 %% plots
 if plots
     %% plotting population
