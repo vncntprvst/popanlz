@@ -321,7 +321,7 @@ for cnc=1:numcodes
         numplots=numcodes;
     end
     [rasters,aidx, trialidx, trigtosacs, sactotrigs, trigtovis, vistotrigs, eyeh,eyev,eyevel,...
-        amplitudes,peakvels,peakaccs,allgreyareas,badidx,ssd] = alignrasters( filename, tasktype, spikechannel, ...
+        amplitudes,peakvels,peakaccs,allgreyareas,badidx,ssd,dirs] = alignrasters( filename, tasktype, spikechannel, ...
         allaligncodes(cnc,:), nonecodes, includebad, alignsacnum, aligntype, collapsecode, adjconditions, firstalign,...
         optiondat);
     
@@ -333,6 +333,7 @@ for cnc=1:numcodes
         datalign(cnc).alignlabel='stop_cancel';
         datalign(cnc).rasters=rasters(canceledtrials,:);
         datalign(cnc).alignidx=aidx;
+        datalign(cnc).dir=dirs(canceledtrials);
         datalign(cnc).trials=trialidx(canceledtrials);
         datalign(cnc).trigtosac=trigtosacs(canceledtrials);
         datalign(cnc).sactotrig=sactotrigs(canceledtrials);
@@ -352,6 +353,7 @@ for cnc=1:numcodes
         datalign(cnc+d_increment).alignlabel='stop_non_cancel';
         datalign(cnc+d_increment).rasters=rasters(canceledtrials,:);
         datalign(cnc+d_increment).alignidx=aidx;
+        datalign(cnc+d_increment).dir=dirs(canceledtrials);
         datalign(cnc+d_increment).trials=trialidx(canceledtrials);
         datalign(cnc+d_increment).trigtosac=trigtosacs(canceledtrials);
         datalign(cnc+d_increment).sactotrig=sactotrigs(canceledtrials);
@@ -437,6 +439,7 @@ for cnc=1:numcodes
     else
         datalign(cnc).rasters=rasters;
         datalign(cnc).alignidx=aidx;
+        datalign(cnc).dir=dirs;
         datalign(cnc).trials=trialidx;
         datalign(cnc).trigtosac=trigtosacs;
         datalign(cnc).sactotrig=sactotrigs;

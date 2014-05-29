@@ -1,7 +1,7 @@
 function [alignedrasters, alignindex, trialindex, alltrigtosac, ...
     allsactotrig, alltrigtovis, allvistotrig,eyehoriz, eyevert, ....
     eyevelocity, amplitudes, peakvels,...
-    peakaccs, allonoffcodetime,badidx,allssd] = ...
+    peakaccs, allonoffcodetime,badidx,allssd,alldir] = ...
     alignrasters( name, tasktype, selclus, aligntocode, noneofcodes,...
     allowbadtrials, alignsacnum, aligntype, collapse, conditions,...
     firstalign, option)
@@ -81,6 +81,7 @@ alltrigtovis=[];
 allvistotrig=[];
 badidx=[];
 allssd=[];
+alldir=[];
 % allcondtime = [];
 
 %% Which Cluster?
@@ -107,9 +108,11 @@ while ~islast
     %[ecodeout, etimeout, spkchan, spk, arate, h, v, start_time, badtrial ] = rex_trial(name, d );
     try
     [ecodeout, etimeout, spkchan, spk, arate, h, v, start_time, isbadtrial, curtrialsacInfo] = rdd_rex_trial(name, d, selclus);%, rdt_includeaborted);
+    curdir=ecodeout(2)-floor(ecodeout(2)/10)*10;
     catch
         disp('call to rdd_rex_trial in alignrasters failed');
         [ecodeout, etimeout, spkchan, spk, arate, h, v, start_time, isbadtrial, curtrialsacInfo] = deal([]);
+        curdir=NaN;
     end
     %if ~isbadtrial
     if logical(sum((ecodeout==2222)))  % had a weird case of a trial with ecode 2222. Don't know what that was. See file S110L4A5_12951 or S125L4A6_13990
@@ -117,7 +120,7 @@ while ~islast
         isbadtrial=1;
     end
     %end
-    %curdir=ecodeout(2)-floor(ecodeout(2)/10)*10;
+    
     
     %     if strcmp(tasktype,'gapstop') || strcmp(tasktype,'base2rem50')
     %         multicode=1;
@@ -387,6 +390,7 @@ while ~islast
 %                         end
                     end
                     alignindexlist( nummatch ) = aligntime;
+                    alldir( nummatch ) = curdir;
                     trialindex(nummatch)=d;
                     
                     % trigger times

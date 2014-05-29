@@ -18,17 +18,23 @@ slash = '\';
 %     'S116L4A6_15450';'H25L5A5_22760';'H53L5A5_20901';'S123L4A6_13691';...
 %     'S125L4A6_13990';'R167L1A3_20671';'R166L1A3_20371';'S120L4A5_12912';...
 %     'S105L1A8_16050';...
-%     'S101L2A5_11251';'S89L4A5_12401';'S102L3A4_13001';'S111L4A5_13502';...
-%     'H56L5A5_21321';'R97L7A1_19001'};
+%     'S89L4A5_12401';'S102L3A4_13001';'S111L4A5_13502';...
+%     'H56L5A5_21321';'R97L7A1_19001'}; % bugs 'S101L2A5_11251' other bugs too
+
+CmdFileName={'S113L4A5_13500_REX';'S114L4A5_14321_REX';'R132L4P4_20152_REX';'S112l4a5_12971_REX';...
+    'S117L4A6_12741_REX';'S118L4A5_13081_REX';'S115L4A6_12871_REX';...
+    'H56L5A5_21502_REX';'S116L4A6_15450_REX';'H53L5A5_20901_REX';...
+    'S123L4A6_13691_REX';'S125L4A6_13990_REX';'H56L5A5_21321_REX';...
+    'R97L7A1_19001_REX'}; % removed those that bug and medial ones 'S105L1A8_16050_REX'; 'S96L2A5_13651_REX'; 'S99L2A5_13242_REX';
 
 %Pause rebound cells
 % CmdFileName={'S119L4A5_14391';'S111L4A5_14392';'S114L4A5_13650';...
 %     'S121L4A5_13091';'R132L4P4_20152'}; % 'S105L1A8_16050' %where is that? ;'R97L7A1_19001';'S89L4A5_12401' %too different
 
 % % %Ramping cells
-CmdFileName={'S125L4A6_13990';'S123L4A6_13691';'H53L5A5_20901';...
-    'H56L5A5_21502';'S96L2A5_13651';'S115L4A6_12871';...
-    'S118L4A5_13081'}; % 'S114L4A5_14321' FEF like % 'S116L4A6_15450' 'S120L4A5_12912' 'R167L1A3_20671'
+% CmdFileName={'S125L4A6_13990';'S123L4A6_13691';'H53L5A5_20901';...
+%     'H56L5A5_21502';'S96L2A5_13651';'S115L4A6_12871';...
+%     'S118L4A5_13081'}; % 'S114L4A5_14321' FEF like % 'S116L4A6_15450' 'S120L4A5_12912' 'R167L1A3_20671'
 
 % % % poster boyz
 % CmdFileName={'S119L4A5_14391';'S123L4A6_13691'};
@@ -61,9 +67,9 @@ for FileNb=1:length(CmdFileName);
         procdirlisting=dir(procdir);
         procdirfileNames={procdirlisting.name};
         loadfile=procdirfileNames(~cellfun('isempty',regexpi(procdirfileNames,CmdFileName{FileNb},'match')));
-        % if two versions (REX and Spike2), chose Spike2
+        % if two versions (REX and Spike2), chose REX.
         if length(loadfile)>1
-            loadfile=loadfile(~cellfun('isempty',regexpi(loadfile,'Sp2','match')));
+            loadfile=loadfile(~cellfun('isempty',regexpi(loadfile,'REX','match')));
             if isempty(loadfile) %actually it's an old file that sneaked in
                 loadfile=procdirfileNames(~cellfun('isempty',regexpi(procdirfileNames,CmdFileName{FileNb},'match')));
                 loadfile=loadfile(~cellfun('isempty',regexpi(loadfile,'REX','match')));
@@ -156,50 +162,87 @@ for FileNb=1:length(CmdFileName);
         
         
         %% plots
-        [allsdf,allrast,allalignidx,...
-            allssd,allviscuetimes,allcomp,protocol]=...
-            disp_cmd([loadfile{:}(1:end-4),'_Clus',num2str(spikechannel)],...
-            getaligndata,aligntype,plottype);
-        
-        %     if strcmp(aligntype,'failed_fast')
-        %             %     [p_cancellation,h_cancellation] = cmd_wilco_cancellation(rdd_filename,datalign);
-        %             disp_cmd([loadfile{:}(1:end-4),'_Clus',num2str(spikechannel)],getaligndata,aligntype,plottype);%0, 0: latmatch, no; plottype, no
-        %             %     disp_cmd(rdd_filename,datalign,1);
-        %     elseif strcmp(aligntype,'correct_slow')
-        %             disp_cmd([loadfile{:}(1:end-4),'_Clus',num2str(spikechannel)],getaligndata,aligntype,plottype); % keep plottype off until fixed
-        %     elseif strcmp(aligntype,'ssd') % may need task-specific analysis
-        %
-        %     else
-        %
-        %      end
-%     catch
-%         [allsdf,allrast,allalignidx,allssd,allviscuetimes,allcomp]=deal([]);
-%         continue
+%         [allsdf,allrast,allalignidx,...
+%             allssd,allviscuetimes,allcomp,protocol]=...
+%             disp_cmd([loadfile{:}(1:end-4),'_Clus',num2str(spikechannel)],...
+%             getaligndata,aligntype,plottype);
+%         
+%         %     if strcmp(aligntype,'failed_fast')
+%         %             %     [p_cancellation,h_cancellation] = cmd_wilco_cancellation(rdd_filename,datalign);
+%         %             disp_cmd([loadfile{:}(1:end-4),'_Clus',num2str(spikechannel)],getaligndata,aligntype,plottype);%0, 0: latmatch, no; plottype, no
+%         %             %     disp_cmd(rdd_filename,datalign,1);
+%         %     elseif strcmp(aligntype,'correct_slow')
+%         %             disp_cmd([loadfile{:}(1:end-4),'_Clus',num2str(spikechannel)],getaligndata,aligntype,plottype); % keep plottype off until fixed
+%         %     elseif strcmp(aligntype,'ssd') % may need task-specific analysis
+%         %
+%         %     else
+%         %
+%         %      end
+% %     catch
+% %         [allsdf,allrast,allalignidx,allssd,allviscuetimes,allcomp]=deal([]);
+% %         continue
+% %     end
+%     CmdData(FileNb).file=loadfile{:};
+%     CmdData(FileNb).ssrt=mssrt;
+%     CmdData(FileNb).tach=[tachomc tachowidth];
+%     CmdData(FileNb).saclat=sacdelay;
+%     
+%     %z-transform the sdf before further analysis by subtracting its nanmean (calculated
+%     % from the rasters) and dividing by its standard deviation.
+%     if strcmp(aligntype,'correct_slow') && size(allsdf,1)>2
+%         allsdf=allsdf(1:2,:);
 %     end
-    CmdData(FileNb).file=loadfile{:};
-    CmdData(FileNb).ssrt=mssrt;
-    CmdData(FileNb).tach=[tachomc tachowidth];
-    CmdData(FileNb).saclat=sacdelay;
+%     
+%     for cp=1:size(allsdf,1)
+%         for pl=1:size(allsdf,2)
+%             sessspikes=reshape(allrast{cp,pl}',1,numel(allrast{cp,pl}));
+%             allsdf{cp,pl}=(allsdf{cp,pl}-nanmean(allsdf{cp,pl}))/nanstd(sessspikes);
+%         end
+%     end
+%     CmdData(FileNb).sdf=allsdf;
+%     CmdData(FileNb).rast=allrast;
+%     CmdData(FileNb).algidx=allalignidx;
+%     CmdData(FileNb).grey=allviscuetimes;
+%     %get ssd values
+%     CmdData(FileNb).ssd=allssd;
+%     CmdData(FileNb).protocol=protocol;
+%     
     
-    %z-transform the sdf before further analysis by subtracting its nanmean (calculated
-    % from the rasters) and dividing by its standard deviation.
-    if strcmp(aligntype,'correct_slow') && size(allsdf,1)>2
-        allsdf=allsdf(1:2,:);
+    % For PCA analysis
+    allrasts=[getaligndata(1,2).rasters(:,getaligndata(1,2).alignidx-200:getaligndata(1,2).alignidx+600);...
+                getaligndata(1,3).rasters(:,getaligndata(1,3).alignidx-200:getaligndata(1,3).alignidx+600)];
+    alltrials=[getaligndata(1,2).trials';getaligndata(1,3).trials'];
+    allssds=[getaligndata(1,2).ssd;getaligndata(1,3).ssd];
+    alloutcome=[ones(size(getaligndata(1,2).ssd,1),1);zeros(size(getaligndata(1,3).ssd,1),1)];
+    alldirs=[getaligndata(1,2).dir';getaligndata(1,3).dir'];
+
+        %sorting
+        [alltrials,trix]=sort(alltrials);
+        allrasts=allrasts(trix,:);
+        allssds=allssds(trix,:);
+        alloutcome=alloutcome(trix,:);
+        alldirs=alldirs(trix,:);
+        
+        % convert dir
+            if strcmp(subject,'Rigel')
+        idr='2';
+        cdr='6';
+    elseif strcmp(subject,'Sixx')
+        idr='6';
+        cdr='2';
+    elseif strcmp(subject,'Hilda')
+        idr='6';
+        cdr='2';
     end
+        alldirs=num2str(alldirs);
+        alldirs=strrep(alldirs',idr,'i');
+        alldirs=strrep(alldirs,cdr,'c');
+        
+    CvsNC_CmdData(FileNb,1).rasters=allrasts;
+    CvsNC_CmdData(FileNb,1).ssd=allssds;
+    CvsNC_CmdData(FileNb,1).outcome=alloutcome;
+    CvsNC_CmdData(FileNb,1).dir=alldirs';
     
-    for cp=1:size(allsdf,1)
-        for pl=1:size(allsdf,2)
-            sessspikes=reshape(allrast{cp,pl}',1,numel(allrast{cp,pl}));
-            allsdf{cp,pl}=(allsdf{cp,pl}-nanmean(allsdf{cp,pl}))/nanstd(sessspikes);
-        end
-    end
-    CmdData(FileNb).sdf=allsdf;
-    CmdData(FileNb).rast=allrast;
-    CmdData(FileNb).algidx=allalignidx;
-    CmdData(FileNb).grey=allviscuetimes;
-    %get ssd values
-    CmdData(FileNb).ssd=allssd;
-    CmdData(FileNb).protocol=protocol;
 end
 plots = 0;
 %% plots
