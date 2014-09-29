@@ -161,7 +161,7 @@ while sum(diff(ssdvalues)==1)
 end
     ssdvalues=unique(ssdvalues);
 
-% find and keep most prevalent ssds
+%% find and keep most prevalent ssds
 [ssdtots,ssdtotsidx]=sort((arrayfun(@(x) sum(ccssd<=x+3 & ccssd>=x-3),ssdvalues))); %+...
 %     (arrayfun(@(x) sum(nccssd<=x+3 & nccssd>=x-3),ssdvalues)));
 if length(ssdtots)>3 && max(ssdtots)<4 && sum(diff(ssdtots(end-3:end)))==1
@@ -174,6 +174,8 @@ while length(prevssds)>4 && raise<4
     prevssds=sort(ssdvalues(ssdtotsidx(ssdtots>(median(ssdtots)-std(ssdtots)+raise))));
     raise=raise+1;
 end
+
+%% cancellation probability (aka inhibition function)
 try
     if length(prevssds)>=2
         nccssdhist=hist(nccssd,prevssds);
@@ -301,7 +303,7 @@ if ~(isempty(prevssds) || length(prevssds)==1)
     % calculate SSRT with Boucher et al's method
     try
         [meanIntSSRT, meanSSRT, overallMeanSSRT]= ...
-            ssrt_bestfit(sacdelay', inhibfun', ssds');
+            ssrt_bestfit(sacdelay', inhibfun', ssds', (mean(tachomc)+tachowidth));
     catch
         [meanIntSSRT, meanSSRT, overallMeanSSRT]=deal(NaN);
     end
@@ -309,9 +311,11 @@ else
     [meanIntSSRT, meanSSRT, overallMeanSSRT, inhibfun, ssds]=deal(NaN);
 end
 
-    mssrt=[overallMeanSSRT,meanIntSSRT,meanSSRT];
-    mssrt=round(nanmean(mssrt(mssrt>mean(tachomc)+10 & mssrt<130)));
-    if isnan(mssrt) || ~(mssrt>50 & mssrt<150) %get tachomc and lookup SSRT/tachomc fit. If fit missing, run SSRT_TachoMP
+    mssrt=overallMeanSSRT; %,meanIntSSRT,meanSSRT];
+%     mssrt=round(nanmean(mssrt(mssrt>mean(tachomc)+10 & mssrt<130)));
+    
+
+if isnan(mssrt) || ~(mssrt>50 & mssrt<150) %get tachomc and lookup SSRT/tachomc fit. If fit missing, run SSRT_TachoMP
         try
             load([recname(1),'_tachoSSRTfit'],'fit');
         catch

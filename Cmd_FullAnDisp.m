@@ -78,7 +78,7 @@ for FileNb=1:length(CmdFileName);
         
         %% get countermanding session results
         [mssrt,inhibfun,ccssd,nccssd,ssdvalues,tachomc,tachowidth,sacdelay,rewtimes]=findssrt(loadfile{:}, 0);
-        mssrt=max([mssrt tachomc+tachowidth/2]);
+        mssrt=max([mssrt tachomc+tachowidth/2]); %replace by: if mssrt < tachomc+tachowidth/2, mssrt=tachomc+tachowidth/2, end; ?
         
         %% align rasters
         % set presets
@@ -97,25 +97,25 @@ for FileNb=1:length(CmdFileName);
 %         option=NaN;
         
         % tgt vs stop
-        firstalign=7;
-        secondalign=8;
-        aligntype='correct_slow';
-        plottype = 3; % 3 for splitting data in three groups: short SSD, med SSD and long SSD
-        plotstart=200;
-        plotstop=600;
-        if plottype == 3;
-            option='truealign';
-        else
-            option=NaN;
-        end
+%         firstalign=7;
+%         secondalign=8;
+%         aligntype='correct_slow';
+%         plottype = 3; % 3 for splitting data in three groups: short SSD, med SSD and long SSD
+%         plotstart=200;
+%         plotstop=600;
+%         if plottype == 3;
+%             option='truealign';
+%         else
+%             option=NaN;
+%         end
         
         % ssd
-        % firstalign=7; % as if align to target
-        % secondalign=507;
-        % aligntype='ssd';
-        % plottype = 0;
-        %     plotstart=800;
-        %     plotstop=600;
+        firstalign=7; % as if align to target
+        secondalign=507;
+        aligntype='ssd';
+        plottype = 0;
+            plotstart=800;
+            plotstop=600;
         
         includebad=0;
         spikechannel=1; %select appropriate cluster
@@ -224,7 +224,7 @@ for FileNb=1:length(CmdFileName);
         alldirs=alldirs(trix,:);
         
         % convert dir
-            if strcmp(subject,'Rigel')
+    if strcmp(subject,'Rigel')
         idr='2';
         cdr='6';
     elseif strcmp(subject,'Sixx')
