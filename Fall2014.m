@@ -145,13 +145,16 @@ for flbn=1:length(dentatefiles)
                 option=[ctmatchlatidx nctmatchlatidx];
             end
             
-            alldata(flbn,1).aligntype=aligntype;
+            alldata(flbn,alignment).aligntype=aligntype;
             
             %% use GUI-independent prealign
+            try
             getaligndata = prealign(loadfile{:}(1:end-4), trialdirs, task, firstalign,...
                 secondalign,  includebad, spikechannel, keepdir,...
                 togrey, singlerastplot, option); % align data, don't plot rasters
-            
+            catch
+                continue
+            end
             %% z-score pre-ssd and pre-sac? 
             
             %% get peak firing rate for future nomrmalization
@@ -188,8 +191,18 @@ for flbn=1:length(dentatefiles)
     
 end
 
-outputs = struct('mssrt',{},...
-    'ssdvalues',{});
+alltasks=reshape({alldata.task},size(alldata));
+allalignmnt=reshape({alldata.aligntype},size(alldata));
+allmssrt=reshape({alldata.allmssrt},size(alldata));
+allpk=reshape({alldata.pk},size(alldata));
+allndata=reshape({alldata.ndata},size(alldata));
+
+
+
+
+
+% outputs = struct('mssrt',{},...
+%     'ssdvalues',{});
 
 % datainsert(conn,'recordings',col_names, this_data);
 %         commit(conn);
