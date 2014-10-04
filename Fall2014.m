@@ -2,10 +2,13 @@
 %% settings
 [directory,slash,user,dbldir,mapdr,servrep,mapddataf]=SetUserDir;
 
-CCNdb = connect2DB('vp_sldata');
-
-query = 'SELECT FileName FROM b_dentate';
-results = fetch(CCNdb,query);
+try
+    CCNdb = connect2DB('vp_sldata');
+    query = 'SELECT FileName FROM b_dentate';
+    results = fetch(CCNdb,query);
+catch
+    results = [];
+end
 
 CmdFileName={'S113L4A5_13500';'S114L4A5_14321';'R132L4P4_20152';'S112l4a5_12971';...
     'S117L4A6_12741';'S118L4A5_13081';'S115L4A6_12871';...
@@ -19,7 +22,7 @@ dentatefiles=unique(dentatefiles);
 
 %% prealloc
 alldata=struct('task',{},'aligntype',{},'allmssrt',{},...
-    'pk',struct('sac',{},'vis',{}),'ndata',{});
+    'pk',struct('sac',{},'vis',{}),'ndata',struct('rast',{},'alignt',{}));
 %allmssrt=NaN(length(dentatefiles),1);
 
 
@@ -28,10 +31,15 @@ for flbn=1:length(dentatefiles)
     dfile=dentatefiles{flbn}; %dfile=[dfile '_REX'];
     
     %% get task and id
-    query = ['SELECT r.task, r.recording_id FROM recordings r WHERE r.a_file = ''' dfile 'A'''];
-    results=fetch(CCNdb,query);
-    task=results{1};
-    r_id=results{2};
+    try
+        query = ['SELECT r.task, r.recording_id FROM recordings r WHERE r.a_file = ''' dfile 'A'''];
+        results=fetch(CCNdb,query);
+        task=results{1};
+        r_id=results{2};
+    catch
+        task='gapstop';
+        r_id=[];
+    end
     
     %% sort ou
     if strcmp(task,'st_saccades')
@@ -82,10 +90,10 @@ for flbn=1:length(dentatefiles)
         singlerastplot=0;
         
         %%prealloc
-                
+        
         for alignment=1:3
             %% set parameter values
-            if alignment==1 % sac vs stop
+            if alignment==1 % sac vs stop: 3 alignements 'sac' (correct sac) / 'stop_cancel' (to SS + SSRT) / 'stop_non_cancel' (incorrect sac)
                 firstalign=6;
                 secondalign=8;
                 aligntype='failed_fast';
@@ -121,7 +129,9 @@ for flbn=1:length(dentatefiles)
                 ccssdval=unique(ccssd);
                 ctmatchlatidx=zeros(length(sacdelay),length(ccssdval));
                 for ssdval=1:length(ccssdval)
-                    ctmatchlatidx(:,ssdval)=sacdelay>ccssdval(ssdval)+round(mssrt);
+                    % Keeping NSS trials with sac latencies long enough
+                    % that they would have occured after a stop-signal 
+                    ctmatchlatidx(:,ssdval)=sacdelay>ccssdval(ssdval)+round(mssrt); 
                 end
                 nullidx=sum(ctmatchlatidx,2)==0;
                 ctmatchlatidx(nullidx,1)=1;
@@ -132,8 +142,18 @@ for flbn=1:length(dentatefiles)
                 % non-canceled trials
                 nccssdval=sort(unique(nccssd));
                 nctallmatchlatidx=zeros(length(sacdelay),length(nccssdval));
-                for ssdval=1:length(nccssdval)
-                    nctallmatchlatidx(:,ssdval)=sacdelay>nccssdval(ssdval)+50 & sacdelay<nccssdval(ssdval)+round(mssrt);
+                for ssdval=1:length(nccssdval) % keeping NSS trials in which 
+                                               % a saccade would have been 
+                                               % initiated even if a stop 
+                                               % signal had occurred, but
+                                               % with saccade latencies
+                                               % greater than the
+                                               % stop-signal delay plus a 
+                                               % visual-response latency. 
+                                               % We take tachomc-tachowidth/2
+                                               % rather than the arbitrary 
+                                               % 50ms from Hanes et al 98
+                    nctallmatchlatidx(:,ssdval)=sacdelay>nccssdval(ssdval)+(tachomc-tachowidth/2) & sacdelay<nccssdval(ssdval)+round(mssrt); 
                 end
                 % getting ssds for each NNS trial, taking the lowest ssd.
                 nctmatchlatidx=zeros(size(nctallmatchlatidx,1),1);
@@ -143,19 +163,36 @@ for flbn=1:length(dentatefiles)
                     end
                 end
                 option=[ctmatchlatidx nctmatchlatidx];
+                
+            elseif alignment==4 % align to corrective saccades in failed cancellation trial
+                firstalign=9;
+                secondalign=[];
+                aligntype='corrsacfailed';
+                plottype = 0;
+                plotstart=1000;
+                plotstop=500;
+                option=NaN;
+            elseif alignment==5 % align to reward time for NSS and CS trials
+                firstalign=4;
+                secondalign=4;
+                aligntype='rewcorrect_rewslow';
+                plottype = 0;
+                plotstart=1000;
+                plotstop=200;
+                option=NaN;
             end
             
             alldata(flbn,alignment).aligntype=aligntype;
             
             %% use GUI-independent prealign
             try
-            getaligndata = prealign(loadfile{:}(1:end-4), trialdirs, task, firstalign,...
-                secondalign,  includebad, spikechannel, keepdir,...
-                togrey, singlerastplot, option); % align data, don't plot rasters
+                getaligndata = prealign(loadfile{:}(1:end-4), trialdirs, task, firstalign,...
+                    secondalign,  includebad, spikechannel, keepdir,...
+                    togrey, singlerastplot, option); % align data, don't plot rasters
             catch
                 continue
             end
-            %% z-score pre-ssd and pre-sac? 
+            %% z-score pre-ssd and pre-sac?
             
             %% get peak firing rate for future nomrmalization
             if find(strcmp({getaligndata.alignlabel},'sac'))
@@ -172,14 +209,15 @@ for flbn=1:length(dentatefiles)
                 alldata(flbn,alignment).pk.vis=nanmean(convrasters);
             end
             
-            alldata(flbn,alignment).ndata=getaligndata;
+            %keep rasters, alignidx
+            [alldata(flbn,alignment).ndata(1:size({getaligndata.rasters},2)).rast]=deal(getaligndata.rasters);
+            [alldata(flbn,alignment).ndata(1:size({getaligndata.rasters},2)).alignt]=deal(getaligndata.alignidx);
+            
+            % [t df pvals] = statcond({convrasters closeconvrasters}, 'method', 'perm', 'naccu', 20000,'verbose','off');
             
             
-% [t df pvals] = statcond({convrasters closeconvrasters}, 'method', 'perm', 'naccu', 20000,'verbose','off');
- 
             
-             
-            %% store data for population plotting 
+            %% store data for population plotting
             
             
         end

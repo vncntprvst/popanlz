@@ -14,7 +14,7 @@ if strcmp(tasktype,'gapstop') || strcmp(tasktype,'base2rem50')
     multicodetask=1;
     if strcmp(aligntype,'tgt') && ~isempty(option)
          addshift = 1;
-         shift=option;
+         shift=option; %that's the ssd, to realign from tgt to ss 
 %     elseif strcmp(aligntype,'ssd')
 %          addshift = 1;
     else

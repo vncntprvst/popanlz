@@ -301,7 +301,7 @@ for cnc=1:numcodes
             includebad=1; %we want to compare cancelled with non-cancelled
             d_increment=size([aligncodes alignseccodes],1);%make room for additional "non-cancel" data
             numplots=numcodes+d_increment;
-            if ~isnan(option)
+            if ~isempty(option)
                 optiondat=option;
             end
         elseif strcmp(aligntype,'ssd')
