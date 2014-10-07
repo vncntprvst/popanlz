@@ -32,7 +32,7 @@ if strcmp(aligntype,'stop') % get ssrt
     end
 end
 
-
+bla=[];
 [~, ~, tgtcode, tgtoffcode] = taskfindecode(tasktype);
 alignedrasters=[];
 sphisto=[];
@@ -281,7 +281,7 @@ while ~islast
                 % rdd_rasters_sdf. VP 7/14/2012             
                 
                 greytypes={'cue';'eyemvt';'fix'};
-                
+                failedsac=0;
                 %caveat: some conditions may be 4 or 5 digits long,
                 %such as user defined codes such as TOKSWCD (1501)
                 
@@ -305,6 +305,7 @@ while ~islast
                             s = sprintf('alignrasters: cannot display grey area for trial %d because saccade cannot be found. Removing erroneous trial',d);
                             disp(s);
 %                             pause
+                            failedsac=1;
                             alignmentfound = 0;
                         end
                     end
@@ -360,8 +361,9 @@ while ~islast
                 %                if alignsacnum == 0
                 
                 % if there's a shift, may add it now
-                if addshift && strcmp(tasktype,'gapstop') && strcmp(aligntype,'tgt')
+                if addshift && strcmp(tasktype,'gapstop') && strcmp(aligntype,'tgt') && ~failedsac
                     if ~shift(nummatch + 1)
+                        bla=[bla; d];
                         alignmentfound = 0;
                         shfidx=true(size(shift));
                         shfidx(nummatch + 1)=0;

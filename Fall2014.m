@@ -6,7 +6,7 @@ try
     CCNdb = connect2DB('vp_sldata');
     query = 'SELECT FileName FROM b_dentate';
     results = fetch(CCNdb,query);
-catch
+catch db_fail
     results = [];
 end
 
@@ -36,7 +36,7 @@ for flbn=1:length(dentatefiles)
         results=fetch(CCNdb,query);
         task=results{1};
         r_id=results{2};
-    catch
+    catch db_fail
         task='gapstop';
         r_id=[];
     end
@@ -90,8 +90,9 @@ for flbn=1:length(dentatefiles)
         singlerastplot=0;
         
         %%prealloc
+        fails=[];
         
-        for alignment=1:3
+        for alignment=1:5
             %% set parameter values
             if alignment==1 % sac vs stop: 3 alignements 'sac' (correct sac) / 'stop_cancel' (to SS + SSRT) / 'stop_non_cancel' (incorrect sac)
                 firstalign=6;
@@ -153,7 +154,7 @@ for flbn=1:length(dentatefiles)
                                                % We take tachomc-tachowidth/2
                                                % rather than the arbitrary 
                                                % 50ms from Hanes et al 98
-                    nctallmatchlatidx(:,ssdval)=sacdelay>nccssdval(ssdval)+(tachomc-tachowidth/2) & sacdelay<nccssdval(ssdval)+round(mssrt); 
+                    nctallmatchlatidx(:,ssdval)=sacdelay>nccssdval(ssdval)+(mean(tachomc)-tachowidth/2) & sacdelay<nccssdval(ssdval)+round(mssrt); 
                 end
                 % getting ssds for each NNS trial, taking the lowest ssd.
                 nctmatchlatidx=zeros(size(nctallmatchlatidx,1),1);
@@ -189,12 +190,13 @@ for flbn=1:length(dentatefiles)
                 getaligndata = prealign(loadfile{:}(1:end-4), trialdirs, task, firstalign,...
                     secondalign,  includebad, spikechannel, keepdir,...
                     togrey, singlerastplot, option); % align data, don't plot rasters
-            catch
+            catch prealign_fail
+                fails={fails; [loadfile{:}(1:end-4), prealign_fail.message]}; %prealign_fail
                 continue
             end
             %% z-score pre-ssd and pre-sac?
             
-            %% get peak firing rate for future nomrmalization
+            %% get peak firing rate for future normalization
             if find(strcmp({getaligndata.alignlabel},'sac'))
                 sacalgrasters=getaligndata(1,strcmp({getaligndata.alignlabel},'sac')).rasters;
                 alignmtt=getaligndata(1,strcmp({getaligndata.alignlabel},'sac')).alignidx;
