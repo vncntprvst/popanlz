@@ -13,12 +13,12 @@ global rexnumtrials;
 if strcmp(tasktype,'gapstop') || strcmp(tasktype,'base2rem50')
     multicodetask=1;
     if strcmp(aligntype,'tgt') && ~isempty(option)
-         addshift = 1;
-         shift=option; %that's the ssd, to realign from tgt to ss 
-%     elseif strcmp(aligntype,'ssd')
-%          addshift = 1;
+        addshift = 1;
+        shift=option; %that's the ssd, to realign from tgt to ss
+        %     elseif strcmp(aligntype,'ssd')
+        %          addshift = 1;
     else
-         addshift = 0;
+        addshift = 0;
     end
 else
     multicodetask=0;
@@ -107,8 +107,8 @@ while ~islast
     
     %[ecodeout, etimeout, spkchan, spk, arate, h, v, start_time, badtrial ] = rex_trial(name, d );
     try
-    [ecodeout, etimeout, spkchan, spk, arate, h, v, start_time, isbadtrial, curtrialsacInfo] = rdd_rex_trial(name, d, selclus);%, rdt_includeaborted);
-    curdir=ecodeout(2)-floor(ecodeout(2)/10)*10;
+        [ecodeout, etimeout, spkchan, spk, arate, h, v, start_time, isbadtrial, curtrialsacInfo] = rdd_rex_trial(name, d, selclus);%, rdt_includeaborted);
+        curdir=ecodeout(2)-floor(ecodeout(2)/10)*10;
     catch
         disp('call to rdd_rex_trial in alignrasters failed');
         [ecodeout, etimeout, spkchan, spk, arate, h, v, start_time, isbadtrial, curtrialsacInfo] = deal([]);
@@ -207,10 +207,10 @@ while ~islast
                             end
                         end
                     end
-                    for k=find(sacofint,1):length(sacofint)
+                    for k=find(sacofint,1):length(sacofint) %yes, this code is ugly.
                         ampsacofint(1,k)=abs(getfield(curtrialsacInfo, {k}, 'amplitude'));
                     end
-                    %start time of first saccade greater than 3 degrees (typical
+                    %start time of first saccade greater than 2.5 degrees (typical
                     %restriction window) after relevant ecode (ecodesacstart-1)
                     if ~logical(sum(ampsacofint))
                         alignmentfound = 0;
@@ -220,11 +220,11 @@ while ~islast
                             sacamp=getfield(curtrialsacInfo, {find(ampsacofint>2.5,1)}, 'amplitude');
                             sacpeakpeakvel=getfield(curtrialsacInfo, {find(ampsacofint>2.5,1)}, 'peakVelocity');
                             sacpeakacc=getfield(curtrialsacInfo, {find(ampsacofint>2.5,1)}, 'peakAcceleration');
-                        elseif strcmp(aligntype,'corsac')  &&  find(ampsacofint>2.5,1)+1<=length(ampsacofint)% If we are looking for the n-th saccade after the main one
+                        elseif strcmp(aligntype,'corsac')  &&  find(ampsacofint>2.5,1)+1<=length(ampsacofint) % If we are looking for the n-th saccade after the main one
                             nextgoodsac=find(ampsacofint>2.5,1)+1;
                             aligntime=getfield(curtrialsacInfo, {nextgoodsac}, 'starttime');
-                            if aligntime>etimeout(ecodeout==1030)
-                                alignmentfound = 0; % secondary saccade after reward. Not considered corrective saccade
+                            if aligntime>etimeout(ecodeout==1030) || (getfield(curtrialsacInfo, {nextgoodsac}, 'starttime') - getfield(curtrialsacInfo, {nextgoodsac-1}, 'starttime')) > 250
+                                alignmentfound = 0; % secondary saccade after reward or over 300 ms after main sac. Not considered corrective saccade
                             else
                                 sacamp=getfield(curtrialsacInfo, {nextgoodsac}, 'amplitude');
                                 sacpeakpeakvel=getfield(curtrialsacInfo, {nextgoodsac}, 'peakVelocity');
@@ -248,37 +248,52 @@ while ~islast
                             % for non-canceled stop trial, align to saccade
                             % initiation
                             if ecodeout(ncecode)==17385 || ecodeout(ncecode)==16386
-                                ampsacofint=[];
-                                nwsacstart=cat(1,curtrialsacInfo.starttime);
-                                sacofint=nwsacstart>etimeout(7);
-                                ampsacofint=zeros(1,length(sacofint));
-                                for k=find(sacofint,1):length(sacofint)
-                                    ampsacofint(1,k)=abs(getfield(curtrialsacInfo, {k}, 'amplitude'));
-                                end
+                                nwsacstart=[curtrialsacInfo.starttime];
+                                sacofint=nwsacstart>etimeout(7); %sacs that occur after event
+                                sacofint=abs([curtrialsacInfo.amplitude])>2.5 & sacofint; % with a large enough amplitude
                                 if sum(sacofint)
-                                    aligntime=getfield(curtrialsacInfo, {find(ampsacofint>2.5,1)}, 'starttime');
+                                    aligntime= curtrialsacInfo(find(sacofint,1)).starttime;
                                 else
                                     alignmentfound = 0;
                                 end
                             end
-                        elseif firstalign==7
+                        elseif firstalign==7 % align to target
                             aligntime = etimeout(find(floor(ecodeout./10) == 487,1)) * (arate / 1000);
+                        elseif firstalign==9 % align to corrective saccade after main (incorrect) saccade
+                            nwsacstart=[curtrialsacInfo.starttime];
+                            sacofint=nwsacstart>etimeout(7); %sacs that occur after event
+                            sacofint=abs([curtrialsacInfo.amplitude])>2.5 & sacofint; % with a large enough amplitude
+                            sacofint=find(sacofint, 2, 'first');
+                            if length(sacofint)>1 && (curtrialsacInfo(sacofint(2)).starttime - curtrialsacInfo(sacofint(1)).starttime)<250
+                                aligntime=curtrialsacInfo(sacofint(2)).starttime;
+                                curtrialsacInfo(sacofint(2)).status='corsac';
+                            else
+                                alignmentfound = 0;
+                            end
+                         elseif firstalign==4
+                             aligntime=etimeout(find(ecodeout==17385 | ecodeout==16386,1)) * (arate / 1000); %time of error code
                         end
                     else
                         % for successfully canceled stop trials, align to stop
-                        % signal delay + stop signal reaction time
-                        if ~isnan(mssrt)
-                            aligntime=etimeout( falign( 1 ) ) * (arate / 1000)+round(mssrt);
+                        % signal delay + stop signal reaction time, unless
+                        % the first alignement is to reward (then align to
+                        % reward)
+                        if firstalign==4
+                            aligntime=etimeout(find(ecodeout == 1030,1)) * (arate / 1000);
                         else
-                            alignmentfound=0;
+                            if ~isnan(mssrt)
+                                aligntime=etimeout( falign( 1 ) ) * (arate / 1000)+round(mssrt);
+                            else
+                                alignmentfound=0;
+                            end
                         end
                     end
                 end
-                                
+                
                 %% now get the time of "grey area" ecodes
                 % used to get only times for selected conditions. Now get
                 % all, and just displaying the requested ones in
-                % rdd_rasters_sdf. VP 7/14/2012             
+                % rdd_rasters_sdf. VP 7/14/2012
                 
                 greytypes={'cue';'eyemvt';'fix'};
                 failedsac=0;
@@ -304,7 +319,7 @@ while ~islast
                         if ~logical(sum(goodsacnum)) && (~strcmp(aligntype,'stop') && ~strcmp(aligntype,'ssd') && ~strcmp(aligntype,'touchbell'))
                             s = sprintf('alignrasters: cannot display grey area for trial %d because saccade cannot be found. Removing erroneous trial',d);
                             disp(s);
-%                             pause
+                            %                             pause
                             failedsac=1;
                             alignmentfound = 0;
                         end
@@ -386,10 +401,10 @@ while ~islast
                         else
                             allssd(nummatch,1)=etimeout(:,8)-etimeout(:,7)-2;
                         end
-%                         if addshift %no need to add ssd shift, if it's not
-%                                       %aligned to target
-%                             aligntime=aligntime+allssd(nummatch);
-%                         end
+                        %                         if addshift %no need to add ssd shift, if it's not
+                        %                                       %aligned to target
+                        %                             aligntime=aligntime+allssd(nummatch);
+                        %                         end
                     end
                     alignindexlist( nummatch ) = aligntime;
                     alldir( nummatch ) = curdir;
@@ -475,10 +490,10 @@ while ~islast
                         end
                     end;
                     rasters = cat_variable_size_row(rasters, train);
-                   
+                    
                     
                     %collect conditions (aka greycodes) times
-                  if  ~(size(onoffcodetime,2)==2 && codepairnb==1)
+                    if  ~(size(onoffcodetime,2)==2 && codepairnb==1)
                         onoffkeepcode=[find(~isnan(onoffcodetime(1,:)),1) find(~isnan(onoffcodetime(1,:)),1)+codepairnb];
                         if onoffkeepcode(end)>size(onoffcodetime,2)
                             onoffkeepcode=[size(onoffcodetime,2)-(codepairnb+1) size(onoffcodetime,2)-1];

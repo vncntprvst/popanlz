@@ -298,7 +298,7 @@ for cnc=1:numcodes
     adjconditions=conditions;
     if strcmp(tasktype,'gapstop')
         if strcmp(aligntype,'stop')
-            includebad=1; %we want to compare cancelled with non-cancelled
+            includebad=1; %we want to unclude non-cancelled
             d_increment=size([aligncodes alignseccodes],1);%make room for additional "non-cancel" data
             numplots=numcodes+d_increment;
             if ~isempty(option)
@@ -310,6 +310,8 @@ for cnc=1:numcodes
             numplots=numcodes+d_increment;
         elseif strcmp(aligntype,'tgt') && strcmp(secalignlabel,'ssd')
                 optiondat=option(:,cnc);
+        elseif strcmp(aligntype,'rew')
+            allaligncodes=flipud(allaligncodes); %the 1030 reward code should come first. It is not here for legacy reasons 
         end            
     elseif strcmp(tasktype,'base2rem50')
         adjconditions=[conditions(cnc,:);conditions(cnc+numcodes,:);conditions(cnc+2*numcodes,:)];

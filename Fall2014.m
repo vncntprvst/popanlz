@@ -22,7 +22,7 @@ dentatefiles=unique(dentatefiles);
 
 %% prealloc
 alldata=struct('task',{},'aligntype',{},'allmssrt',{},...
-    'pk',struct('sac',{},'vis',{}),'ndata',struct('rast',{},'alignt',{}));
+    'pk',struct('sac',{},'vis',{},'corsac',{},'rew',{}),'ndata',struct('rast',{},'alignt',{}));
 %allmssrt=NaN(length(dentatefiles),1);
 
 
@@ -91,21 +91,19 @@ for flbn=1:length(dentatefiles)
         
         %%prealloc
         fails=[];
-        
-        for alignment=1:5
+        alignments={'failed_fast','correct_slow','ssd','corrsacfailed','rewcorrect_rewslow'};
+        for algn=1:5
             %% set parameter values
-            if alignment==1 % sac vs stop: 3 alignements 'sac' (correct sac) / 'stop_cancel' (to SS + SSRT) / 'stop_non_cancel' (incorrect sac)
+            if algn==1 % sac vs stop: 3 alignements 'sac' (correct sac) / 'stop_cancel' (to SS + SSRT) / 'stop_non_cancel' (incorrect sac)
                 firstalign=6;
                 secondalign=8;
-                aligntype='failed_fast';
                 plottype = 0;
                 plotstart=1000;
                 plotstop=1000;
                 option=NaN;
-            elseif alignment==2 % tgt vs stop
+            elseif algn==2 % tgt vs stop
                 firstalign=7;
                 secondalign=8;
-                aligntype='correct_slow';
                 plottype = 0; % 3 for splitting data in three groups: short SSD, med SSD and long SSD
                 plotstart=200;
                 plotstop=600;
@@ -114,10 +112,9 @@ for flbn=1:length(dentatefiles)
                 else
                     option=NaN;
                 end
-            elseif alignment==3 % ssd
+            elseif algn==3 % ssd
                 firstalign=7; % as if align to target
                 secondalign=507;
-                aligntype='ssd';
                 plottype = 0;
                 plotstart=800;
                 plotstop=600;
@@ -165,25 +162,25 @@ for flbn=1:length(dentatefiles)
                 end
                 option=[ctmatchlatidx nctmatchlatidx];
                 
-            elseif alignment==4 % align to corrective saccades in failed cancellation trial
-                firstalign=9;
-                secondalign=[];
-                aligntype='corrsacfailed';
+            elseif algn==4 % align to corrective saccades in failed cancellation trial
+                firstalign=9; % corrective saccades for SST
+                secondalign=8; % will find corrective saccades in failed cancellation trial
                 plottype = 0;
                 plotstart=1000;
                 plotstop=500;
                 option=NaN;
-            elseif alignment==5 % align to reward time for NSS and CS trials
+            elseif algn==5 % align to reward time for NSS and CS trials
                 firstalign=4;
-                secondalign=4;
-                aligntype='rewcorrect_rewslow';
+                secondalign=8; % will find reward time in cancelled saccade
+                                % trial, and align to time of error code
+                                % in failed cancellation
                 plottype = 0;
                 plotstart=1000;
                 plotstop=200;
                 option=NaN;
             end
             
-            alldata(flbn,alignment).aligntype=aligntype;
+            alldata(flbn,algn).aligntype=alignments{algn};
             
             %% use GUI-independent prealign
             try
@@ -198,27 +195,59 @@ for flbn=1:length(dentatefiles)
             
             %% get peak firing rate for future normalization
             if find(strcmp({getaligndata.alignlabel},'sac'))
-                sacalgrasters=getaligndata(1,strcmp({getaligndata.alignlabel},'sac')).rasters;
-                alignmtt=getaligndata(1,strcmp({getaligndata.alignlabel},'sac')).alignidx;
-                start=alignmtt-300; stop=alignmtt+300; % -300 to 300 time window around sac (at 0).
-                convrasters=conv_raster(sacalgrasters,10,start,stop);
-                alldata(flbn,alignment).pk.sac=nanmean(convrasters);
+                numrastrow=arrayfun(@(x) size(x.rasters,1), getaligndata, 'UniformOutput', false);
+                colrast=nan(sum([numrastrow{:}]),601);
+                for alignd=1:3
+                    sacalgrasters=getaligndata(1,alignd).rasters;
+                    alignmtt=getaligndata(1,alignd).alignidx;
+                    start=alignmtt-300; stop=alignmtt+300; % -300 to 300 time window around sac (at 0).
+                    colrast=[colrast; sacalgrasters(:,start:stop)];
+                end                     
+                convrasters=conv_raster(colrast,10,11,size(colrast,2)-10);
+                alldata(flbn,algn).pk.sac=max(convrasters);
+            elseif find(strcmp({getaligndata.alignlabel},'corsac'))
+                if size(getaligndata,2)>2 && size(getaligndata(3).rasters,1)>1
+                    numrastrow=arrayfun(@(x) size(x.rasters,1), getaligndata, 'UniformOutput', false);
+                    colrast=nan(sum([numrastrow{:}]),601);
+                    for alignd=1:2:3
+                        sacalgrasters=getaligndata(1,alignd).rasters;
+                        alignmtt=getaligndata(1,alignd).alignidx;
+                        start=alignmtt-300; stop=alignmtt+300; % -300 to 300 time window around sac (at 0).
+                        colrast=[colrast; sacalgrasters(:,start:stop)];
+                    end                     
+                    convrasters=conv_raster(colrast,10,11,size(colrast,2)-10);
+                    alldata(flbn,algn).pk.corsac=max(convrasters);
+                end
             elseif find(strcmp({getaligndata.alignlabel},'tgt'))
-                sacalgrasters=getaligndata(1,strcmp({getaligndata.alignlabel},'tgt')).rasters;
-                alignmtt=getaligndata(1,strcmp({getaligndata.alignlabel},'tgt')).alignidx;
-                start=alignmtt; stop=alignmtt+250; % 0 to 250 time window around cue (at 0).
-                convrasters=conv_raster(sacalgrasters,10,start,stop);
-                alldata(flbn,alignment).pk.vis=nanmean(convrasters);
+                numrastrow=arrayfun(@(x) size(x.rasters,1), getaligndata, 'UniformOutput', false);
+                colrast=nan(sum([numrastrow{:}]),251);
+                for alignd=1:3
+                    sacalgrasters=getaligndata(1,alignd).rasters;
+                    alignmtt=getaligndata(1,alignd).alignidx;
+                    start=alignmtt; stop=alignmtt+250; % -300 to 300 time window around sac (at 0).
+                    colrast=[colrast; sacalgrasters(:,start:stop)];
+                end                     
+                convrasters=conv_raster(colrast,10,11,size(colrast,2)-10);
+                alldata(flbn,algn).pk.vis=max(convrasters);
+           elseif find(strcmp({getaligndata.alignlabel},'rew'))
+                numrastrow=arrayfun(@(x) size(x.rasters,1), getaligndata, 'UniformOutput', false);
+                colrast=nan(sum([numrastrow{:}]),501);
+                for alignd=1:2
+                    sacalgrasters=getaligndata(1,alignd).rasters;
+                    alignmtt=getaligndata(1,alignd).alignidx;
+                    start=alignmtt-300; stop=alignmtt+200; % -300 to 300 time window around sac (at 0).
+                    colrast=[colrast; sacalgrasters(:,start:stop)];
+                end                     
+                convrasters=conv_raster(colrast,10,11,size(colrast,2)-10);
+                alldata(flbn,algn).pk.rew=max(convrasters);
             end
             
             %keep rasters, alignidx
-            [alldata(flbn,alignment).ndata(1:size({getaligndata.rasters},2)).rast]=deal(getaligndata.rasters);
-            [alldata(flbn,alignment).ndata(1:size({getaligndata.rasters},2)).alignt]=deal(getaligndata.alignidx);
+            [alldata(flbn,algn).ndata(1:size({getaligndata.rasters},2)).rast]=deal(getaligndata.rasters);
+            [alldata(flbn,algn).ndata(1:size({getaligndata.rasters},2)).alignt]=deal(getaligndata.alignidx);
             
             % [t df pvals] = statcond({convrasters closeconvrasters}, 'method', 'perm', 'naccu', 20000,'verbose','off');
-            
-            
-            
+    
             %% store data for population plotting
             
             

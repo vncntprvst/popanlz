@@ -254,7 +254,7 @@ if plots
         cc(8,:)=[0 0.75 0];
     end
     
-    %first condition plots (for ssd align: canceled vs nss)
+    %% first condition plots (for ssd align: canceled vs nss)
     compsdf{1}=nan(size(CmdData,2),size(CmdData(1).sdf{1,1},2));
     compsdf{2}=nan(size(CmdData,2),size(CmdData(1).sdf{2,1},2));
     compsdf{3}=nan(size(CmdData,2),size(CmdData(1).sdf{1,2},2));
@@ -292,7 +292,7 @@ if plots
     title('NSS vs CT');
     legend(lineh(1:2),'NSS','CT');
     
-    %second condition plots (for ssd align: non-canceled vs nss)
+    %% second condition plots (for ssd align: non-canceled vs nss)
     figure(2)
     
     for cmdplots=1:size(CmdData,2)
@@ -331,7 +331,7 @@ if plots
     title('NSS vs NCT');
     legend(lineh(1:2),'NSS','NCT');
     
-    % diff plots
+    %% diff plots
     figure(3); hold on
     
     meandiff(1,:)=nanmean(compsdf{2})-nanmean(compsdf{1});
