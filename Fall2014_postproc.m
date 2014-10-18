@@ -4,6 +4,7 @@ allgsalignmnt=allalignmnt(gsdlist,1);
 allgsmssrt=allmssrt(gsdlist,1);
 allgspk=allpk(gsdlist,:);
 allgsndata=allndata(gsdlist,:); %3 column for 3 aligntype. Each cell has 3 or 4 for diferrent conditions
+allgs_rec_id=all_rec_id(gsdlist,1);
 
     %% colors for population plots
 %     figure(1);
@@ -37,8 +38,9 @@ allgsndata=allndata(gsdlist,:); %3 column for 3 aligntype. Each cell has 3 or 4 
              rasters=gsdata(sacalg).rast;
              alignmtt=gsdata(sacalg).alignt;
              start=alignmtt-900; stop=alignmtt+400;
-             [sdf, convrasters, convrastsem]=conv_raster(rasters,10,start,stop);
-
+             [sdf, convrasters, convrastsem]=conv_raster(rasters,10,start,stop); 
+             
+             
              %normalize sdf by peak activity
              normsdf=sdf./gspk;
 
@@ -226,21 +228,42 @@ allgsndata=allndata(gsdlist,:); %3 column for 3 aligntype. Each cell has 3 or 4 
     popgssdf=NaN(4,size(compgssdf{3},2));
     popgs_ci=NaN(4,size(compgssdf{3},2));
     
-    for ssdpop=1:2
-    popgssdf(ssdpop,:)=nanmean(compgssdf{3}(:,:,ssdpop));
-    popgs_ci(ssdpop,:)=std(compgssdf{3}(:,:,ssdpop))/ sqrt(size(compgssdf{3}(:,:,ssdpop),1)) * 1.96;
+    %% ssd pop
+    %1st plots
+    subplot(1,2,1)
     
-    %% plots
-    subplot(1,2,ssdpop)
+    for ssdpop=1:2:3
+        popgssdf(ssdpop,:)=nanmean(compgssdf{3}(:,:,ssdpop));
+    popgs_ci(ssdpop,:)=nanstd(compgssdf{3}(:,:,ssdpop))/ sqrt(size(compgssdf{3}(:,:,ssdpop),1));
+
     patch([1:length(popgssdf(ssdpop,:)),fliplr(1:length(popgssdf(ssdpop,:)))],...
-        [popgssdf(ssdpop,:)-popgs_ci(ssdpop,:),fliplr(popgssdf(ssdpop,:)+popgs_ci(ssdpop,:))],'b','EdgeColor','none','FaceAlpha',0.1);
+        [popgssdf(ssdpop,:)-popgs_ci(ssdpop,:),fliplr(popgssdf(ssdpop,:)+popgs_ci(ssdpop,:))],...
+        cc(ssdpop,:),'EdgeColor','none','FaceAlpha',0.1);
     hold on;
-    lineh(ssdpop)=plot(popgssdf(ssdpop,:));
-    currylim=get(gca,'ylim');
-    patch([800:802 fliplr(800:802)], ...
-        reshape(repmat(currylim,3,1),1,numel(currylim)*3), ...
-        [1 0 0],'EdgeColor','none','FaceAlpha',0.5);
+    lineh(ssdpop)=plot(popgssdf(ssdpop,:),'color',cc(ssdpop,:));
     end
+    currylim=get(gca,'ylim');
+    patch([798:802 fliplr(798:802)], ...
+        reshape(repmat([0 currylim(2)],5,1),1,numel(currylim)*5), ...
+        [0 0 0],'EdgeColor','none','FaceAlpha',0.5);
+    
+    %2nd plots
+    subplot(1,2,2)
+    
+    for ssdpop=2:2:4
+    popgssdf(ssdpop,:)=nanmean(compgssdf{3}(:,:,ssdpop));
+    popgs_ci(ssdpop,:)=nanstd(compgssdf{3}(:,:,ssdpop))/ sqrt(size(compgssdf{3}(:,:,ssdpop),1));
+
+    patch([1:length(popgssdf(ssdpop,:)),fliplr(1:length(popgssdf(ssdpop,:)))],...
+        [popgssdf(ssdpop,:)-popgs_ci(ssdpop,:),fliplr(popgssdf(ssdpop,:)+popgs_ci(ssdpop,:))],...
+        cc(ssdpop,:),'EdgeColor','none','FaceAlpha',0.1);
+    hold on;
+    lineh(ssdpop)=plot(popgssdf(ssdpop,:),'color',cc(ssdpop,:));
+    end
+        currylim=get(gca,'ylim');
+    patch([798:802 fliplr(798:802)], ...
+        reshape(repmat([0 currylim(2)],5,1),1,numel(currylim)*5), ...
+        [0 0 0],'EdgeColor','none','FaceAlpha',0.7);
 
     
     

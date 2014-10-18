@@ -1,3 +1,4 @@
+global directory slash;
 
 %% settings
 [directory,slash,user,dbldir,mapdr,servrep,mapddataf]=SetUserDir;
@@ -22,7 +23,9 @@ dentatefiles=unique(dentatefiles);
 
 %% prealloc
 alldata=struct('task',{},'aligntype',{},'allmssrt',{},...
-    'pk',struct('sac',{},'vis',{},'corsac',{},'rew',{}),'ndata',struct('rast',{},'alignt',{}));
+    'pk',struct('sac',{},'vis',{},'corsac',{},'rew',{}),...
+    'ndata',struct('rast',{},'alignt',{}),'db_rec_id',{},...
+    'stats',struct('hval',{},'pval',{},'sign',{}));
 %allmssrt=NaN(length(dentatefiles),1);
 
 
@@ -32,10 +35,15 @@ for flbn=1:length(dentatefiles)
     
     %% get task and id
     try
-        query = ['SELECT r.task, r.recording_id FROM recordings r WHERE r.a_file = ''' dfile 'A'''];
-        results=fetch(CCNdb,query);
-        task=results{1};
-        r_id=results{2};
+        % issue with db at the moment 
+%         query = ['SELECT r.task, r.recording_id FROM recordings r WHERE r.a_file = ''' dfile 'A'''];
+%         results=fetch(CCNdb,query);
+%         [alldata(flbn,1).task,task]=deal(results{1});
+%         alldata.db_rec_id=results{2};
+        codes =load([dfile,'_REX.mat'], 'allcodes');
+        [alldata(flbn,1).task,task]=deal(taskdetect(codes.allcodes));
+        clear codes;
+        alldata(flbn,1).db_rec_id=[];
     catch db_fail
         task='gapstop';
         r_id=[];
@@ -45,7 +53,7 @@ for flbn=1:length(dentatefiles)
     if strcmp(task,'st_saccades')
         %test peak shift on prefered dir vs anti-dir
     elseif strcmp(task,'gapstop')
-        alldata(flbn,1).task=task;
+        
         %% subject and procdir
         if strcmp('R',dfile(1))
             subject='Rigel';
@@ -198,12 +206,22 @@ for flbn=1:length(dentatefiles)
                 numrastrow=arrayfun(@(x) size(x.rasters,1), getaligndata, 'UniformOutput', false);
                 colrast=nan(sum([numrastrow{:}]),601);
                 for alignd=1:3
-                    sacalgrasters=getaligndata(1,alignd).rasters;
+                    sacalgrasters=getaligndata(1,alignd).rasters; 
                     alignmtt=getaligndata(1,alignd).alignidx;
                     start=alignmtt-300; stop=alignmtt+300; % -300 to 300 time window around sac (at 0).
                     colrast=[colrast; sacalgrasters(:,start:stop)];
+                    if alignd==1
+                        % test statcond pre/post saccade, and direction of change.
+                        [alldata(flbn,algn).stats.hval, alldata(flbn,algn).stats.pval,...
+                            alldata(flbn,algn).stats.sign]=rastplotstat(sacalgrasters,10,...
+                            [alignmtt-200 alignmtt-1],[alignmtt+1 alignmtt+200],0);
+                    end
+                    
                 end                     
                 convrasters=conv_raster(colrast,10,11,size(colrast,2)-10);
+                
+                
+                
                 alldata(flbn,algn).pk.sac=max(convrasters);
             elseif find(strcmp({getaligndata.alignlabel},'corsac'))
                 if size(getaligndata,2)>2 && size(getaligndata(3).rasters,1)>1
@@ -265,7 +283,8 @@ allalignmnt=reshape({alldata.aligntype},size(alldata));
 allmssrt=reshape({alldata.allmssrt},size(alldata));
 allpk=reshape({alldata.pk},size(alldata));
 allndata=reshape({alldata.ndata},size(alldata));
-
+all_rec_id=reshape({alldata.db_rec_id},size(alldata));
+allstats=reshape({alldata.stats},size(alldata));
 
 
 
