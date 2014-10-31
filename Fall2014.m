@@ -209,20 +209,21 @@ for flbn=1:length(dentatefiles)
                     sacalgrasters=getaligndata(1,alignd).rasters; 
                     alignmtt=getaligndata(1,alignd).alignidx;
                     start=alignmtt-300; stop=alignmtt+300; % -300 to 300 time window around sac (at 0).
-                    colrast=[colrast; sacalgrasters(:,start:stop)];
-                    if alignd==1
-                        % test statcond pre/post saccade, and direction of change.
+                    colrast=[colrast; sacalgrasters(:,start:stop)];                  
+                end                     
+                convrasters=conv_raster(colrast,10,1,size(colrast,2));
+                alldata(flbn,algn).pk.sac=max(convrasters);
+                pk_or_tro_time=find(convrasters==max(convrasters) | convrasters==min(convrasters),1);
+                    %% make some stats on sac alignment
+                    sacalgrasters=getaligndata(1,1).rasters; 
+                    alignmtt=getaligndata(1,1).alignidx;
+                    start=alignmtt-600+pk_or_tro_time; stop=alignmtt+pk_or_tro_time;
+                        % test statcond pre/post peak_or_trough, and direction of change.
                         [alldata(flbn,algn).stats.hval, alldata(flbn,algn).stats.pval,...
                             alldata(flbn,algn).stats.sign]=rastplotstat(sacalgrasters,10,...
-                            [alignmtt-200 alignmtt-1],[alignmtt+1 alignmtt+200],0);
-                    end
-                    
-                end                     
-                convrasters=conv_raster(colrast,10,11,size(colrast,2)-10);
-                
-                
-                
-                alldata(flbn,algn).pk.sac=max(convrasters);
+                            [alignmtt-600+pk_or_tro_time alignmtt-(300-pk_or_tro_time)+30],...
+                            [alignmtt-(300-pk_or_tro_time)+30 alignmtt+pk_or_tro_time],0);
+
             elseif find(strcmp({getaligndata.alignlabel},'corsac'))
                 if size(getaligndata,2)>2 && size(getaligndata(3).rasters,1)>1
                     numrastrow=arrayfun(@(x) size(x.rasters,1), getaligndata, 'UniformOutput', false);

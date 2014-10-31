@@ -5,6 +5,124 @@ allgsmssrt=allmssrt(gsdlist,1);
 allgspk=allpk(gsdlist,:);
 allgsndata=allndata(gsdlist,:); %3 column for 3 aligntype. Each cell has 3 or 4 for diferrent conditions
 allgs_rec_id=all_rec_id(gsdlist,1);
+allgsstats=allstats(gsdlist,1);
+
+%% cluster analysis of population
+%convolve rasters with 200ms before saccade, 200 after saccade, 10ms kernel
+%time window (so add 30 ms at both ends, which will be cut)
+
+sacresps=cellfun(@(x) conv_raster(x(1,1).rast,10,x(1,1).alignt-230,x(1,1).alignt+229), allgsndata(:,1), 'UniformOutput',false);
+sacresps=cat(1,sacresps{:});
+
+seeds=cellfun(@(x) mean(x(1,100:200))-mean(x(1,200:300)), mat2cell(sacresps,ones(size(sacresps,1),1)));
+wavedropseed=seeds==max(seeds);
+waveburstseed=seeds==min(seeds);
+waveflatseed=seeds==min(abs(seeds));
+seeds=[sacresps(wavedropseed,:);...
+     sacresps(waveburstseed,:)];
+%     sacresps(waveflatseed,:)];
+
+% %plot seeds
+figure
+plot(seeds(1,:))
+hold on
+plot(seeds(2,:),'r')
+% plot(seeds(3,:),'g')
+    
+% at random
+% [IDX,C,sumd,D]=kmeans(sacresps,3,'dist','city','display','iter'); 
+% seeded
+%[IDX,C,sumd,D]=kmeans(sacresps,2,'dist','city','start',seeds,'display','iter'); 
+%plot means
+figure
+plot(C(1,:),'b')
+hold on
+plot(C(2,:),'r')
+% plot(C(3,:),'g')
+
+%plot means
+figure
+plot(C(1,:),'b')
+hold on
+plot(C(2,:),'r')
+% plot(C(3,:),'g')
+%scatterplot
+figure
+scatter3(D(IDX==1,1),D(IDX==1,2),D(IDX==1,3),40,'b.')
+hold on
+scatter3(D(IDX==2,1),D(IDX==2,2),D(IDX==2,3),40,'r.')
+scatter3(D(IDX==3,1),D(IDX==3,2),D(IDX==3,3),40,'g.')
+
+% %plot sdfs from each cluster
+clus1=find(IDX==1); clus2=find(IDX==2); clus3=find(IDX==3);
+figure('name','cluster1')
+subplotdim=[ceil(length(clus1)/2)-(2*floor(length(clus1)/10)),2+floor(length(clus1)/10)];
+for sacplot=1:length(clus1)
+    subplot(subplotdim(1),subplotdim(2),sacplot)
+    plot(sacresps(clus1(sacplot),:));
+    ylim=get(gca,'ylim');
+    set(gca,'ylim',[0 ylim(2)]);
+    text(20,10,['sacplot ' num2str(clus1(sacplot))]);
+end
+figure('name','cluster2')
+subplotdim=[ceil(length(clus2)/2)-(2*floor(length(clus2)/10)),2+floor(length(clus2)/10)];
+for sacplot=1:length(clus2)
+    subplot(subplotdim(1),subplotdim(2),sacplot)
+    plot(sacresps(clus2(sacplot),:));
+    ylim=get(gca,'ylim');
+    set(gca,'ylim',[0 ylim(2)]);
+    text(20,10,['sacplot ' num2str(clus2(sacplot))]);
+end
+figure('name','cluster3')
+subplotdim=[ceil(length(clus3)/2)-(2*floor(length(clus3)/10)),2+floor(length(clus3)/10)];
+for sacplot=1:length(clus3)
+    subplot(subplotdim(1),subplotdim(2),sacplot)
+    plot(sacresps(clus3(sacplot),:));
+    ylim=get(gca,'ylim');
+    set(gca,'ylim',[0 ylim(2)]);
+    text(20,10,['sacplot ' num2str(clus3(sacplot))]);
+end
+
+%PCA
+[coeffs,score,latent] = pca(sacresps);
+% D=coeffs(:,1:8)';
+figure
+plot(coeffs(:,1),'.','MarkerSize',.5)
+hold on 
+plot(coeffs(:,2),'.','MarkerSize',.5)
+plot(coeffs(:,3),'.','MarkerSize',.5)
+plot(coeffs(:,4),'.','MarkerSize',.5)
+
+%scatterplot
+% in 2D
+figure
+plot(score(:,1),score(:,2),'.b')
+hold on
+scatter3(score([6,11,21,24,29,32],1),score([6,11,21,24,29,32],2),score([6,11,21,24,29,32],3),80,'r','filled')
+scatter3(score([7,14,17,25,27],1),score([7,14,17,25,27],2),score([7,14,17,25,27],3),80,'g','filled')
+
+% in 2D, with variance multiplier
+figure
+plot(score(:,1).*latent(1),score(:,2).*latent(2),'.b')
+
+% in 3D
+figure
+scatter3(score(:,1),score(:,2),score(:,3),40,'b.')
+hold on
+% outline just seeds
+scatter3(score(wavedropseed,2),score(wavedropseed,3),score(wavedropseed,4),80,'r','filled')
+scatter3(score(waveburstseed,2),score(waveburstseed,3),score(waveburstseed,4),80,'g','filled')
+scatter3(score(waveflatseed,2),score(waveflatseed,3),score(waveflatseed,4),80,'k','filled')
+% outline bests
+scatter3(score([6,11,21,24,29,32],1),score([6,11,21,24,29,32],2),score([6,11,21,24,29,32],3),80,'r','filled')
+scatter3(score([7,14,17,25,27],1),score([7,14,17,25,27],2),score([7,14,17,25,27],3),80,'g','filled')
+
+
+%
+scatter3(score(IDX==1,1),score(IDX==1,2),score(IDX==1,3),40,'b.')
+hold on
+scatter3(score(IDX==2,1),score(IDX==2,2),score(IDX==2,3),40,'r.')
+scatter3(score(IDX==3,1),score(IDX==3,2),score(IDX==3,3),40,'g.')
 
     %% colors for population plots
 %     figure(1);
