@@ -14,6 +14,23 @@ allgsstats=allstats(gsdlist,1);
 sacresps=cellfun(@(x) conv_raster(x(1,1).rast,10,x(1,1).alignt-230,x(1,1).alignt+229), allgsndata(:,1), 'UniformOutput',false);
 sacresps=cat(1,sacresps{:});
 
+%plot population
+% figure;
+% imagesc(sacresps);
+% colormap gray
+% colorbar;
+
+% standardize response (z-score)
+sacresp_mean=nanmean(sacresps');
+sacresp_sd=nanstd(sacresps');
+sacresps=(sacresps-repmat(sacresp_mean',1,size(sacresps,2)))./repmat(sacresp_sd',1,size(sacresps,2));
+
+%plot standardized population
+% figure;
+% imagesc(sacresps);
+% colormap gray
+% colorbar;
+
 seeds=cellfun(@(x) mean(x(1,100:200))-mean(x(1,200:300)), mat2cell(sacresps,ones(size(sacresps,1),1)));
 wavedropseed=seeds==max(seeds);
 waveburstseed=seeds==min(seeds);
@@ -27,19 +44,12 @@ figure
 plot(seeds(1,:))
 hold on
 plot(seeds(2,:),'r')
-% plot(seeds(3,:),'g')
+plot(seeds(3,:),'g')
     
 % at random
 % [IDX,C,sumd,D]=kmeans(sacresps,3,'dist','city','display','iter'); 
 % seeded
-%[IDX,C,sumd,D]=kmeans(sacresps,2,'dist','city','start',seeds,'display','iter'); 
-%plot means
-figure
-plot(C(1,:),'b')
-hold on
-plot(C(2,:),'r')
-% plot(C(3,:),'g')
-
+[IDX,C,sumd,D]=kmeans(sacresps,2,'dist','city','start',seeds,'display','iter'); 
 %plot means
 figure
 plot(C(1,:),'b')
@@ -84,7 +94,7 @@ for sacplot=1:length(clus3)
 end
 
 %PCA
-[coeffs,score,latent] = pca(sacresps);
+[coeffs,PrComps,latent] = pca(sacresps);
 % D=coeffs(:,1:8)';
 figure
 plot(coeffs(:,1),'.','MarkerSize',.5)
@@ -96,33 +106,46 @@ plot(coeffs(:,4),'.','MarkerSize',.5)
 %scatterplot
 % in 2D
 figure
-plot(score(:,1),score(:,2),'.b')
-hold on
-scatter3(score([6,11,21,24,29,32],1),score([6,11,21,24,29,32],2),score([6,11,21,24,29,32],3),80,'r','filled')
-scatter3(score([7,14,17,25,27],1),score([7,14,17,25,27],2),score([7,14,17,25,27],3),80,'g','filled')
+scatter(PrComps(:,1), PrComps(:,2), 'k.');
+xlabel('PC 1'); ylabel('PC 2')
+% hold on
+% scatter(PrComps([6,11,21,24,29,32],1),PrComps([6,11,21,24,29,32],2),80,'r','filled')
+% scatter(PrComps([7,14,17,25,27],1),PrComps([7,14,17,25,27],2),80,'g','filled')
 
-% in 2D, with variance multiplier
-figure
-plot(score(:,1).*latent(1),score(:,2).*latent(2),'.b')
+%isolate clusters
+%see gmdistribution.fit 'start' parameter
+gaussmixmodel_fit = gmdistribution.fit([PrComps(:,1),PrComps(:,2)],3);
+hold on 
+gaussfith = ezcontour(@(x,y)pdf(gaussmixmodel_fit,[x y]),[-20 25],[-25 20]);
+FirstTwoPrComps=[PrComps(:,1),PrComps(:,2)];
+clusidx = cluster(gaussmixmodel_fit,FirstTwoPrComps);
+cluster1 = FirstTwoPrComps(clusidx == 1,:);
+cluster2 = FirstTwoPrComps(clusidx == 2,:);
+cluster3 = FirstTwoPrComps(clusidx == 3,:);
+delete(gaussfith);
+gaussfith1 = scatter(cluster1(:,1),cluster1(:,2),80,'b.');
+gaussfith2 = scatter(cluster2(:,1),cluster2(:,2),80,'r.');
+gaussfith3 = scatter(cluster3(:,1),cluster3(:,2),80,'g.');
+legend([gaussfith1 gaussfith2 gaussfith3],'Cluster 1','Cluster 2','Cluster 3','Location','NW')
+
+% % in 2D, with variance multiplier
+% figure
+% plot(PrComps(:,1).*latent(1),PrComps(:,2).*latent(2),'.b')
 
 % in 3D
 figure
-scatter3(score(:,1),score(:,2),score(:,3),40,'b.')
+scatter3(PrComps(:,1),PrComps(:,2),PrComps(:,3),40,'b.')
+xlabel('PC 1'); ylabel('PC 2'); zlabel('PC 3')
 hold on
 % outline just seeds
-scatter3(score(wavedropseed,2),score(wavedropseed,3),score(wavedropseed,4),80,'r','filled')
-scatter3(score(waveburstseed,2),score(waveburstseed,3),score(waveburstseed,4),80,'g','filled')
-scatter3(score(waveflatseed,2),score(waveflatseed,3),score(waveflatseed,4),80,'k','filled')
+scatter3(PrComps(wavedropseed,2),PrComps(wavedropseed,3),PrComps(wavedropseed,4),80,'r','filled')
+scatter3(PrComps(waveburstseed,2),PrComps(waveburstseed,3),PrComps(waveburstseed,4),80,'g','filled')
+scatter3(PrComps(waveflatseed,2),PrComps(waveflatseed,3),PrComps(waveflatseed,4),80,'k','filled')
 % outline bests
-scatter3(score([6,11,21,24,29,32],1),score([6,11,21,24,29,32],2),score([6,11,21,24,29,32],3),80,'r','filled')
-scatter3(score([7,14,17,25,27],1),score([7,14,17,25,27],2),score([7,14,17,25,27],3),80,'g','filled')
+scatter3(PrComps([6,11,21,24,29,32],1),PrComps([6,11,21,24,29,32],2),PrComps([6,11,21,24,29,32],3),80,'r','filled')
+scatter3(PrComps([7,14,17,25,27],1),PrComps([7,14,17,25,27],2),PrComps([7,14,17,25,27],3),80,'g','filled')
 
 
-%
-scatter3(score(IDX==1,1),score(IDX==1,2),score(IDX==1,3),40,'b.')
-hold on
-scatter3(score(IDX==2,1),score(IDX==2,2),score(IDX==2,3),40,'r.')
-scatter3(score(IDX==3,1),score(IDX==3,2),score(IDX==3,3),40,'g.')
 
     %% colors for population plots
 %     figure(1);
