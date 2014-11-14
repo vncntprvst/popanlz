@@ -5,21 +5,22 @@ global directory slash;
 
 try
     CCNdb = connect2DB('vp_sldata');
-    query = 'SELECT FileName FROM b_dentate';
-    results = fetch(CCNdb,query);
+%     query = 'SELECT FileName FROM b_dentate';
+%     results = fetch(CCNdb,query);
+    dentatefiles =fetch(CCNdb,'select r.a_file FROM recordings r WHERE r.task=''gapstop'' AND r.recloc=''dentate''');
 catch db_fail
     results = [];
 end
 
-CmdFileName={'S113L4A5_13500';'S114L4A5_14321';'R132L4P4_20152';'S112l4a5_12971';...
-    'S117L4A6_12741';'S118L4A5_13081';'S115L4A6_12871';...
-    'H56L5A5_21502';'S116L4A6_15450';'H53L5A5_20901';...
-    'S123L4A6_13691';'S125L4A6_13990';'H56L5A5_21321';...
-    'R97L7A1_19001'};
+% CmdFileName={'S113L4A5_13500';'S114L4A5_14321';'R132L4P4_20152';'S112l4a5_12971';...
+%     'S117L4A6_12741';'S118L4A5_13081';'S115L4A6_12871';...
+%     'H56L5A5_21502';'S116L4A6_15450';'H53L5A5_20901';...
+%     'S123L4A6_13691';'S125L4A6_13990';'H56L5A5_21321';...
+%     'R97L7A1_19001'};
 
-%% concatenate file lists
-dentatefiles=[results;CmdFileName];
-dentatefiles=unique(dentatefiles);
+%% concatenate file lists if needed
+% dentatefiles=[results;CmdFileName];
+% dentatefiles=unique(dentatefiles);
 
 %% prealloc
 alldata=struct('task',{},'aligntype',{},'allmssrt',{},...
@@ -28,22 +29,27 @@ alldata=struct('task',{},'aligntype',{},'allmssrt',{},...
     'stats',struct('hval',{},'pval',{},'sign',{}));
 %allmssrt=NaN(length(dentatefiles),1);
 
-
 %% process files
 for flbn=1:length(dentatefiles)
     dfile=dentatefiles{flbn}; %dfile=[dfile '_REX'];
-    
+    if strcmp('A',dfile(end))
+        dfile=dfile(1:end-1);
+    end
     %% get task and id
     try
         % issue with db at the moment 
-%         query = ['SELECT r.task, r.recording_id FROM recordings r WHERE r.a_file = ''' dfile 'A'''];
-%         results=fetch(CCNdb,query);
-%         [alldata(flbn,1).task,task]=deal(results{1});
-%         alldata.db_rec_id=results{2};
-        codes =load([dfile,'_REX.mat'], 'allcodes');
-        [alldata(flbn,1).task,task]=deal(taskdetect(codes.allcodes));
-        clear codes;
-        alldata(flbn,1).db_rec_id=[];
+        query = ['SELECT r.task, r.recording_id FROM recordings r WHERE r.a_file = ''' dfile 'A'''];
+        results=fetch(CCNdb,query);
+        [alldata(flbn,1).task,task]=deal(results{1});
+        alldata(flbn,1).db_rec_id=results{2};
+        
+        %check valid task
+        fcodes =load([dfile,'_REX.mat'], 'allcodes');
+        if ~strcmp(task,taskdetect(fcodes.allcodes))
+            alldata(flbn,1).db_rec_id=[];
+            continue
+        end
+        clear fcodes;
     catch db_fail
         task='gapstop';
         r_id=[];
@@ -82,10 +88,14 @@ for flbn=1:length(dentatefiles)
         
         %% first, get psychometric values
         [mssrt,inhibfun,ccssd,nccssd,ssdvalues,tachomc,tachowidth,sacdelay,rewtimes]=findssrt(loadfile{:}, 0);
-        mssrt=max([mssrt (mean(tachomc)+tachowidth/2)]); %replace by: if mssrt < tachomc+tachowidth/2, mssrt=tachomc+tachowidth/2, end; ?
-        %         if mssrt>(mean(tachomc)+3*tachowidth)
-        %             mssrt=mean(tachomc)+tachowidth;
-        %         end
+        if ~isnan(mssrt)
+            mssrt=max([mssrt (mean(tachomc)+tachowidth/2)]); %replace by: if mssrt < tachomc+tachowidth/2, mssrt=tachomc+tachowidth/2, end; ?
+            %         if mssrt>(mean(tachomc)+3*tachowidth)
+            %             mssrt=mean(tachomc)+tachowidth;
+            %         end
+        else
+            continue
+        end
         alldata(flbn,1).allmssrt=mssrt;
         
         %% align rasters

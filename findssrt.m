@@ -321,34 +321,33 @@ if isnan(mssrt) || ~(mssrt>50 & mssrt<150) %get tachomc and lookup SSRT/tachomc 
     catch
         %SSRT_TachoMP
     end
-    %get tacho curve midpoint
-    tachomc=mean(tachomc);
-    if tachomc<20 || isnan(tachomc)
-        tachomc=20;
-    end
+
     % find reciprocal SSRT value
     try
-        mssrt=max([round(tachomc*fit.coeff(1)+fit.coeff(2)) 75]);
-        if isnan(mssrt)
-            mssrt=tachomc+20;
-        end
+        %get tacho curve midpoint
+        tachomc=mean(tachomc);
+        %estimate mssrt
+        mssrt=round(tachomc*fit.coeff(1)+fit.coeff(2));
     catch
         if (tachomc>50 & tachomc<90)
             mssrt=tachomc+20;
         end
-        if isnan(mssrt)
-            mssrt=tachomc+20;
-        end
     end
 end
-if ~(mssrt>75 & mssrt<150)
-    load([recname(1),'_evolSSRT'],'evolSSRT','foSSRT');
-    session=regexp(recname,'\d+','match');
-    if min(abs(evolSSRT(2,:)-str2num(session{1})))<=5
-        mssrt=round(mssrt/3+(evolSSRT(1,find(abs(evolSSRT(2,:)-str2num(session{1}))==min(abs(evolSSRT(2,:)-str2num(session{1}))),1)))*2/3);
-    else
-        mssrt=round(mssrt/3+foSSRT*2/3);
-    end
+
+if mssrt < 50
+   mssrt=NaN;
 end
+
+
+% if ~(mssrt>75 & mssrt<150)
+%     load([recname(1),'_evolSSRT'],'evolSSRT','foSSRT');
+%     session=regexp(recname,'\d+','match');
+%     if min(abs(evolSSRT(2,:)-str2num(session{1})))<=5
+%         mssrt=round(mssrt/3+(evolSSRT(1,find(abs(evolSSRT(2,:)-str2num(session{1}))==min(abs(evolSSRT(2,:)-str2num(session{1}))),1)))*2/3);
+%     else
+%         mssrt=round(mssrt/3+foSSRT*2/3);
+%     end
+% end
 
 end

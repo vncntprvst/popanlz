@@ -23,7 +23,7 @@ sacresps=cat(1,sacresps{:});
 % standardize response (z-score)
 sacresp_mean=nanmean(sacresps');
 sacresp_sd=nanstd(sacresps');
-sacresps=(sacresps-repmat(sacresp_mean',1,size(sacresps,2)))./repmat(sacresp_sd',1,size(sacresps,2));
+norm_sacresps=(sacresps-repmat(sacresp_mean',1,size(sacresps,2)))./repmat(sacresp_sd',1,size(sacresps,2));
 
 %plot standardized population
 % figure;
@@ -31,13 +31,13 @@ sacresps=(sacresps-repmat(sacresp_mean',1,size(sacresps,2)))./repmat(sacresp_sd'
 % colormap gray
 % colorbar;
 
-seeds=cellfun(@(x) mean(x(1,100:200))-mean(x(1,200:300)), mat2cell(sacresps,ones(size(sacresps,1),1)));
+seeds=cellfun(@(x) mean(x(1,100:200))-mean(x(1,200:300)), mat2cell(norm_sacresps,ones(size(norm_sacresps,1),1)));
 wavedropseed=seeds==max(seeds);
 waveburstseed=seeds==min(seeds);
 waveflatseed=seeds==min(abs(seeds));
-seeds=[sacresps(wavedropseed,:);...
-     sacresps(waveburstseed,:)];
-%     sacresps(waveflatseed,:)];
+seeds=[norm_sacresps(wavedropseed,:);...
+     norm_sacresps(waveburstseed,:);...
+     norm_sacresps(waveflatseed,:)];
 
 % %plot seeds
 figure
@@ -49,27 +49,39 @@ plot(seeds(3,:),'g')
 % at random
 % [IDX,C,sumd,D]=kmeans(sacresps,3,'dist','city','display','iter'); 
 % seeded
-[IDX,C,sumd,D]=kmeans(sacresps,2,'dist','city','start',seeds,'display','iter'); 
+[kMidx,kMeansClus,sumd,D]=kmeans(norm_sacresps,3,'dist','city','start',seeds,'display','iter'); 
 %plot means
 figure
-plot(C(1,:),'b')
+plot(kMeansClus(1,:),'b')
 hold on
-plot(C(2,:),'r')
-% plot(C(3,:),'g')
-%scatterplot
+plot(kMeansClus(2,:),'r')
+plot(kMeansClus(3,:),'g')
+% scatterplot
 figure
-scatter3(D(IDX==1,1),D(IDX==1,2),D(IDX==1,3),40,'b.')
+scatter3(D(kMidx==1,1),D(kMidx==1,2),D(kMidx==1,3),40,'b.')
 hold on
-scatter3(D(IDX==2,1),D(IDX==2,2),D(IDX==2,3),40,'r.')
-scatter3(D(IDX==3,1),D(IDX==3,2),D(IDX==3,3),40,'g.')
+scatter3(D(kMidx==2,1),D(kMidx==2,2),D(kMidx==2,3),40,'r.')
+scatter3(D(kMidx==3,1),D(kMidx==3,2),D(kMidx==3,3),40,'g.')
+
+% Fit Gaussian Mixture Model using the k-means centers as the initial conditions
+% We only have mean initial conditions from the k-means algorithm, so we
+% can specify some arbitrary initial variance and mixture weights.
+gmInitialVariance = 0.1;
+initialSigma = cat(3,gmInitialVariance,gmInitialVariance,gmInitialVariance);
+% Initial weights are set at 50%
+initialWeights = [0.5 0.5 0.5];
+% Initial condition structure for the gmdistribution.fit function
+S.mu = kMeansClus;
+S.Sigma = initialSigma;
+S.PComponents = initialWeights;
 
 % %plot sdfs from each cluster
-clus1=find(IDX==1); clus2=find(IDX==2); clus3=find(IDX==3);
+clus1=find(kMidx==1); clus2=find(kMidx==2); clus3=find(kMidx==3);
 figure('name','cluster1')
 subplotdim=[ceil(length(clus1)/2)-(2*floor(length(clus1)/10)),2+floor(length(clus1)/10)];
 for sacplot=1:length(clus1)
     subplot(subplotdim(1),subplotdim(2),sacplot)
-    plot(sacresps(clus1(sacplot),:));
+    plot(norm_sacresps(clus1(sacplot),:));
     ylim=get(gca,'ylim');
     set(gca,'ylim',[0 ylim(2)]);
     text(20,10,['sacplot ' num2str(clus1(sacplot))]);
@@ -78,7 +90,7 @@ figure('name','cluster2')
 subplotdim=[ceil(length(clus2)/2)-(2*floor(length(clus2)/10)),2+floor(length(clus2)/10)];
 for sacplot=1:length(clus2)
     subplot(subplotdim(1),subplotdim(2),sacplot)
-    plot(sacresps(clus2(sacplot),:));
+    plot(norm_sacresps(clus2(sacplot),:));
     ylim=get(gca,'ylim');
     set(gca,'ylim',[0 ylim(2)]);
     text(20,10,['sacplot ' num2str(clus2(sacplot))]);
@@ -87,23 +99,23 @@ figure('name','cluster3')
 subplotdim=[ceil(length(clus3)/2)-(2*floor(length(clus3)/10)),2+floor(length(clus3)/10)];
 for sacplot=1:length(clus3)
     subplot(subplotdim(1),subplotdim(2),sacplot)
-    plot(sacresps(clus3(sacplot),:));
+    plot(norm_sacresps(clus3(sacplot),:));
     ylim=get(gca,'ylim');
     set(gca,'ylim',[0 ylim(2)]);
     text(20,10,['sacplot ' num2str(clus3(sacplot))]);
 end
 
-%PCA
-[coeffs,PrComps,latent] = pca(sacresps);
+%% PCA
+[coeffs,PrComps,latent] = pca(norm_sacresps);
 % D=coeffs(:,1:8)';
-figure
-plot(coeffs(:,1),'.','MarkerSize',.5)
-hold on 
-plot(coeffs(:,2),'.','MarkerSize',.5)
-plot(coeffs(:,3),'.','MarkerSize',.5)
-plot(coeffs(:,4),'.','MarkerSize',.5)
+% figure
+% plot(coeffs(:,1),'.','MarkerSize',.5)
+% hold on 
+% plot(coeffs(:,2),'.','MarkerSize',.5)
+% plot(coeffs(:,3),'.','MarkerSize',.5)
+% plot(coeffs(:,4),'.','MarkerSize',.5)
 
-%scatterplot
+%% scatterplot
 % in 2D
 figure
 scatter(PrComps(:,1), PrComps(:,2), 'k.');
@@ -112,38 +124,104 @@ xlabel('PC 1'); ylabel('PC 2')
 % scatter(PrComps([6,11,21,24,29,32],1),PrComps([6,11,21,24,29,32],2),80,'r','filled')
 % scatter(PrComps([7,14,17,25,27],1),PrComps([7,14,17,25,27],2),80,'g','filled')
 
-%isolate clusters
-%see gmdistribution.fit 'start' parameter
-gaussmixmodel_fit = gmdistribution.fit([PrComps(:,1),PrComps(:,2)],3);
+%% isolate clusters
+
+try
+    gaussmixmodel_fit = gmdistribution.fit([PrComps(:,1),PrComps(:,2)],4,...
+        'Start','randSample','Replicates',5,'Option',statset('Display','final')); % 4 clusters
+    fourclus=1;
+catch 
+    gaussmixmodel_fit = gmdistribution.fit([PrComps(:,1),PrComps(:,2)],3,...
+         'Start','randSample','Replicates',5,'Option',statset('Display','final')); % 3 clusters
+    fourclus=0;
+end
 hold on 
-gaussfith = ezcontour(@(x,y)pdf(gaussmixmodel_fit,[x y]),[-20 25],[-25 20]);
-FirstTwoPrComps=[PrComps(:,1),PrComps(:,2)];
-clusidx = cluster(gaussmixmodel_fit,FirstTwoPrComps);
-cluster1 = FirstTwoPrComps(clusidx == 1,:);
-cluster2 = FirstTwoPrComps(clusidx == 2,:);
-cluster3 = FirstTwoPrComps(clusidx == 3,:);
+gaussfith = ezcontour(@(x,y)pdf(gaussmixmodel_fit,[x y]),[min(PrComps(:,1))-1 max(PrComps(:,1))+1],[min(PrComps(:,2))-1 max(PrComps(:,2))+1]);
+% ezsurf(@(x,y)pdf(gaussmixmodel_fit,[x y]),[min(PrComps(:,1))-1 max(PrComps(:,1))+1],[min(PrComps(:,2))-1 max(PrComps(:,2))+1]);
+
+FirstPrComps=[PrComps(:,1),PrComps(:,2)];
+
+[PCAclusidx,nlogl,P,logpdf,M] = cluster(gaussmixmodel_fit,FirstPrComps);
+foo=M(PCAclusidx==2,2)
+phat = mle(foo,'distribution','norm','alpha',.05)
+
+
+cluster1 = FirstPrComps(PCAclusidx == 1,:);
+cluster2 = FirstPrComps(PCAclusidx == 2,:);
+cluster3 = FirstPrComps(PCAclusidx == 3,:);
+if fourclus && sum(PCAclusidx == 4)
+    cluster4 = FirstPrComps(PCAclusidx == 4,:);
+end
 delete(gaussfith);
 gaussfith1 = scatter(cluster1(:,1),cluster1(:,2),80,'b.');
 gaussfith2 = scatter(cluster2(:,1),cluster2(:,2),80,'r.');
 gaussfith3 = scatter(cluster3(:,1),cluster3(:,2),80,'g.');
-legend([gaussfith1 gaussfith2 gaussfith3],'Cluster 1','Cluster 2','Cluster 3','Location','NW')
+if fourclus
+    gaussfith4 = scatter(cluster4(:,1),cluster4(:,2),80,'c.');
+    legend([gaussfith1 gaussfith2 gaussfith3 gaussfith4],'Cluster 1','Cluster 2','Cluster 3','Cluster 4','Location','NW')
+else
+    legend([gaussfith1 gaussfith2 gaussfith3],'Cluster 1','Cluster 2','Cluster 3','Location','NW')
+end
 
 % % in 2D, with variance multiplier
 % figure
 % plot(PrComps(:,1).*latent(1),PrComps(:,2).*latent(2),'.b')
 
-% in 3D
+%% in 3D
 figure
 scatter3(PrComps(:,1),PrComps(:,2),PrComps(:,3),40,'b.')
 xlabel('PC 1'); ylabel('PC 2'); zlabel('PC 3')
 hold on
 % outline just seeds
-scatter3(PrComps(wavedropseed,2),PrComps(wavedropseed,3),PrComps(wavedropseed,4),80,'r','filled')
-scatter3(PrComps(waveburstseed,2),PrComps(waveburstseed,3),PrComps(waveburstseed,4),80,'g','filled')
-scatter3(PrComps(waveflatseed,2),PrComps(waveflatseed,3),PrComps(waveflatseed,4),80,'k','filled')
+scatter3(PrComps(wavedropseed,1),PrComps(wavedropseed,2),PrComps(wavedropseed,3),80,'r','filled')
+scatter3(PrComps(waveburstseed,1),PrComps(waveburstseed,2),PrComps(waveburstseed,3),80,'g','filled')
+scatter3(PrComps(waveflatseed,1),PrComps(waveflatseed,2),PrComps(waveflatseed,3),80,'k','filled')
 % outline bests
 scatter3(PrComps([6,11,21,24,29,32],1),PrComps([6,11,21,24,29,32],2),PrComps([6,11,21,24,29,32],3),80,'r','filled')
 scatter3(PrComps([7,14,17,25,27],1),PrComps([7,14,17,25,27],2),PrComps([7,14,17,25,27],3),80,'g','filled')
+
+%% plot sdfs from each cluster
+clus1=find(PCAclusidx==1); clus2=find(PCAclusidx==2);
+clus3=find(PCAclusidx==3); clus4=find(PCAclusidx==4);
+figure('name','cluster1')
+subplotdim=[ceil(length(clus1)/2)-(2*floor(length(clus1)/10)),2+floor(length(clus1)/10)];
+for sacplot=1:length(clus1)
+    subplot(subplotdim(1),subplotdim(2),sacplot)
+    plot(norm_sacresps(clus1(sacplot),:));
+    ylim=get(gca,'ylim');
+    set(gca,'ylim',[min(ylim(1),0) ylim(2)]);
+    text(ylim(2),10,['sacplot ' num2str(clus1(sacplot))]);
+end
+figure('name','cluster2')
+subplotdim=[ceil(length(clus2)/2)-(2*floor(length(clus2)/10)),2+floor(length(clus2)/10)];
+for sacplot=1:length(clus2)
+    subplot(subplotdim(1),subplotdim(2),sacplot)
+    plot(norm_sacresps(clus2(sacplot),:));
+    ylim=get(gca,'ylim');
+    set(gca,'ylim',[min(ylim(1),0) ylim(2)]);
+    text(ylim(2),10,['sacplot ' num2str(clus2(sacplot))]);
+end
+figure('name','cluster3')
+subplotdim=[ceil(length(clus3)/2)-(2*floor(length(clus3)/10)),2+floor(length(clus3)/10)];
+for sacplot=1:length(clus3)
+    subplot(subplotdim(1),subplotdim(2),sacplot)
+    plot(norm_sacresps(clus3(sacplot),:));
+    ylim=get(gca,'ylim');
+    set(gca,'ylim',[min(ylim(1),0) ylim(2)]);
+    text(ylim(2),10,['sacplot ' num2str(clus3(sacplot))]);
+end
+if fourclus && sum(clus4)
+    figure('name','cluster4')
+    subplotdim=[ceil(length(clus4)/2)-(2*floor(length(clus4)/10)),2+floor(length(clus4)/10)];
+        for sacplot=1:length(clus4)
+        subplot(subplotdim(1),subplotdim(2),sacplot)
+        plot(norm_sacresps(clus4(sacplot),:));
+        ylim=get(gca,'ylim');
+        set(gca,'ylim',[min(ylim(1),0) ylim(2)]);
+        text(ylim(2),10,['sacplot ' num2str(clus4(sacplot))]);
+        end
+end
+
 
 
 
