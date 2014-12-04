@@ -94,6 +94,9 @@ canceltrials=goodstoptrials(~noncancel);
 allsactrials=find(trialtypes==604);
 if find(stoptrialcodes(:,8)==1503,1)
     sactrials=allsactrials(floor(allcodes(allsactrials,9)./10)==704);
+    if isempty(sactrials) && find(floor(allcodes(allsactrials,8)./10)==704,1) %rare case where 1503 was not added everywhere
+        sactrials=allsactrials(floor(allcodes(allsactrials,8)./10)==704);
+    end
 else
     sactrials=allsactrials(floor(allcodes(allsactrials,8)./10)==704);
 end
@@ -335,7 +338,7 @@ if isnan(mssrt) || ~(mssrt>50 & mssrt<150) %get tachomc and lookup SSRT/tachomc 
     end
 end
 
-if mssrt < 50
+if mssrt < 50 ||  mssrt > 200
    mssrt=NaN;
 end
 

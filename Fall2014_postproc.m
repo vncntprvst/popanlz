@@ -1,9 +1,9 @@
 %% keep just gapstop data
-gsdlist=cellfun(@(x) strcmp(x,'gapstop'),alltasks(:,1));
+gsdlist=cellfun(@(x) strcmp(x,'gapstop'),alltasks(:,1)) & ~cellfun('isempty',allndata(:,1));
 allgsalignmnt=allalignmnt(gsdlist,1);
 allgsmssrt=allmssrt(gsdlist,1);
 allgspk=allpk(gsdlist,:);
-allgsndata=allndata(gsdlist,:); %3 column for 3 aligntype. Each cell has 3 or 4 for diferrent conditions
+allgsndata=allndata(gsdlist,:); %3 column for 3 aligntype. Each cell has 3 or 4 for different conditions
 allgs_rec_id=all_rec_id(gsdlist,1);
 allgsstats=allstats(gsdlist,1);
 
@@ -12,7 +12,17 @@ allgsstats=allstats(gsdlist,1);
 %time window (so add 30 ms at both ends, which will be cut)
 
 sacresps=cellfun(@(x) conv_raster(x(1,1).rast,10,x(1,1).alignt-230,x(1,1).alignt+229), allgsndata(:,1), 'UniformOutput',false);
+%% remove bad apples
+badapl=cellfun(@(x) size(x,2)==1, sacresps);
+sacresps=sacresps(~badapl,:);
 sacresps=cat(1,sacresps{:});
+
+allgsalignmnt=allgsalignmnt(~badapl,1);
+allgsmssrt=allgsmssrt(~badapl,1);
+allgspk=allgspk(~badapl,:);
+allgsndata=allgsndata(~badapl,:); 
+allgs_rec_id=allgs_rec_id(~badapl,1);
+allgsstats=allgsstats(~badapl,1);
 
 %plot population
 % figure;
@@ -20,7 +30,7 @@ sacresps=cat(1,sacresps{:});
 % colormap gray
 % colorbar;
 
-% standardize response (z-score)
+%% standardize response (z-score)
 sacresp_mean=nanmean(sacresps');
 sacresp_sd=nanstd(sacresps');
 norm_sacresps=(sacresps-repmat(sacresp_mean',1,size(sacresps,2)))./repmat(sacresp_sd',1,size(sacresps,2));
@@ -66,14 +76,14 @@ scatter3(D(kMidx==3,1),D(kMidx==3,2),D(kMidx==3,3),40,'g.')
 % Fit Gaussian Mixture Model using the k-means centers as the initial conditions
 % We only have mean initial conditions from the k-means algorithm, so we
 % can specify some arbitrary initial variance and mixture weights.
-gmInitialVariance = 0.1;
-initialSigma = cat(3,gmInitialVariance,gmInitialVariance,gmInitialVariance);
-% Initial weights are set at 50%
-initialWeights = [0.5 0.5 0.5];
-% Initial condition structure for the gmdistribution.fit function
-S.mu = kMeansClus;
-S.Sigma = initialSigma;
-S.PComponents = initialWeights;
+% gmInitialVariance = 0.1;
+% initialSigma = cat(3,gmInitialVariance,gmInitialVariance,gmInitialVariance);
+% % Initial weights are set at 50%
+% initialWeights = [0.5 0.5 0.5];
+% % Initial condition structure for the gmdistribution.fit function
+% S.mu = kMeansClus;
+% S.Sigma = initialSigma;
+% S.PComponents = initialWeights;
 
 % %plot sdfs from each cluster
 clus1=find(kMidx==1); clus2=find(kMidx==2); clus3=find(kMidx==3);
@@ -125,43 +135,63 @@ xlabel('PC 1'); ylabel('PC 2')
 % scatter(PrComps([7,14,17,25,27],1),PrComps([7,14,17,25,27],2),80,'g','filled')
 
 %% isolate clusters
-
+FirstPrComps=[PrComps(:,1),PrComps(:,2)];
 try
-    gaussmixmodel_fit = gmdistribution.fit([PrComps(:,1),PrComps(:,2)],4,...
+    gmm_fit_clusters = gmdistribution.fit(FirstPrComps,4,...
         'Start','randSample','Replicates',5,'Option',statset('Display','final')); % 4 clusters
     fourclus=1;
 catch 
-    gaussmixmodel_fit = gmdistribution.fit([PrComps(:,1),PrComps(:,2)],3,...
+    gmm_fit_clusters = gmdistribution.fit(FirstPrComps,3,...
          'Start','randSample','Replicates',5,'Option',statset('Display','final')); % 3 clusters
     fourclus=0;
 end
+
+% Look at clusters mu and sigma
+% gmm_fit_clusters.mu(1,:)
+% gmm_fit_clusters.Sigma(:,:,1) 
+
+% plot cluster contours
 hold on 
-gaussfith = ezcontour(@(x,y)pdf(gaussmixmodel_fit,[x y]),[min(PrComps(:,1))-1 max(PrComps(:,1))+1],[min(PrComps(:,2))-1 max(PrComps(:,2))+1]);
+clusgmmfith = ezcontour(@(x,y)pdf(gmm_fit_clusters,[x y]),[min(PrComps(:,1))-1 max(PrComps(:,1))+1],[min(PrComps(:,2))-1 max(PrComps(:,2))+1]);
 % ezsurf(@(x,y)pdf(gaussmixmodel_fit,[x y]),[min(PrComps(:,1))-1 max(PrComps(:,1))+1],[min(PrComps(:,2))-1 max(PrComps(:,2))+1]);
 
-FirstPrComps=[PrComps(:,1),PrComps(:,2)];
+% cluster and find posterior probability
+%[PCAclusidx,nlogl,P,logpdf,M] = cluster(gmm_fit_clusters,FirstPrComps);
+% actually use posterior value to 
+ClusPr = posterior(gaussmixmodel_fit,[PrComps(:,1),PrComps(:,2)]);
+% add a 5th column for junk 
+ClusPr(max(ClusPr,[],2)<0.95,5)=1;
+% classify into clusters (or junk)
+[~,PCAclusidx] = max(ClusPr,[],2);
+maxClusPr = max(ClusPr(:,1:4),[],2);
+tabulate(PCAclusidx);
 
-[PCAclusidx,nlogl,P,logpdf,M] = cluster(gaussmixmodel_fit,FirstPrComps);
-foo=M(PCAclusidx==2,2)
-phat = mle(foo,'distribution','norm','alpha',.05)
+gscatter(FirstPrComps(:,1), FirstPrComps(:,2), PCAclusidx)
+%print index number
+text(PrComps(:,1), PrComps(:,2),num2str(rot90(size(PrComps(:,1),1):-1:1)))
+%and print proba value
+text(PrComps(:,1), PrComps(:,2)-0.5,num2str(floor(maxClusPr*100)))
 
+hold off
+title('PC1 vs PC2, 4 clusters');
 
-cluster1 = FirstPrComps(PCAclusidx == 1,:);
-cluster2 = FirstPrComps(PCAclusidx == 2,:);
-cluster3 = FirstPrComps(PCAclusidx == 3,:);
-if fourclus && sum(PCAclusidx == 4)
-    cluster4 = FirstPrComps(PCAclusidx == 4,:);
-end
-delete(gaussfith);
-gaussfith1 = scatter(cluster1(:,1),cluster1(:,2),80,'b.');
-gaussfith2 = scatter(cluster2(:,1),cluster2(:,2),80,'r.');
-gaussfith3 = scatter(cluster3(:,1),cluster3(:,2),80,'g.');
-if fourclus
-    gaussfith4 = scatter(cluster4(:,1),cluster4(:,2),80,'c.');
-    legend([gaussfith1 gaussfith2 gaussfith3 gaussfith4],'Cluster 1','Cluster 2','Cluster 3','Cluster 4','Location','NW')
-else
-    legend([gaussfith1 gaussfith2 gaussfith3],'Cluster 1','Cluster 2','Cluster 3','Location','NW')
-end
+%% 
+% cluster1 = FirstPrComps(PCAclusidx == 1,:);
+% cluster2 = FirstPrComps(PCAclusidx == 2,:);
+% cluster3 = FirstPrComps(PCAclusidx == 3,:);
+% if fourclus && sum(PCAclusidx == 4)
+%     cluster4 = FirstPrComps(PCAclusidx == 4,:);
+% end
+% delete(clusgmmfith);
+% gaussfith1 = scatter(cluster1(:,1),cluster1(:,2),80,'b.');
+% gaussfith2 = scatter(cluster2(:,1),cluster2(:,2),80,'r.');
+% gaussfith3 = scatter(cluster3(:,1),cluster3(:,2),80,'g.');
+% if fourclus
+%     gaussfith4 = scatter(cluster4(:,1),cluster4(:,2),80,'c.');
+%     legend([gaussfith1 gaussfith2 gaussfith3 gaussfith4],'Cluster 1','Cluster 2','Cluster 3','Cluster 4','Location','NW')
+% else
+%     legend([gaussfith1 gaussfith2 gaussfith3],'Cluster 1','Cluster 2','Cluster 3','Location','NW')
+% end
 
 % % in 2D, with variance multiplier
 % figure
@@ -183,43 +213,54 @@ scatter3(PrComps([7,14,17,25,27],1),PrComps([7,14,17,25,27],2),PrComps([7,14,17,
 %% plot sdfs from each cluster
 clus1=find(PCAclusidx==1); clus2=find(PCAclusidx==2);
 clus3=find(PCAclusidx==3); clus4=find(PCAclusidx==4);
+clus5=find(PCAclusidx==5);
+
 figure('name','cluster1')
-subplotdim=[ceil(length(clus1)/2)-(2*floor(length(clus1)/10)),2+floor(length(clus1)/10)];
+subplotdim=[ceil(sqrt(numel(clus1))),ceil(sqrt(numel(clus1)))];
 for sacplot=1:length(clus1)
     subplot(subplotdim(1),subplotdim(2),sacplot)
     plot(norm_sacresps(clus1(sacplot),:));
     ylim=get(gca,'ylim');
     set(gca,'ylim',[min(ylim(1),0) ylim(2)]);
-    text(ylim(2),10,['sacplot ' num2str(clus1(sacplot))]);
+    text(10,ylim(2)-0.1,['sacplot ' num2str(clus1(sacplot))]);
 end
 figure('name','cluster2')
-subplotdim=[ceil(length(clus2)/2)-(2*floor(length(clus2)/10)),2+floor(length(clus2)/10)];
+subplotdim=[ceil(sqrt(numel(clus2))),ceil(sqrt(numel(clus2)))];
 for sacplot=1:length(clus2)
     subplot(subplotdim(1),subplotdim(2),sacplot)
     plot(norm_sacresps(clus2(sacplot),:));
     ylim=get(gca,'ylim');
     set(gca,'ylim',[min(ylim(1),0) ylim(2)]);
-    text(ylim(2),10,['sacplot ' num2str(clus2(sacplot))]);
+    text(10,ylim(2)-0.1,['sacplot ' num2str(clus2(sacplot))]);
 end
 figure('name','cluster3')
-subplotdim=[ceil(length(clus3)/2)-(2*floor(length(clus3)/10)),2+floor(length(clus3)/10)];
+subplotdim=[ceil(sqrt(numel(clus3))),ceil(sqrt(numel(clus3)))];
 for sacplot=1:length(clus3)
     subplot(subplotdim(1),subplotdim(2),sacplot)
     plot(norm_sacresps(clus3(sacplot),:));
     ylim=get(gca,'ylim');
     set(gca,'ylim',[min(ylim(1),0) ylim(2)]);
-    text(ylim(2),10,['sacplot ' num2str(clus3(sacplot))]);
+    text(10,ylim(2)-0.1,['sacplot ' num2str(clus3(sacplot))]);
 end
-if fourclus && sum(clus4)
-    figure('name','cluster4')
-    subplotdim=[ceil(length(clus4)/2)-(2*floor(length(clus4)/10)),2+floor(length(clus4)/10)];
-        for sacplot=1:length(clus4)
-        subplot(subplotdim(1),subplotdim(2),sacplot)
-        plot(norm_sacresps(clus4(sacplot),:));
-        ylim=get(gca,'ylim');
-        set(gca,'ylim',[min(ylim(1),0) ylim(2)]);
-        text(ylim(2),10,['sacplot ' num2str(clus4(sacplot))]);
-        end
+figure('name','cluster4')
+subplotdim=[ceil(sqrt(numel(clus4))),ceil(sqrt(numel(clus4)))];
+    for sacplot=1:length(clus4)
+    subplot(subplotdim(1),subplotdim(2),sacplot)
+    plot(norm_sacresps(clus4(sacplot),:));
+    ylim=get(gca,'ylim');
+    set(gca,'ylim',[min(ylim(1),0) ylim(2)]);
+    text(10,ylim(2)-0.1,['sacplot ' num2str(clus4(sacplot))]);
+    end
+if fourclus && sum(clus5)      
+figure('name','cluster5')
+subplotdim=[ceil(sqrt(numel(clus5))),ceil(sqrt(numel(clus5)))];
+    for sacplot=1:length(clus5)
+    subplot(subplotdim(1),subplotdim(2),sacplot)
+    plot(norm_sacresps(clus5(sacplot),:));
+    ylim=get(gca,'ylim');
+    set(gca,'ylim',[min(ylim(1),0) ylim(2)]);
+    text(10,ylim(2)-0.1,['sacplot ' num2str(clus5(sacplot))]);
+    end
 end
 
 

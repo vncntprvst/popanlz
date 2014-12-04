@@ -86,18 +86,6 @@ for flbn=1:length(dentatefiles)
             end
         end
         
-        %% first, get psychometric values
-        [mssrt,inhibfun,ccssd,nccssd,ssdvalues,tachomc,tachowidth,sacdelay,rewtimes]=findssrt(loadfile{:}, 0);
-        if ~isnan(mssrt)
-            mssrt=max([mssrt (mean(tachomc)+tachowidth/2)]); %replace by: if mssrt < tachomc+tachowidth/2, mssrt=tachomc+tachowidth/2, end; ?
-            %         if mssrt>(mean(tachomc)+3*tachowidth)
-            %             mssrt=mean(tachomc)+tachowidth;
-            %         end
-        else
-            continue
-        end
-        alldata(flbn,1).allmssrt=mssrt;
-        
         %% align rasters
         % common presets
         [~, trialdirs] = data_info(loadfile{:}, 1, 1); %reload file: yes (shouldn't happen, though), skip unprocessed files: yes
@@ -139,6 +127,20 @@ for flbn=1:length(dentatefiles)
                 
                 %% ssd alignement specific:
                 % if aligning to ssd, got to align NSS trials according to latency
+                
+                % get psychometric values
+                [mssrt,inhibfun,ccssd,nccssd,ssdvalues,tachomc,tachowidth,sacdelay,rewtimes]=findssrt(loadfile{:}, 0);
+                if ~isnan(mssrt)
+                    mssrt=max([mssrt (mean(tachomc)+tachowidth/2)]); %replace by: if mssrt < tachomc+tachowidth/2, mssrt=tachomc+tachowidth/2, end; ?
+                            if mssrt> 130 && mean(tachomc)>50
+                                mssrt=mean(tachomc)+tachowidth;
+                            end
+                else
+                    alldata(flbn,1).allmssrt=NaN;
+                    continue
+                end
+                alldata(flbn,1).allmssrt=mssrt;
+                
                 %allssds=unique([ccssd;nccssd]);
                 
                 % canceled trials
@@ -215,7 +217,7 @@ for flbn=1:length(dentatefiles)
             if find(strcmp({getaligndata.alignlabel},'sac'))
                 numrastrow=arrayfun(@(x) size(x.rasters,1), getaligndata, 'UniformOutput', false);
                 colrast=nan(sum([numrastrow{:}]),601);
-                for alignd=1:3
+                for alignd=1:size(getaligndata,2)
                     sacalgrasters=getaligndata(1,alignd).rasters; 
                     alignmtt=getaligndata(1,alignd).alignidx;
                     start=alignmtt-300; stop=alignmtt+300; % -300 to 300 time window around sac (at 0).
@@ -225,6 +227,7 @@ for flbn=1:length(dentatefiles)
                 alldata(flbn,algn).pk.sac=max(convrasters);
                 pk_or_tro_time=find(convrasters==max(convrasters) | convrasters==min(convrasters),1);
                     %% make some stats on sac alignment
+                    try
                     sacalgrasters=getaligndata(1,1).rasters; 
                     alignmtt=getaligndata(1,1).alignidx;
                     start=alignmtt-600+pk_or_tro_time; stop=alignmtt+pk_or_tro_time;
@@ -233,6 +236,10 @@ for flbn=1:length(dentatefiles)
                             alldata(flbn,algn).stats.sign]=rastplotstat(sacalgrasters,10,...
                             [alignmtt-600+pk_or_tro_time alignmtt-(300-pk_or_tro_time)+30],...
                             [alignmtt-(300-pk_or_tro_time)+30 alignmtt+pk_or_tro_time],0);
+                    catch
+                        [alldata(flbn,algn).stats.hval, alldata(flbn,algn).stats.pval,...
+                            alldata(flbn,algn).stats.sign]=deal(NaN);
+                    end
 
             elseif find(strcmp({getaligndata.alignlabel},'corsac'))
                 if size(getaligndata,2)>2 && size(getaligndata(3).rasters,1)>1
@@ -250,7 +257,7 @@ for flbn=1:length(dentatefiles)
             elseif find(strcmp({getaligndata.alignlabel},'tgt'))
                 numrastrow=arrayfun(@(x) size(x.rasters,1), getaligndata, 'UniformOutput', false);
                 colrast=nan(sum([numrastrow{:}]),251);
-                for alignd=1:3
+                for alignd=1:size(getaligndata,2)
                     sacalgrasters=getaligndata(1,alignd).rasters;
                     alignmtt=getaligndata(1,alignd).alignidx;
                     start=alignmtt; stop=alignmtt+250; % -300 to 300 time window around sac (at 0).
@@ -289,9 +296,9 @@ for flbn=1:length(dentatefiles)
     
 end
 
-alltasks=reshape({alldata.task},size(alldata));
+alltasks=reshape({alldata.task},size(alldata)); alltasks=alltasks(:,1);
 allalignmnt=reshape({alldata.aligntype},size(alldata));
-allmssrt=reshape({alldata.allmssrt},size(alldata));
+allmssrt=reshape({alldata.allmssrt},size(alldata)); allmssrt=allmssrt(:,1);
 allpk=reshape({alldata.pk},size(alldata));
 allndata=reshape({alldata.ndata},size(alldata));
 all_rec_id=reshape({alldata.db_rec_id},size(alldata));
