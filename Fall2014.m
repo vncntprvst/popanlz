@@ -217,7 +217,7 @@ for flbn=1:length(dentatefiles)
             if find(strcmp({getaligndata.alignlabel},'sac'))
                 numrastrow=arrayfun(@(x) size(x.rasters,1), getaligndata, 'UniformOutput', false);
                 colrast=nan(sum([numrastrow{:}]),601);
-                for alignd=1:size(getaligndata,2)
+                for alignd=1:2:size(getaligndata,2) %align on trials where saccades occured
                     sacalgrasters=getaligndata(1,alignd).rasters; 
                     alignmtt=getaligndata(1,alignd).alignidx;
                     start=alignmtt-300; stop=alignmtt+300; % -300 to 300 time window around sac (at 0).
