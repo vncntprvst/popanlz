@@ -7,6 +7,15 @@ allgsndata=allndata(gsdlist,:); %3 column for 3 aligntype. Each cell has 3 or 4 
 allgs_rec_id=all_rec_id(gsdlist,1);
 allgsstats=allstats(gsdlist,1);
 
+allgsprevssd=allprevssd(gsdlist,1);
+allgsssds=allssds(gsdlist,1);
+allgssacdelay=allsacdelay(gsdlist,1);
+allgsprefdir=allprefdir(gsdlist,:);
+
+%% processing options
+prefdironly=1;
+singlessd=1;
+
 %% cluster analysis of population
 %convolve rasters with 200ms before saccade, 200 after saccade, 20ms kernel
 %time window. Add kernel * 6 ms (see fullgauss_filtconv), e.g. 60 ms at both
@@ -28,6 +37,10 @@ allgspk=allgspk(~badapl,:);
 allgsndata=allgsndata(~badapl,:);
 allgs_rec_id=allgs_rec_id(~badapl,1);
 allgsstats=allgsstats(~badapl,1);
+allgsprevssd=allgsprevssd(~badapl,:);
+allgsssds=allgsssds(~badapl,:);
+allgssacdelay=allgssacdelay(~badapl,:);
+allgsprefdir=allgsprefdir(~badapl,:);
 
 %plot population
 % figure;
@@ -336,21 +349,28 @@ corsac_startstop=[800 200];
 rew_startstop=[800 200];
 
 %% separate data by cluster
-clusgsndata{1}=allgsndata(hc_clus==6 | hc_clus==8,:);
+clusgsndata{1}=allgsndata(hc_clus==6 | hc_clus==8 | hc_clus==11,:);
 clusgsndata{2}=allgsndata(hc_clus==9,:);
 clusgsndata{3}=allgsndata(hc_clus==10,:);
-%
-% clusallgspk{1}=allgspk(hc_clus==2,:);
-% clusallgspk{2}=allgspk(hc_clus==10,:);
-% clusallgspk{3}=allgspk(hc_clus==3,:);
 
-clussblmean{1}=bslresp_mean(hc_clus==6 | hc_clus==8);
+clussblmean{1}=bslresp_mean(hc_clus==6 | hc_clus==8 | hc_clus==11);
 clussblmean{2}=bslresp_mean(hc_clus==9);
 clussblmean{3}=bslresp_mean(hc_clus==10);
 
-clussbslresp_sd{1}=bslresp_sd(hc_clus==6 | hc_clus==8);
+clussbslresp_sd{1}=bslresp_sd(hc_clus==6 | hc_clus==8 | hc_clus==11);
 clussbslresp_sd{2}=bslresp_sd(hc_clus==9);
 clussbslresp_sd{3}=bslresp_sd(hc_clus==10);
+
+clusprefdir{1}=allgsprefdir(hc_clus==6 | hc_clus==8 | hc_clus==11,:);
+clusprefdir{2}=allgsprefdir(hc_clus==9,:);
+clusprefdir{3}=allgsprefdir(hc_clus==10,:);
+
+clusssds{1}=allgsssds(hc_clus==6 | hc_clus==8 | hc_clus==11);
+clusssds{2}=allgsssds(hc_clus==9);
+clusssds{3}=allgsssds(hc_clus==10);
+
+% allgsprevssd
+% allgssacdelay
 
 % compgssdf{1}=nan(size(allgsalignmnt,1),1301,3);
 % compgssdf{2}=nan(size(allgsalignmnt,1),901,3);
@@ -380,6 +400,9 @@ for clusnum=1:3
             for sacalg=1:3
                 try
                     rasters=gsdata(sacalg).rast;
+                    if prefdironly
+                        rasters=rasters(clusprefdir{clusnum}{gsd,1}{sacalg},:); % sorted by 3 structures containing logical indices
+                    end
                     alignmtt=gsdata(sacalg).alignt;
                     start=alignmtt-sac_startstop(1)-half_sixsig; stop=alignmtt+sac_startstop(2)+half_sixsig;
                     [sdf, convrasters, convrastsem]=conv_raster(rasters,conv_sigma,start,stop);
@@ -388,15 +411,15 @@ for clusnum=1:3
                     normsdf=(sdf-clussblmean{clusnum}(gsd))./clussbslresp_sd{clusnum}(gsd);
                     
                     %% plots
-                    %          figure(1)
-                    %          hold off
-                    %          patch([1:length(sdf),fliplr(1:length(sdf))],[sdf-convrastsem,fliplr(sdf+convrastsem)],'k','EdgeColor','none','FaceAlpha',0.1);
-                    %          hold on
-                    %          %plot sdf
-                    %          plot(sdf,'Color','b','LineWidth',1.8);
-                    %          set(gca,'xtick',[1:100:1301],'xticklabel',[-800:100:500])
-                    %          close(gcf)
-                    
+                    %                              figure
+                    %                              hold off
+                    %                              patch([1:length(sdf),fliplr(1:length(sdf))],[sdf-convrastsem,fliplr(sdf+convrastsem)],'k','EdgeColor','none','FaceAlpha',0.1);
+                    %                              hold on
+                    %                              %plot sdf
+                    %                              plot(sdf,'Color','b','LineWidth',1.8);
+                    %                              set(gca,'xtick',[1:100:1301],'xticklabel',[-800:100:500])
+                    %                              close(gcf)
+                    %
                     %% store
                     compgssdf(1,clusnum).align.sac.(trialtype{sacalg})(gsd,:)=normsdf;
                     
@@ -420,6 +443,9 @@ for clusnum=1:3
             for tgtalg=1:3
                 try
                     rasters=gsdata(tgtalg).rast;
+                    if prefdironly
+                        rasters=rasters(clusprefdir{clusnum}{gsd,1}{sacalg},:); % sorted by 3 structures containing logical indices
+                    end
                     alignmtt=gsdata(tgtalg).alignt;
                     start=alignmtt-tgt_startstop(1)-half_sixsig; stop=alignmtt+tgt_startstop(2)+half_sixsig;
                     [sdf, convrasters, convrastsem]=conv_raster(rasters,conv_sigma,start,stop);
@@ -460,6 +486,9 @@ for clusnum=1:3
             for ssdalg=1:4
                 try
                     rasters=gsdata(ssdalg).rast;
+                    if prefdironly
+                        rasters=rasters(clusprefdir{clusnum}{gsd,1}{sacalg},:); % sorted by 3 structures containing logical indices
+                    end
                     alignmtt=gsdata(ssdalg).alignt;
                     start=alignmtt-ssd_startstop(1)-half_sixsig; stop=alignmtt+ssd_startstop(2)+half_sixsig;
                     [sdf, convrasters, convrastsem]=conv_raster(rasters,conv_sigma,start,stop);
@@ -499,6 +528,9 @@ for clusnum=1:3
             for csacalg=1:3
                 try
                     rasters=gsdata(csacalg).rast;
+                    if prefdironly
+                        rasters=rasters(clusprefdir{clusnum}{gsd,1}{sacalg},:); % sorted by 3 structures containing logical indices
+                    end
                     alignmtt=gsdata(csacalg).alignt;
                     start=alignmtt-corsac_startstop(1)-half_sixsig; stop=alignmtt+corsac_startstop(2)+half_sixsig;
                     [sdf, convrasters, convrastsem]=conv_raster(rasters,conv_sigma,start,stop);
@@ -538,6 +570,9 @@ for clusnum=1:3
             for rewalg=1:3
                 try
                     rasters=gsdata(rewalg).rast;
+                    if prefdironly
+                        rasters=rasters(clusprefdir{clusnum}{gsd,1}{sacalg},:); % sorted by 3 structures containing logical indices
+                    end
                     alignmtt=gsdata(rewalg).alignt;
                     start=alignmtt-rew_startstop(1)-half_sixsig; stop=alignmtt+rew_startstop(2)+half_sixsig;
                     [sdf, convrasters, convrastsem]=conv_raster(rasters,conv_sigma,start,stop);
@@ -742,12 +777,12 @@ for clusnum=1:3
     hylabel=ylabel(gca,'Firing rate (z-score)','FontName','Cambria','FontSize',10);
     legh=legend(lineh(1:3),{'No Stop Signal','Stop Signal: Cancelled', 'Stop Signal: Non Cancelled'});
     set(legh,'Interpreter','none','Location','NorthEast','Box', 'off','LineWidth',1.5,'FontName','Cambria','FontSize',9); % Interpreter prevents underscores turning character into subscript
-    title(['Cluster' num2str(clusnum) ' Aligned to target'],'FontName','Cambria','FontSize',15);
+    title(['Cluster' num2str(clusnum) ' Aligned to corrective saccade'],'FontName','Cambria','FontSize',15);
     
     
     %% reward alignment plots
     
-    rewfig(clusnum)=figure('name',['Cluster' num2str(clusnum) ' target plots']);
+    rewfig(clusnum)=figure('name',['Cluster' num2str(clusnum) ' reward plots']);
     hold on;
     
     for rewpop=1:2
@@ -773,9 +808,9 @@ for clusnum=1:3
     set(gca,'Color','white','TickDir','out','FontName','Cambria','FontSize',10);
     hxlabel=xlabel(gca,'Time (ms)','FontName','Cambria','FontSize',10);
     hylabel=ylabel(gca,'Firing rate (z-score)','FontName','Cambria','FontSize',10);
-    legh=legend(lineh(1:3),{'No Stop Signal','Stop Signal: Cancelled', 'Stop Signal: Non Cancelled'});
+    legh=legend(lineh(1:2),{'No Stop Signal','Stop Signal: Cancelled'});
     set(legh,'Interpreter','none','Location','NorthEast','Box', 'off','LineWidth',1.5,'FontName','Cambria','FontSize',9); % Interpreter prevents underscores turning character into subscript
-    title(['Cluster' num2str(clusnum) ' Aligned to target'],'FontName','Cambria','FontSize',15);
+    title(['Cluster' num2str(clusnum) ' Aligned to reward'],'FontName','Cambria','FontSize',15);
 end
 
 %% print plots
@@ -796,7 +831,7 @@ for printfig=1:length(fighandles)
     %print(fighandles(printfig), '-dpdf', '-noui', '-painters','-r600', exportfigname);
     
     %print svg
-    plot2svg([exportfigname,'.svg'],fighandles(printfig), 'png'); %only vector graphic export function that preserves alpha transparency
+%     plot2svg([exportfigname,'.svg'],fighandles(printfig), 'png'); %only vector graphic export function that preserves alpha transparency
 end
 
 

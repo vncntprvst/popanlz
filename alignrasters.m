@@ -483,12 +483,15 @@ while ~islast
                     peakaccs(nummatch)=sacpeakacc;
                     train = [0];
                     if ~isempty( spk )
-                        [train, last] = rex_spk2raster( spk, 1, length( h ) );
+                        [train, last] = rex_spk2raster( spk, 1, max([aligntime+300, length(h)]) );
                         if isempty(train)
                             train=nan(1,length(h));
                             last=length(h);
                         end
                     end;
+                    if aligntime > length(train) %that's weird (added max([aligntime+300, length(h)] above)
+%                         aligntime;
+                    end
                     rasters = cat_variable_size_row(rasters, train);
                     
                     

@@ -7,7 +7,7 @@ try
     CCNdb = connect2DB('vp_sldata');
     %     query = 'SELECT FileName FROM b_dentate';
     %     results = fetch(CCNdb,query);
-    dentatefiles =fetch(CCNdb,'select r.a_file FROM recordings r WHERE r.task=''gapstop'' AND r.recloc=''dentate''');
+    dentatefiles =fetch(CCNdb,'select r.a_file FROM recordings r WHERE r.task=''gapstop'' AND r.recloc=''top_cortex'''); %dentate
 catch db_fail
     results = [];
 end
@@ -24,7 +24,7 @@ end
 
 %% prealloc
 alldata=struct('task',{},'aligntype',{},'prevssd',{},'allmssrt',{},...
-    'ssds',{},'sacdelay',{},'prefdir',{},...
+    'ssds',{},'sacdelay',{},'prefdiridx',{},...
     'pk',struct('sac',{},'vis',{},'corsac',{},'rew',{}),...
     'ndata',struct('rast',{},'alignt',{}),'db_rec_id',{},...
     'stats',struct('hval',{},'pval',{},'sign',{}));
@@ -223,8 +223,11 @@ for flbn=1:length(dentatefiles)
                 numrastrow=arrayfun(@(x) size(x.rasters,1), getaligndata, 'UniformOutput', false);
                 colrast=nan(sum([numrastrow{:}]),601);
                 colrastidx=[0 numrastrow{:}];
-                prefdir=nan(1,3);
+                prefdir=nan(2,3);
                 for alignd=1:2:size(getaligndata,2) %align on trials where saccades occured
+                    if colrastidx(alignd+1)==0
+                        continue
+                    end
                     sacalgrasters=getaligndata(1,alignd).rasters;
                     alignmtt=getaligndata(1,alignd).alignidx;
                     start=alignmtt-300; stop=alignmtt+300; % -300 to 300 time window around sac (at 0).
@@ -237,12 +240,22 @@ for flbn=1:length(dentatefiles)
                         convpkdir(convdirs,:)=max(conv_raster(sacalgrasters(unikidx==convdirs,start:stop),20));
                     end
                     if ~isempty(convpkdir)
-                        prefdir(alignd)=unikdir(convpkdir==max(convpkdir));
+                        if length(unikdir(round(convpkdir)==max(round(convpkdir))))>2
+                            prefdir(1:2,alignd)=unikdir((convpkdir)==max((convpkdir)));
+                        else
+                            prefdir(1:2,alignd)=unikdir(round(convpkdir)==max(round(convpkdir))); %if no prefered dir, will be decided just below
+                        end
                     else
                         prefdir(alignd)=NaN;
                     end
                 end
-                alldata(flbn,algn).prefdir=prefdir(~isnan(prefdir));
+                %get most found pref dire
+                [~,~,prefdir]=mode(prefdir(~isnan(prefdir)));
+                if length(prefdir{:})>1 %then keep dir with most trials
+                    prefdirnbtrial=([sum([getaligndata.dir]==prefdir{:}(1)) sum([getaligndata.dir]==prefdir{:}(2))]);
+                    prefdir={prefdir{:}(find(prefdirnbtrial==max(prefdirnbtrial),1))};
+                end
+                alldata(flbn,algn).prefdiridx=arrayfun(@(x) x.dir==prefdir{:},getaligndata,'UniformOutput',false);
                 convrasters=conv_raster(colrast,10,1,size(colrast,2));
                 alldata(flbn,algn).pk.sac=max(convrasters);
                 pk_or_tro_time=find(convrasters==max(convrasters) | convrasters==min(convrasters),1);
@@ -266,8 +279,11 @@ for flbn=1:length(dentatefiles)
                     numrastrow=arrayfun(@(x) size(x.rasters,1), getaligndata, 'UniformOutput', false);
                     colrast=nan(sum([numrastrow{:}]),601);
                     colrastidx=[0 numrastrow{:}];
-                    prefdir=nan(1,3);
+                    prefdir=nan(2,3);
                     for alignd=1:2:3
+                        if colrastidx(alignd+1)==0
+                            continue
+                        end
                         sacalgrasters=getaligndata(1,alignd).rasters;
                         alignmtt=getaligndata(1,alignd).alignidx;
                         start=alignmtt-300; stop=alignmtt+300; % -300 to 300 time window around sac (at 0).
@@ -280,12 +296,22 @@ for flbn=1:length(dentatefiles)
                             convpkdir(convdirs,:)=max(conv_raster(sacalgrasters(unikidx==convdirs,start:stop),20));
                         end
                         if ~isempty(convpkdir)
-                            prefdir(alignd)=unikdir(convpkdir==max(convpkdir));
+                            if length(unikdir(round(convpkdir)==max(round(convpkdir))))>2
+                                prefdir(1:2,alignd)=unikdir((convpkdir)==max((convpkdir)));
+                            else
+                                prefdir(1:2,alignd)=unikdir(round(convpkdir)==max(round(convpkdir))); %if no prefered dir, will be decided just below
+                            end
                         else
                             prefdir(alignd)=NaN;
                         end
                     end
-                    alldata(flbn,algn).prefdir=prefdir(~isnan(prefdir));
+                    %get most found pref dir
+                    [~,~,prefdir]=mode(prefdir(~isnan(prefdir)));
+                    if length(prefdir{:})>1 %then keep dir with most trials
+                        prefdirnbtrial=([sum([getaligndata.dir]==prefdir{:}(1)) sum([getaligndata.dir]==prefdir{:}(2))]);
+                        prefdir={prefdir{:}(find(prefdirnbtrial==max(prefdirnbtrial),1))};
+                    end
+                    alldata(flbn,algn).prefdiridx=arrayfun(@(x) x.dir==prefdir{:},getaligndata,'UniformOutput',false);
                     convrasters=conv_raster(colrast,10,11,size(colrast,2)-10);
                     alldata(flbn,algn).pk.corsac=max(convrasters);
                 end
@@ -293,8 +319,11 @@ for flbn=1:length(dentatefiles)
                 numrastrow=arrayfun(@(x) size(x.rasters,1), getaligndata, 'UniformOutput', false);
                 colrast=nan(sum([numrastrow{:}]),251);
                 colrastidx=[0 numrastrow{:}];
-                prefdir=nan(1,size(getaligndata,2));
-                for alignd=1: %% change to numrastrow{:}>0 ??? size(getaligndata,2)
+                prefdir=nan(2,size(getaligndata,2));
+                for alignd=1:size(getaligndata,2)
+                    if colrastidx(alignd+1)==0
+                        continue
+                    end
                     sacalgrasters=getaligndata(1,alignd).rasters;
                     alignmtt=getaligndata(1,alignd).alignidx;
                     start=alignmtt; stop=alignmtt+250; % -300 to 300 time window around sac (at 0).
@@ -307,12 +336,22 @@ for flbn=1:length(dentatefiles)
                         convpkdir(convdirs,:)=max(conv_raster(sacalgrasters(unikidx==convdirs,start:stop),20));
                     end
                     if ~isempty(convpkdir)
-                        prefdir(alignd)=unikdir(convpkdir==max(convpkdir));
+                        if length(unikdir(round(convpkdir)==max(round(convpkdir))))>2
+                            prefdir(1:2,alignd)=unikdir((convpkdir)==max((convpkdir)));
+                        else
+                            prefdir(1:2,alignd)=unikdir(round(convpkdir)==max(round(convpkdir))); %if no prefered dir, will be decided just below
+                        end
                     else
                         prefdir(alignd)=NaN;
                     end
                 end
-                alldata(flbn,algn).prefdir=prefdir(~isnan(prefdir));
+                %get most found pref dire
+                [~,~,prefdir]=mode(prefdir(~isnan(prefdir)));
+                if length(prefdir{:})>1 %then keep dir with most trials
+                    prefdirnbtrial=([sum([getaligndata.dir]==prefdir{:}(1)) sum([getaligndata.dir]==prefdir{:}(2))]);
+                    prefdir={prefdir{:}(find(prefdirnbtrial==max(prefdirnbtrial),1))};
+                end
+                alldata(flbn,algn).prefdiridx=arrayfun(@(x) x.dir==prefdir{:},getaligndata,'UniformOutput',false);
                 convrasters=conv_raster(colrast,10,11,size(colrast,2)-10);
                 alldata(flbn,algn).pk.vis=max(convrasters);
                 % keep ssds
@@ -327,8 +366,11 @@ for flbn=1:length(dentatefiles)
                 numrastrow=arrayfun(@(x) size(x.rasters,1), getaligndata, 'UniformOutput', false);
                 colrast=nan(sum([numrastrow{:}]),501);
                 colrastidx=[0 numrastrow{:}];
-                prefdir=nan(1,2);
+                prefdir=nan(2,2);
                 for alignd=1:2
+                    if colrastidx(alignd+1)==0
+                        continue
+                    end
                     sacalgrasters=getaligndata(1,alignd).rasters;
                     alignmtt=getaligndata(1,alignd).alignidx;
                     start=alignmtt-300; stop=alignmtt+200; % -300 to 300 time window around sac (at 0).
@@ -341,12 +383,22 @@ for flbn=1:length(dentatefiles)
                         convpkdir(convdirs,:)=max(conv_raster(sacalgrasters(unikidx==convdirs,start:stop),20));
                     end
                     if ~isempty(convpkdir)
-                        prefdir(alignd)=unikdir(convpkdir==max(convpkdir));
+                        if length(unikdir(round(convpkdir)==max(round(convpkdir))))>2
+                            prefdir(1:2,alignd)=unikdir((convpkdir)==max((convpkdir)));
+                        else
+                            prefdir(1:2,alignd)=unikdir(round(convpkdir)==max(round(convpkdir))); %if no prefered dir, will be decided just below
+                        end
                     else
                         prefdir(alignd)=NaN;
                     end
                 end
-                alldata(flbn,algn).prefdir=prefdir(~isnan(prefdir));
+                %get most found pref dire
+                [~,~,prefdir]=mode(prefdir(~isnan(prefdir)));
+                if length(prefdir{:})>1 %then keep dir with most trials
+                    prefdirnbtrial=([sum([getaligndata.dir]==prefdir{:}(1)) sum([getaligndata.dir]==prefdir{:}(2))]);
+                    prefdir={prefdir{:}(find(prefdirnbtrial==max(prefdirnbtrial),1))};
+                end
+                alldata(flbn,algn).prefdiridx=arrayfun(@(x) x.dir==prefdir{:},getaligndata,'UniformOutput',false);
                 convrasters=conv_raster(colrast,10,11,size(colrast,2)-10);
                 alldata(flbn,algn).pk.rew=max(convrasters);
             end
@@ -372,11 +424,11 @@ end
 alltasks=reshape({alldata.task},size(alldata)); alltasks=alltasks(:,1);
 allalignmnt=reshape({alldata.aligntype},size(alldata));
 allmssrt=reshape({alldata.allmssrt},size(alldata)); allmssrt=allmssrt(:,1);
-allprevssd=reshape({alldata.prevssd},size(alldata));
-allssds=reshape({alldata.ssds},size(alldata));
-allsacdelay=reshape({alldata.sacdelay},size(alldata));
+allprevssd=reshape({alldata.prevssd},size(alldata));allprevssd=allprevssd(:,1);
+allssds=reshape({alldata.ssds},size(alldata));allssds=allssds(:,1);
+allsacdelay=reshape({alldata.sacdelay},size(alldata));allsacdelay=allsacdelay(:,1);
 allpk=reshape({alldata.pk},size(alldata));
-allprefdir=reshape({alldata.prefdir},size(alldata));
+allprefdir=reshape({alldata.prefdiridx},size(alldata));
 allndata=reshape({alldata.ndata},size(alldata));
 all_rec_id=reshape({alldata.db_rec_id},size(alldata));
 allstats=reshape({alldata.stats},size(alldata));

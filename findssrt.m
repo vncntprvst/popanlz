@@ -10,7 +10,10 @@ end
 %subject=subjects{subjectnb};
 %recname='H53L5A5_20901'; % S148cnttrain
 load(recname,'allcodes','alltimes','allbad','saccadeInfo');
-
+if ~isfield(saccadeInfo,'latency')
+    [mssrt,inhibfun,ccssd,nccssd,ssds,tachomc,tachowidth,sacdelay,rewtimes,prevssds]=deal(NaN);
+    return;
+end
 %% find stop trials
 trialtypes=floor(allcodes(:,2)./10);%./10 only /10 if pooling data together
 stoptrials=find(trialtypes==407);
