@@ -1,5 +1,5 @@
 % Find SSRT for single file
-function [mssrt,inhibfun,ccssd,nccssd,ssds,tachomc,tachowidth,sacdelay,rewtimes]=findssrt(recname, plots)
+function [mssrt,inhibfun,ccssd,nccssd,ssds,tachomc,tachowidth,sacdelay,rewtimes,prevssds]=findssrt(recname, plots)
 global directory;
 
 if nargin < 2 | isempty(plots)
@@ -111,11 +111,11 @@ canceltimes=stoptrialtimes(~noncancel,:);
 if bmssd %benchmark
     nccssd=(noncanceltimes(:,9)-noncanceltimes(:,7))-3; %3 ms added by the state transitions
     ccssd=(canceltimes(:,9)-canceltimes(:,7))-3;
-    allssd=nan(size(alltimes,1),1);
-    allssd(stoptrials)=(alltimes(stoptrials,9)-alltimes(stoptrials,7))-3;
+    allssd=(alltimes(stoptrials(~abortedstoptrials),9)-alltimes(stoptrials(~abortedstoptrials),7))-3;
 else
     nccssd=(noncanceltimes(:,8)-noncanceltimes(:,7))-2; %2 ms added by the state transitions
     ccssd=(canceltimes(:,8)-canceltimes(:,7))-2;
+    allssd=(alltimes(stoptrials(~abortedstoptrials),8)-alltimes(stoptrials(~abortedstoptrials),7))-3;
 end
 
 ssdvalues=unique([ccssd;nccssd]);

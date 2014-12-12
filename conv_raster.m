@@ -5,10 +5,10 @@ switch nargin
     case 1
         fsigma=10;
         start=1;
-        stop=length(rasters);
+        stop=size(rasters,2);
     case 2
         start=1;
-        stop=length(rasters);
+        stop=size(rasters,2);
 end
 
 convrasters=NaN(size(rasters,1),stop-start+1);

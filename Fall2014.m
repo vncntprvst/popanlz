@@ -5,8 +5,8 @@ global directory slash;
 
 try
     CCNdb = connect2DB('vp_sldata');
-%     query = 'SELECT FileName FROM b_dentate';
-%     results = fetch(CCNdb,query);
+    %     query = 'SELECT FileName FROM b_dentate';
+    %     results = fetch(CCNdb,query);
     dentatefiles =fetch(CCNdb,'select r.a_file FROM recordings r WHERE r.task=''gapstop'' AND r.recloc=''dentate''');
 catch db_fail
     results = [];
@@ -23,7 +23,8 @@ end
 % dentatefiles=unique(dentatefiles);
 
 %% prealloc
-alldata=struct('task',{},'aligntype',{},'allmssrt',{},...
+alldata=struct('task',{},'aligntype',{},'prevssd',{},'allmssrt',{},...
+    'ssds',{},'sacdelay',{},'prefdir',{},...
     'pk',struct('sac',{},'vis',{},'corsac',{},'rew',{}),...
     'ndata',struct('rast',{},'alignt',{}),'db_rec_id',{},...
     'stats',struct('hval',{},'pval',{},'sign',{}));
@@ -37,7 +38,7 @@ for flbn=1:length(dentatefiles)
     end
     %% get task and id
     try
-        % issue with db at the moment 
+        % issue with db at the moment
         query = ['SELECT r.task, r.recording_id FROM recordings r WHERE r.a_file = ''' dfile 'A'''];
         results=fetch(CCNdb,query);
         [alldata(flbn,1).task,task]=deal(results{1});
@@ -129,17 +130,20 @@ for flbn=1:length(dentatefiles)
                 % if aligning to ssd, got to align NSS trials according to latency
                 
                 % get psychometric values
-                [mssrt,inhibfun,ccssd,nccssd,ssdvalues,tachomc,tachowidth,sacdelay,rewtimes]=findssrt(loadfile{:}, 0);
+                [mssrt,inhibfun,ccssd,nccssd,ssdvalues,tachomc,tachowidth,...
+                    sacdelay,rewtimes,prevssd]=findssrt(loadfile{:}, 0);
                 if ~isnan(mssrt)
                     mssrt=max([mssrt (mean(tachomc)+tachowidth/2)]); %replace by: if mssrt < tachomc+tachowidth/2, mssrt=tachomc+tachowidth/2, end; ?
-                            if mssrt> 130 && mean(tachomc)>50
-                                mssrt=mean(tachomc)+tachowidth;
-                            end
+                    if mssrt> 130 && mean(tachomc)>50
+                        mssrt=mean(tachomc)+tachowidth;
+                    end
                 else
                     alldata(flbn,1).allmssrt=NaN;
                     continue
                 end
                 alldata(flbn,1).allmssrt=mssrt;
+                alldata(flbn,1).prevssd={prevssd};
+                alldata(flbn,1).sacdelay={sacdelay};
                 
                 %allssds=unique([ccssd;nccssd]);
                 
@@ -148,8 +152,8 @@ for flbn=1:length(dentatefiles)
                 ctmatchlatidx=zeros(length(sacdelay),length(ccssdval));
                 for ssdval=1:length(ccssdval)
                     % Keeping NSS trials with sac latencies long enough
-                    % that they would have occured after a stop-signal 
-                    ctmatchlatidx(:,ssdval)=sacdelay>ccssdval(ssdval)+round(mssrt); 
+                    % that they would have occured after a stop-signal
+                    ctmatchlatidx(:,ssdval)=sacdelay>ccssdval(ssdval)+round(mssrt);
                 end
                 nullidx=sum(ctmatchlatidx,2)==0;
                 ctmatchlatidx(nullidx,1)=1;
@@ -160,18 +164,18 @@ for flbn=1:length(dentatefiles)
                 % non-canceled trials
                 nccssdval=sort(unique(nccssd));
                 nctallmatchlatidx=zeros(length(sacdelay),length(nccssdval));
-                for ssdval=1:length(nccssdval) % keeping NSS trials in which 
-                                               % a saccade would have been 
-                                               % initiated even if a stop 
-                                               % signal had occurred, but
-                                               % with saccade latencies
-                                               % greater than the
-                                               % stop-signal delay plus a 
-                                               % visual-response latency. 
-                                               % We take tachomc-tachowidth/2
-                                               % rather than the arbitrary 
-                                               % 50ms from Hanes et al 98
-                    nctallmatchlatidx(:,ssdval)=sacdelay>nccssdval(ssdval)+(mean(tachomc)-tachowidth/2) & sacdelay<nccssdval(ssdval)+round(mssrt); 
+                for ssdval=1:length(nccssdval) % keeping NSS trials in which
+                    % a saccade would have been
+                    % initiated even if a stop
+                    % signal had occurred, but
+                    % with saccade latencies
+                    % greater than the
+                    % stop-signal delay plus a
+                    % visual-response latency.
+                    % We take tachomc-tachowidth/2
+                    % rather than the arbitrary
+                    % 50ms from Hanes et al 98
+                    nctallmatchlatidx(:,ssdval)=sacdelay>nccssdval(ssdval)+(mean(tachomc)-tachowidth/2) & sacdelay<nccssdval(ssdval)+round(mssrt);
                 end
                 % getting ssds for each NNS trial, taking the lowest ssd.
                 nctmatchlatidx=zeros(size(nctallmatchlatidx,1),1);
@@ -192,8 +196,8 @@ for flbn=1:length(dentatefiles)
             elseif algn==5 % align to reward time for NSS and CS trials
                 firstalign=4;
                 secondalign=8; % will find reward time in cancelled saccade
-                                % trial, and align to time of error code
-                                % in failed cancellation
+                % trial, and align to time of error code
+                % in failed cancellation
                 plottype = 0;
                 plotstart=1000;
                 plotstop=200;
@@ -213,67 +217,136 @@ for flbn=1:length(dentatefiles)
             end
             %% z-score pre-ssd and pre-sac?
             
-            %% get peak firing rate for future normalization
+            %% get peak firing rate for future normalization. Find prefered dir.
+            % also keep ssds for cs and ncs trials
             if find(strcmp({getaligndata.alignlabel},'sac'))
                 numrastrow=arrayfun(@(x) size(x.rasters,1), getaligndata, 'UniformOutput', false);
                 colrast=nan(sum([numrastrow{:}]),601);
+                colrastidx=[0 numrastrow{:}];
+                prefdir=nan(1,3);
                 for alignd=1:2:size(getaligndata,2) %align on trials where saccades occured
-                    sacalgrasters=getaligndata(1,alignd).rasters; 
+                    sacalgrasters=getaligndata(1,alignd).rasters;
                     alignmtt=getaligndata(1,alignd).alignidx;
                     start=alignmtt-300; stop=alignmtt+300; % -300 to 300 time window around sac (at 0).
-                    colrast=[colrast; sacalgrasters(:,start:stop)];                  
-                end                     
+                    colrast(colrastidx(alignd)+sum(colrastidx(1:alignd-1))+1:colrastidx(alignd+1)+sum(colrastidx(1:alignd)),:)=...
+                        sacalgrasters(:,start:stop);
+                    % prefered dir
+                    [unikdir,~,unikidx]=unique(getaligndata(1,alignd).dir);
+                    convpkdir=nan(length(unikdir),1);
+                    for convdirs=1:length(unikdir)
+                        convpkdir(convdirs,:)=max(conv_raster(sacalgrasters(unikidx==convdirs,start:stop),20));
+                    end
+                    if ~isempty(convpkdir)
+                        prefdir(alignd)=unikdir(convpkdir==max(convpkdir));
+                    else
+                        prefdir(alignd)=NaN;
+                    end
+                end
+                alldata(flbn,algn).prefdir=prefdir(~isnan(prefdir));
                 convrasters=conv_raster(colrast,10,1,size(colrast,2));
                 alldata(flbn,algn).pk.sac=max(convrasters);
                 pk_or_tro_time=find(convrasters==max(convrasters) | convrasters==min(convrasters),1);
-                    %% make some stats on sac alignment
-                    try
-                    sacalgrasters=getaligndata(1,1).rasters; 
+                %% make some stats on sac alignment
+                try
+                    sacalgrasters=getaligndata(1,1).rasters;
                     alignmtt=getaligndata(1,1).alignidx;
                     start=alignmtt-600+pk_or_tro_time; stop=alignmtt+pk_or_tro_time;
-                        % test statcond pre/post peak_or_trough, and direction of change.
-                        [alldata(flbn,algn).stats.hval, alldata(flbn,algn).stats.pval,...
-                            alldata(flbn,algn).stats.sign]=rastplotstat(sacalgrasters,10,...
-                            [alignmtt-600+pk_or_tro_time alignmtt-(300-pk_or_tro_time)+30],...
-                            [alignmtt-(300-pk_or_tro_time)+30 alignmtt+pk_or_tro_time],0);
-                    catch
-                        [alldata(flbn,algn).stats.hval, alldata(flbn,algn).stats.pval,...
-                            alldata(flbn,algn).stats.sign]=deal(NaN);
-                    end
-
+                    % test statcond pre/post peak_or_trough, and direction of change.
+                    [alldata(flbn,algn).stats.hval, alldata(flbn,algn).stats.pval,...
+                        alldata(flbn,algn).stats.sign]=rastplotstat(sacalgrasters,10,...
+                        [alignmtt-600+pk_or_tro_time alignmtt-(300-pk_or_tro_time)+30],...
+                        [alignmtt-(300-pk_or_tro_time)+30 alignmtt+pk_or_tro_time],0);
+                catch
+                    [alldata(flbn,algn).stats.hval, alldata(flbn,algn).stats.pval,...
+                        alldata(flbn,algn).stats.sign]=deal(NaN);
+                end
+                
             elseif find(strcmp({getaligndata.alignlabel},'corsac'))
                 if size(getaligndata,2)>2 && size(getaligndata(3).rasters,1)>1
                     numrastrow=arrayfun(@(x) size(x.rasters,1), getaligndata, 'UniformOutput', false);
                     colrast=nan(sum([numrastrow{:}]),601);
+                    colrastidx=[0 numrastrow{:}];
+                    prefdir=nan(1,3);
                     for alignd=1:2:3
                         sacalgrasters=getaligndata(1,alignd).rasters;
                         alignmtt=getaligndata(1,alignd).alignidx;
                         start=alignmtt-300; stop=alignmtt+300; % -300 to 300 time window around sac (at 0).
-                        colrast=[colrast; sacalgrasters(:,start:stop)];
-                    end                     
+                        colrast(colrastidx(alignd)+sum(colrastidx(1:alignd-1))+1:colrastidx(alignd+1)+sum(colrastidx(1:alignd)),:)=...
+                            sacalgrasters(:,start:stop);
+                        % prefered dir
+                        [unikdir,~,unikidx]=unique(getaligndata(1,alignd).dir);
+                        convpkdir=nan(length(unikdir),1);
+                        for convdirs=1:length(unikdir)
+                            convpkdir(convdirs,:)=max(conv_raster(sacalgrasters(unikidx==convdirs,start:stop),20));
+                        end
+                        if ~isempty(convpkdir)
+                            prefdir(alignd)=unikdir(convpkdir==max(convpkdir));
+                        else
+                            prefdir(alignd)=NaN;
+                        end
+                    end
+                    alldata(flbn,algn).prefdir=prefdir(~isnan(prefdir));
                     convrasters=conv_raster(colrast,10,11,size(colrast,2)-10);
                     alldata(flbn,algn).pk.corsac=max(convrasters);
                 end
             elseif find(strcmp({getaligndata.alignlabel},'tgt'))
                 numrastrow=arrayfun(@(x) size(x.rasters,1), getaligndata, 'UniformOutput', false);
                 colrast=nan(sum([numrastrow{:}]),251);
-                for alignd=1:size(getaligndata,2)
+                colrastidx=[0 numrastrow{:}];
+                prefdir=nan(1,size(getaligndata,2));
+                for alignd=1: %% change to numrastrow{:}>0 ??? size(getaligndata,2)
                     sacalgrasters=getaligndata(1,alignd).rasters;
                     alignmtt=getaligndata(1,alignd).alignidx;
                     start=alignmtt; stop=alignmtt+250; % -300 to 300 time window around sac (at 0).
-                    colrast=[colrast; sacalgrasters(:,start:stop)];
-                end                     
+                    colrast(colrastidx(alignd)+sum(colrastidx(1:alignd-1))+1:colrastidx(alignd+1)+sum(colrastidx(1:alignd)),:)=...
+                        sacalgrasters(:,start:stop);
+                    % prefered dir
+                    [unikdir,~,unikidx]=unique(getaligndata(1,alignd).dir);
+                    convpkdir=nan(length(unikdir),1);
+                    for convdirs=1:length(unikdir)
+                        convpkdir(convdirs,:)=max(conv_raster(sacalgrasters(unikidx==convdirs,start:stop),20));
+                    end
+                    if ~isempty(convpkdir)
+                        prefdir(alignd)=unikdir(convpkdir==max(convpkdir));
+                    else
+                        prefdir(alignd)=NaN;
+                    end
+                end
+                alldata(flbn,algn).prefdir=prefdir(~isnan(prefdir));
                 convrasters=conv_raster(colrast,10,11,size(colrast,2)-10);
                 alldata(flbn,algn).pk.vis=max(convrasters);
-           elseif find(strcmp({getaligndata.alignlabel},'rew'))
+                % keep ssds
+                stoptrialsdat=cellfun(@(x) strfind(x,'stop'),{getaligndata(1,:).alignlabel},'UniformOutput',false);
+                stoptrialsdat=getaligndata(1,~cellfun('isempty',stoptrialsdat));
+                if isfield(stoptrialsdat,'ssd') && ~isempty(cat(1,stoptrialsdat.ssd))
+                    alldata(flbn,1).ssds={stoptrialsdat.ssd};
+                else
+                    alldata(flbn,1).ssds=[];
+                end
+            elseif find(strcmp({getaligndata.alignlabel},'rew'))
                 numrastrow=arrayfun(@(x) size(x.rasters,1), getaligndata, 'UniformOutput', false);
                 colrast=nan(sum([numrastrow{:}]),501);
+                colrastidx=[0 numrastrow{:}];
+                prefdir=nan(1,2);
                 for alignd=1:2
                     sacalgrasters=getaligndata(1,alignd).rasters;
                     alignmtt=getaligndata(1,alignd).alignidx;
                     start=alignmtt-300; stop=alignmtt+200; % -300 to 300 time window around sac (at 0).
-                    colrast=[colrast; sacalgrasters(:,start:stop)];
-                end                     
+                    colrast(colrastidx(alignd)+sum(colrastidx(1:alignd-1))+1:colrastidx(alignd+1)+sum(colrastidx(1:alignd)),:)=...
+                        sacalgrasters(:,start:stop);
+                    % prefered dir
+                    [unikdir,~,unikidx]=unique(getaligndata(1,alignd).dir);
+                    convpkdir=nan(length(unikdir),1);
+                    for convdirs=1:length(unikdir)
+                        convpkdir(convdirs,:)=max(conv_raster(sacalgrasters(unikidx==convdirs,start:stop),20));
+                    end
+                    if ~isempty(convpkdir)
+                        prefdir(alignd)=unikdir(convpkdir==max(convpkdir));
+                    else
+                        prefdir(alignd)=NaN;
+                    end
+                end
+                alldata(flbn,algn).prefdir=prefdir(~isnan(prefdir));
                 convrasters=conv_raster(colrast,10,11,size(colrast,2)-10);
                 alldata(flbn,algn).pk.rew=max(convrasters);
             end
@@ -283,7 +356,7 @@ for flbn=1:length(dentatefiles)
             [alldata(flbn,algn).ndata(1:size({getaligndata.rasters},2)).alignt]=deal(getaligndata.alignidx);
             
             % [t df pvals] = statcond({convrasters closeconvrasters}, 'method', 'perm', 'naccu', 20000,'verbose','off');
-    
+            
             %% store data for population plotting
             
             
@@ -299,13 +372,14 @@ end
 alltasks=reshape({alldata.task},size(alldata)); alltasks=alltasks(:,1);
 allalignmnt=reshape({alldata.aligntype},size(alldata));
 allmssrt=reshape({alldata.allmssrt},size(alldata)); allmssrt=allmssrt(:,1);
+allprevssd=reshape({alldata.prevssd},size(alldata));
+allssds=reshape({alldata.ssds},size(alldata));
+allsacdelay=reshape({alldata.sacdelay},size(alldata));
 allpk=reshape({alldata.pk},size(alldata));
+allprefdir=reshape({alldata.prefdir},size(alldata));
 allndata=reshape({alldata.ndata},size(alldata));
 all_rec_id=reshape({alldata.db_rec_id},size(alldata));
 allstats=reshape({alldata.stats},size(alldata));
-
-
-
 
 % outputs = struct('mssrt',{},...
 %     'ssdvalues',{});

@@ -9,7 +9,7 @@ allgsstats=allstats(gsdlist,1);
 
 %% cluster analysis of population
 %convolve rasters with 200ms before saccade, 200 after saccade, 20ms kernel
-%time window. Add kernel * 6 ms (see fullgauss_filtconv), e.g. 60 ms at both 
+%time window. Add kernel * 6 ms (see fullgauss_filtconv), e.g. 60 ms at both
 % ends, which will be cut.
 
 sacresps=cellfun(@(x) conv_raster(x(1,1).rast,10,x(1,1).alignt-260,x(1,1).alignt+259), allgsndata(:,1), 'UniformOutput',false); %400ms period
@@ -63,34 +63,34 @@ rnorm_sacresps=(sacresps-repmat(sacresp_mean',1,size(sacresps,2)))./repmat(sacre
 % seeds=[bnorm_sacresps(wavedropseed,:);...
 %     bnorm_sacresps(waveburstseed,:);...
 %     bnorm_sacresps(waveflatseed,:)];
-% 
+%
 % %% plot seeds
 % figure
 % plot(seeds(1,:))
 % hold on
 % plot(seeds(2,:),'r')
 % plot(seeds(3,:),'g')
-% 
+%
 % %% calculate k-means
 % % at random
 % % [IDX,C,sumd,D]=kmeans(sacresps,3,'dist','city','display','iter');
 % % seeded
 % [kMidx,kMeansClus,sumd,D]=kmeans(bnorm_sacresps,3,'dist','city','start',seeds,'display','iter');
-% 
+%
 % %% plot means
 % figure
 % plot(kMeansClus(1,:),'b')
 % hold on
 % plot(kMeansClus(2,:),'r')
 % plot(kMeansClus(3,:),'g')
-% 
+%
 % %% k-means scatterplot
 % figure
 % scatter3(D(kMidx==1,1),D(kMidx==1,2),D(kMidx==1,3),40,'b.')
 % hold on
 % scatter3(D(kMidx==2,1),D(kMidx==2,2),D(kMidx==2,3),40,'r.')
 % scatter3(D(kMidx==3,1),D(kMidx==3,2),D(kMidx==3,3),40,'g.')
-% 
+%
 % % Fit Gaussian Mixture Model using the k-means centers as the initial conditions
 % % We only have mean initial conditions from the k-means algorithm, so we
 % % can specify some arbitrary initial variance and mixture weights.
@@ -102,7 +102,7 @@ rnorm_sacresps=(sacresps-repmat(sacresp_mean',1,size(sacresps,2)))./repmat(sacre
 % % S.mu = kMeansClus;
 % % S.Sigma = initialSigma;
 % % S.PComponents = initialWeights;
-% 
+%
 % %% plot sdfs from each k-means cluster
 % clus1=find(kMidx==1); clus2=find(kMidx==2); clus3=find(kMidx==3);
 % figure('name','cluster1')
@@ -132,7 +132,7 @@ rnorm_sacresps=(sacresps-repmat(sacresp_mean',1,size(sacresps,2)))./repmat(sacre
 %     set(gca,'ylim',[0 ylim(2)]);
 %     text(20,10,['sacplot ' num2str(clus3(sacplot))]);
 % end
-% 
+%
 % %% PCA clustering
 % [coeffs,PrComps,latent] = pca(bnorm_sacresps);
 % % D=coeffs(:,1:8)';
@@ -142,7 +142,7 @@ rnorm_sacresps=(sacresps-repmat(sacresp_mean',1,size(sacresps,2)))./repmat(sacre
 % % plot(coeffs(:,2),'.','MarkerSize',.5)
 % % plot(coeffs(:,3),'.','MarkerSize',.5)
 % % plot(coeffs(:,4),'.','MarkerSize',.5)
-% 
+%
 % %% scatterplot
 % % in 2D
 % figure
@@ -151,7 +151,7 @@ rnorm_sacresps=(sacresps-repmat(sacresp_mean',1,size(sacresps,2)))./repmat(sacre
 % % hold on
 % % scatter(PrComps([6,11,21,24,29,32],1),PrComps([6,11,21,24,29,32],2),80,'r','filled')
 % % scatter(PrComps([7,14,17,25,27],1),PrComps([7,14,17,25,27],2),80,'g','filled')
-% 
+%
 % %% isolate clusters
 % FirstPrComps=[PrComps(:,1),PrComps(:,2)];
 % try
@@ -163,16 +163,16 @@ rnorm_sacresps=(sacresps-repmat(sacresp_mean',1,size(sacresps,2)))./repmat(sacre
 %         'Start','randSample','Replicates',5,'Option',statset('Display','final')); % 3 clusters
 %     fourclus=0;
 % end
-% 
+%
 % % Look at clusters mu and sigma
 % % gmm_fit_clusters.mu(1,:)
 % % gmm_fit_clusters.Sigma(:,:,1)
-% 
+%
 % % plot cluster contours
 % hold on
 % clusgmmfith = ezcontour(@(x,y)pdf(gmm_fit_clusters,[x y]),[min(PrComps(:,1))-1 max(PrComps(:,1))+1],[min(PrComps(:,2))-1 max(PrComps(:,2))+1]);
 % % ezsurf(@(x,y)pdf(gaussmixmodel_fit,[x y]),[min(PrComps(:,1))-1 max(PrComps(:,1))+1],[min(PrComps(:,2))-1 max(PrComps(:,2))+1]);
-% 
+%
 % % cluster and find posterior probability
 % %[PCAclusidx,nlogl,P,logpdf,M] = cluster(gmm_fit_clusters,FirstPrComps);
 % % actually use posterior value to
@@ -183,16 +183,16 @@ rnorm_sacresps=(sacresps-repmat(sacresp_mean',1,size(sacresps,2)))./repmat(sacre
 % [~,PCAclusidx] = max(ClusPr,[],2);
 % maxClusPr = max(ClusPr(:,1:4),[],2);
 % tabulate(PCAclusidx);
-% 
+%
 % gscatter(FirstPrComps(:,1), FirstPrComps(:,2), PCAclusidx)
 % %print index number
 % text(PrComps(:,1), PrComps(:,2),num2str(rot90(size(PrComps(:,1),1):-1:1)))
 % %and print proba value
 % text(PrComps(:,1), PrComps(:,2)-0.5,num2str(floor(maxClusPr*100)))
-% 
+%
 % hold off
 % title('PC1 vs PC2, 4 clusters');
-% 
+%
 % %%
 % % cluster1 = FirstPrComps(PCAclusidx == 1,:);
 % % cluster2 = FirstPrComps(PCAclusidx == 2,:);
@@ -210,11 +210,11 @@ rnorm_sacresps=(sacresps-repmat(sacresp_mean',1,size(sacresps,2)))./repmat(sacre
 % % else
 % %     legend([gaussfith1 gaussfith2 gaussfith3],'Cluster 1','Cluster 2','Cluster 3','Location','NW')
 % % end
-% 
+%
 % % % in 2D, with variance multiplier
 % % figure
 % % plot(PrComps(:,1).*latent(1),PrComps(:,2).*latent(2),'.b')
-% 
+%
 % %% in 3D
 % figure
 % scatter3(PrComps(:,1),PrComps(:,2),PrComps(:,3),40,'b.')
@@ -227,12 +227,12 @@ rnorm_sacresps=(sacresps-repmat(sacresp_mean',1,size(sacresps,2)))./repmat(sacre
 % % outline bests
 % scatter3(PrComps([6,11,21,24,29,32],1),PrComps([6,11,21,24,29,32],2),PrComps([6,11,21,24,29,32],3),80,'r','filled')
 % scatter3(PrComps([7,14,17,25,27],1),PrComps([7,14,17,25,27],2),PrComps([7,14,17,25,27],3),80,'g','filled')
-% 
+%
 % %% plot sdfs from each cluster
 % clus1=find(PCAclusidx==1); clus2=find(PCAclusidx==2);
 % clus3=find(PCAclusidx==3); clus4=find(PCAclusidx==4);
 % clus5=find(PCAclusidx==5);
-% 
+%
 % figure('name','cluster1')
 % subplotdim=[ceil(sqrt(numel(clus1))),ceil(sqrt(numel(clus1)))];
 % for sacplot=1:length(clus1)
@@ -608,7 +608,7 @@ for clusnum=1:3
     legh=legend(lineh(1:3),{'No Stop Signal','Stop Signal: Cancelled', 'Stop Signal: Non Cancelled'});
     set(legh,'Interpreter','none','Location','SouthWest','Box','off','LineWidth',1.5,'FontName','Cambria','FontSize',9); % Interpreter prevents underscores turning character into subscript
     title(['Cluster' num2str(clusnum) ' Aligned to saccade'],'FontName','Cambria','FontSize',15);
-   
+    
     %% target alignment plot
     tgtfig(clusnum)=figure('name',['Cluster' num2str(clusnum) ' target plots']);
     hold on;
@@ -639,7 +639,7 @@ for clusnum=1:3
     legh=legend(lineh(1:3),{'No Stop Signal','Stop Signal: Cancelled', 'Stop Signal: Non Cancelled'});
     set(legh,'Interpreter','none','Location','NorthEast','Box', 'off','LineWidth',1.5,'FontName','Cambria','FontSize',9); % Interpreter prevents underscores turning character into subscript
     title(['Cluster' num2str(clusnum) ' Aligned to target'],'FontName','Cambria','FontSize',15);
-
+    
     %% ssd alignment plots
     ssdfig(clusnum)=figure('name',['Cluster' num2str(clusnum) ' ssd plots']);
     % 1st plots
@@ -686,13 +686,13 @@ for clusnum=1:3
         hold on;
         if ssdpop==2 %keep same color as first subplot
             patch([1:length(popci),fliplr(1:length(popci))],...
-            [popsdf-popci,fliplr(popsdf+popci)],...
-            lineStyles(1,:),'EdgeColor','none','FaceAlpha',0.1);
+                [popsdf-popci,fliplr(popsdf+popci)],...
+                lineStyles(1,:),'EdgeColor','none','FaceAlpha',0.1);
             lineh(ssdpop)=plot(popsdf,'LineWidth',2,'color',lineStyles(1,:));
         else
             patch([1:length(popci),fliplr(1:length(popci))],...
-            [popsdf-popci,fliplr(popsdf+popci)],...
-            lineStyles(ssdpop,:),'EdgeColor','none','FaceAlpha',0.1);
+                [popsdf-popci,fliplr(popsdf+popci)],...
+                lineStyles(ssdpop,:),'EdgeColor','none','FaceAlpha',0.1);
             lineh(ssdpop)=plot(popsdf,'LineWidth',2,'color',lineStyles(ssdpop,:));
         end
     end
@@ -714,8 +714,68 @@ for clusnum=1:3
     
     %% corrective saccade plots
     
+    corsacfig(clusnum)=figure('name',['Cluster' num2str(clusnum) ' corrective sac plots']);
+    hold on;
+    
+    for corsacpop=1:3
+        [popsdf, compgssdf(1,clusnum).align.corsac.(trialtype_sdf{corsacpop})]=deal(nanmean(compgssdf(1,clusnum).align.corsac.(trialtype{corsacpop})));
+        [popci, compgssdf(1,clusnum).align.corsac.(trialtype_ci{corsacpop})]=deal(nanstd(compgssdf(1,clusnum).align.corsac.(trialtype{corsacpop}))/...
+            sqrt(size(compgssdf(1,clusnum).align.corsac.(trialtype{corsacpop}),1)));
+        
+        patch([1:length(popci),fliplr(1:length(popci))],...
+            [popsdf-popci,fliplr(popsdf+popci)],...
+            lineStyles(corsacpop,:),'EdgeColor','none','FaceAlpha',0.1);
+        hold on;
+        lineh(corsacpop)=plot(popsdf,'LineWidth',2,'color',lineStyles(corsacpop,:));
+    end
+    currylim=get(gca,'ylim');
+    patch([corsac_startstop(1)-2:corsac_startstop(1)+2 fliplr(corsac_startstop(1)-2:corsac_startstop(1)+2)], ...
+        reshape(repmat([currylim(1) currylim(2)],5,1),1,numel(currylim)*5), ...
+        [0 0 0],'EdgeColor','none','FaceAlpha',0.5);
+    hold off;
+    %% beautify plot
+    set(gca,'XTick',[0:100:(corsac_startstop(2)+corsac_startstop(1))]);
+    set(gca,'XTickLabel',[-corsac_startstop(1):100:corsac_startstop(2)]);
+    axis(gca,'tight'); box off;
+    set(gca,'Color','white','TickDir','out','FontName','Cambria','FontSize',10);
+    hxlabel=xlabel(gca,'Time (ms)','FontName','Cambria','FontSize',10);
+    hylabel=ylabel(gca,'Firing rate (z-score)','FontName','Cambria','FontSize',10);
+    legh=legend(lineh(1:3),{'No Stop Signal','Stop Signal: Cancelled', 'Stop Signal: Non Cancelled'});
+    set(legh,'Interpreter','none','Location','NorthEast','Box', 'off','LineWidth',1.5,'FontName','Cambria','FontSize',9); % Interpreter prevents underscores turning character into subscript
+    title(['Cluster' num2str(clusnum) ' Aligned to target'],'FontName','Cambria','FontSize',15);
+    
+    
     %% reward alignment plots
     
+    rewfig(clusnum)=figure('name',['Cluster' num2str(clusnum) ' target plots']);
+    hold on;
+    
+    for rewpop=1:2
+        [popsdf, compgssdf(1,clusnum).align.rew.(trialtype_sdf{rewpop})]=deal(nanmean(compgssdf(1,clusnum).align.rew.(trialtype{rewpop})));
+        [popci, compgssdf(1,clusnum).align.rew.(trialtype_ci{rewpop})]=deal(nanstd(compgssdf(1,clusnum).align.rew.(trialtype{rewpop}))/...
+            sqrt(size(compgssdf(1,clusnum).align.rew.(trialtype{rewpop}),1)));
+        
+        patch([1:length(popci),fliplr(1:length(popci))],...
+            [popsdf-popci,fliplr(popsdf+popci)],...
+            lineStyles(rewpop,:),'EdgeColor','none','FaceAlpha',0.1);
+        hold on;
+        lineh(rewpop)=plot(popsdf,'LineWidth',2,'color',lineStyles(rewpop,:));
+    end
+    currylim=get(gca,'ylim');
+    patch([rew_startstop(1)-2:rew_startstop(1)+2 fliplr(rew_startstop(1)-2:rew_startstop(1)+2)], ...
+        reshape(repmat([currylim(1) currylim(2)],5,1),1,numel(currylim)*5), ...
+        [0 0 0],'EdgeColor','none','FaceAlpha',0.5);
+    hold off;
+    %% beautify plot
+    set(gca,'XTick',[0:100:(rew_startstop(2)+rew_startstop(1))]);
+    set(gca,'XTickLabel',[-rew_startstop(1):100:rew_startstop(2)]);
+    axis(gca,'tight'); box off;
+    set(gca,'Color','white','TickDir','out','FontName','Cambria','FontSize',10);
+    hxlabel=xlabel(gca,'Time (ms)','FontName','Cambria','FontSize',10);
+    hylabel=ylabel(gca,'Firing rate (z-score)','FontName','Cambria','FontSize',10);
+    legh=legend(lineh(1:3),{'No Stop Signal','Stop Signal: Cancelled', 'Stop Signal: Non Cancelled'});
+    set(legh,'Interpreter','none','Location','NorthEast','Box', 'off','LineWidth',1.5,'FontName','Cambria','FontSize',9); % Interpreter prevents underscores turning character into subscript
+    title(['Cluster' num2str(clusnum) ' Aligned to target'],'FontName','Cambria','FontSize',15);
 end
 
 %% print plots
@@ -723,20 +783,20 @@ fighandles=[sacfig,tgtfig,ssdfig,corsacfig,rewfig];fighandles=fighandles(~isnan(
 cd('E:\Data\Analysis\Countermanding\popclusters');
 
 for printfig=1:length(fighandles)
-exportfigname=get(get(get(fighandles(printfig),'CurrentAxes'),'title'),'String');
-exportfigname=strrep(exportfigname,' ','_');
-%print png
-% newpos =  get(fighandles(printfig),'Position')/60;
-% set(fighandles(printfig),'PaperUnits','inches','PaperPosition',newpos);
-print(fighandles(printfig), '-dpng', '-noui', '-opengl','-r600', exportfigname);
-% -noui stands for: suppress the printing of user interface (ui) controls.
-
-%print pdf
-%reasonably low size / good definition pdf figure (but patch transparency not supported by ghostscript to generate pdf):
-%print(fighandles(printfig), '-dpdf', '-noui', '-painters','-r600', exportfigname);
-
-%print svg
-plot2svg([exportfigname,'.svg'],fighandles(printfig), 'png'); %only vector graphic export function that preserves alpha transparency
+    exportfigname=get(get(get(fighandles(printfig),'CurrentAxes'),'title'),'String');
+    exportfigname=strrep(exportfigname,' ','_');
+    %print png
+    % newpos =  get(fighandles(printfig),'Position')/60;
+    % set(fighandles(printfig),'PaperUnits','inches','PaperPosition',newpos);
+    print(fighandles(printfig), '-dpng', '-noui', '-opengl','-r600', exportfigname);
+    % -noui stands for: suppress the printing of user interface (ui) controls.
+    
+    %print pdf
+    %reasonably low size / good definition pdf figure (but patch transparency not supported by ghostscript to generate pdf):
+    %print(fighandles(printfig), '-dpdf', '-noui', '-painters','-r600', exportfigname);
+    
+    %print svg
+    plot2svg([exportfigname,'.svg'],fighandles(printfig), 'png'); %only vector graphic export function that preserves alpha transparency
 end
 
 
