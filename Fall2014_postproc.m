@@ -349,25 +349,46 @@ corsac_startstop=[800 200];
 rew_startstop=[800 200];
 
 %% separate data by cluster
-clusgsndata{1}=allgsndata(hc_clus==6 | hc_clus==8 | hc_clus==11,:);
-clusgsndata{2}=allgsndata(hc_clus==9,:);
-clusgsndata{3}=allgsndata(hc_clus==10,:);
+% cb cx cluster
+clusgsndata{1}=allgsndata(hc_clus==4 | hc_clus==10,:);
+clusgsndata{2}=allgsndata(hc_clus==2,:);
+clusgsndata{3}=allgsndata(hc_clus==6,:);
 
-clussblmean{1}=bslresp_mean(hc_clus==6 | hc_clus==8 | hc_clus==11);
-clussblmean{2}=bslresp_mean(hc_clus==9);
-clussblmean{3}=bslresp_mean(hc_clus==10);
+clussblmean{1}=bslresp_mean(hc_clus==4 | hc_clus==10);
+clussblmean{2}=bslresp_mean(hc_clus==2);
+clussblmean{3}=bslresp_mean(hc_clus==6);
 
-clussbslresp_sd{1}=bslresp_sd(hc_clus==6 | hc_clus==8 | hc_clus==11);
-clussbslresp_sd{2}=bslresp_sd(hc_clus==9);
-clussbslresp_sd{3}=bslresp_sd(hc_clus==10);
+clussbslresp_sd{1}=bslresp_sd(hc_clus==4 | hc_clus==10);
+clussbslresp_sd{2}=bslresp_sd(hc_clus==2);
+clussbslresp_sd{3}=bslresp_sd(hc_clus==6);
 
-clusprefdir{1}=allgsprefdir(hc_clus==6 | hc_clus==8 | hc_clus==11,:);
-clusprefdir{2}=allgsprefdir(hc_clus==9,:);
-clusprefdir{3}=allgsprefdir(hc_clus==10,:);
+clusprefdir{1}=allgsprefdir(hc_clus==4 | hc_clus==10,:);
+clusprefdir{2}=allgsprefdir(hc_clus==2,:);
+clusprefdir{3}=allgsprefdir(hc_clus==6,:);
 
-clusssds{1}=allgsssds(hc_clus==6 | hc_clus==8 | hc_clus==11);
-clusssds{2}=allgsssds(hc_clus==9);
-clusssds{3}=allgsssds(hc_clus==10);
+clusssds{1}=allgsssds(hc_clus==4 | hc_clus==10);
+clusssds{2}=allgsssds(hc_clus==2);
+clusssds{3}=allgsssds(hc_clus==6);
+
+% clusgsndata{1}=allgsndata(hc_clus==6 | hc_clus==8 | hc_clus==11,:);
+% clusgsndata{2}=allgsndata(hc_clus==9,:);
+% clusgsndata{3}=allgsndata(hc_clus==10,:);
+% 
+% clussblmean{1}=bslresp_mean(hc_clus==6 | hc_clus==8 | hc_clus==11);
+% clussblmean{2}=bslresp_mean(hc_clus==9);
+% clussblmean{3}=bslresp_mean(hc_clus==10);
+% 
+% clussbslresp_sd{1}=bslresp_sd(hc_clus==6 | hc_clus==8 | hc_clus==11);
+% clussbslresp_sd{2}=bslresp_sd(hc_clus==9);
+% clussbslresp_sd{3}=bslresp_sd(hc_clus==10);
+% 
+% clusprefdir{1}=allgsprefdir(hc_clus==6 | hc_clus==8 | hc_clus==11,:);
+% clusprefdir{2}=allgsprefdir(hc_clus==9,:);
+% clusprefdir{3}=allgsprefdir(hc_clus==10,:);
+% 
+% clusssds{1}=allgsssds(hc_clus==6 | hc_clus==8 | hc_clus==11);
+% clusssds{2}=allgsssds(hc_clus==9);
+% clusssds{3}=allgsssds(hc_clus==10);
 
 % allgsprevssd
 % allgssacdelay
