@@ -7,7 +7,7 @@ try
     CCNdb = connect2DB('vp_sldata');
     %     query = 'SELECT FileName FROM b_dentate';
     %     results = fetch(CCNdb,query);
-    dentatefiles =fetch(CCNdb,'select r.a_file FROM recordings r WHERE r.task=''gapstop'' AND r.recloc=''top_cortex'''); %dentate
+    dentatefiles =fetch(CCNdb,'select r.a_file FROM recordings r WHERE r.task=''gapstop'' AND r.recloc=''dentate'''); %dentate %top_cortex
 catch db_fail
     results = [];
 end
