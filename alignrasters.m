@@ -275,11 +275,11 @@ while ~islast
                         end
                     else
                         % for successfully canceled stop trials, align to stop
-                        % signal delay + stop signal reaction time, unless
-                        % the first alignement is to reward (then align to
-                        % reward)
-                        if firstalign==4
+                        % signal delay + stop signal reaction time, 
+                        if firstalign==4 % unless the first alignement is to reward (then align to reward)
                             aligntime=etimeout(find(ecodeout == 1030,1)) * (arate / 1000);
+                        elseif firstalign==7 % or target! then align to target ... 
+                            aligntime=etimeout(find(floor(ecodeout./10) == 487,1)) * (arate / 1000);
                         else
                             if ~isnan(mssrt)
                                 aligntime=etimeout( falign( 1 ) ) * (arate / 1000)+round(mssrt);

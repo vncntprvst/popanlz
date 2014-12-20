@@ -207,6 +207,7 @@ for flbn=1:length(dentatefiles)
             alldata(flbn,algn).aligntype=alignments{algn};
             
             %% use GUI-independent prealign
+            getaligndata={}; %re-init structure
             try
                 getaligndata = prealign(loadfile{:}(1:end-4), trialdirs, task, firstalign,...
                     secondalign,  includebad, spikechannel, keepdir,...
@@ -345,7 +346,7 @@ for flbn=1:length(dentatefiles)
                         prefdir(alignd)=NaN;
                     end
                 end
-                %get most found pref dire
+                %get most found pref dir
                 [~,~,prefdir]=mode(prefdir(~isnan(prefdir)));
                 if length(prefdir{:})>1 %then keep dir with most trials
                     prefdirnbtrial=([sum([getaligndata.dir]==prefdir{:}(1)) sum([getaligndata.dir]==prefdir{:}(2))]);
