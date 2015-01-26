@@ -4,6 +4,7 @@ function pop_a_countermanding(allgsalignmnt,allgsmssrt,allgspk,allgsndata,...
 %% processing options
 prefdironly=1;
 singlessd=1;
+basicplots=1;
 
 %% cluster analysis of population
 %convolve rasters with 200ms before saccade, 200 after saccade, 20ms kernel
@@ -343,46 +344,59 @@ rew_startstop=[800 200];
 % clusgsndata{1}=allgsndata(hc_clus==4 | hc_clus==10,:);
 % clusgsndata{2}=allgsndata(hc_clus==2,:);
 % clusgsndata{3}=allgsndata(hc_clus==6,:);
-% 
+%
 % clussblmean{1}=bslresp_mean(hc_clus==4 | hc_clus==10);
 % clussblmean{2}=bslresp_mean(hc_clus==2);
 % clussblmean{3}=bslresp_mean(hc_clus==6);
-% 
+%
 % clussbslresp_sd{1}=bslresp_sd(hc_clus==4 | hc_clus==10);
 % clussbslresp_sd{2}=bslresp_sd(hc_clus==2);
 % clussbslresp_sd{3}=bslresp_sd(hc_clus==6);
-% 
+%
 % clusprefdir{1}=allgsprefdir(hc_clus==4 | hc_clus==10,:);
 % clusprefdir{2}=allgsprefdir(hc_clus==2,:);
 % clusprefdir{3}=allgsprefdir(hc_clus==6,:);
-% 
+%
 % clusssds{1}=allgsssds(hc_clus==4 | hc_clus==10);
 % clusssds{2}=allgsssds(hc_clus==2);
 % clusssds{3}=allgsssds(hc_clus==6);
 
 %% cDN clusters
-clusgsndata{1}=allgsndata(hc_clus==6 | hc_clus==8 | hc_clus==11,:);
-clusgsndata{2}=allgsndata(hc_clus==9,:);
-clusgsndata{3}=allgsndata(hc_clus==10,:);
-
-clussblmean{1}=bslresp_mean(hc_clus==6 | hc_clus==8 | hc_clus==11);
-clussblmean{2}=bslresp_mean(hc_clus==9);
-clussblmean{3}=bslresp_mean(hc_clus==10);
-
-clussbslresp_sd{1}=bslresp_sd(hc_clus==6 | hc_clus==8 | hc_clus==11);
-clussbslresp_sd{2}=bslresp_sd(hc_clus==9);
-clussbslresp_sd{3}=bslresp_sd(hc_clus==10);
-
-clusprefdir{1}=allgsprefdir(hc_clus==6 | hc_clus==8 | hc_clus==11,:);
-clusprefdir{2}=allgsprefdir(hc_clus==9,:);
-clusprefdir{3}=allgsprefdir(hc_clus==10,:);
-
-clusssds{1}=allgsssds(hc_clus==6 | hc_clus==8 | hc_clus==11);
-clusssds{2}=allgsssds(hc_clus==9);
-clusssds{3}=allgsssds(hc_clus==10);
-
-% allgsprevssd
-% allgssacdelay
+clus1idx=hc_clus==6 | hc_clus==8 | hc_clus==11;
+clus2idx=hc_clus==9;
+clus3idx=hc_clus==10;
+% raster data
+clusgsndata{1}=allgsndata(clus1idx,:);
+clusgsndata{2}=allgsndata(clus2idx,:);
+clusgsndata{3}=allgsndata(clus3idx,:);
+% baseline
+clussblmean{1}=bslresp_mean(clus1idx);
+clussblmean{2}=bslresp_mean(clus2idx);
+clussblmean{3}=bslresp_mean(clus3idx);
+% response baseline
+clussbslresp_sd{1}=bslresp_sd(clus1idx);
+clussbslresp_sd{2}=bslresp_sd(clus2idx);
+clussbslresp_sd{3}=bslresp_sd(clus3idx);
+% prefered direction
+clusprefdir{1}=allgsprefdir(clus1idx,:);
+clusprefdir{2}=allgsprefdir(clus2idx,:);
+clusprefdir{3}=allgsprefdir(clus3idx,:);
+% ssds
+clusssds{1}=allgsssds(clus1idx);
+clusssds{2}=allgsssds(clus2idx);
+clusssds{3}=allgsssds(clus3idx);
+% saccade delays
+clussacRT{1}=allgssacdelay(clus1idx);
+clussacRT{2}=allgssacdelay(clus2idx);
+clussacRT{3}=allgssacdelay(clus3idx);
+% prevalent ssds
+clusprevssd{1}=allgsprevssd(clus1idx);
+clusprevssd{2}=allgsprevssd(clus2idx);
+clusprevssd{3}=allgsprevssd(clus3idx);
+% ssrts
+clusmssrt{1}=allgsmssrt(clus1idx);
+clusmssrt{2}=allgsmssrt(clus2idx);
+clusmssrt{3}=allgsmssrt(clus3idx);
 
 % compgssdf{1}=nan(size(allgsalignmnt,1),1301,3);
 % compgssdf{2}=nan(size(allgsalignmnt,1),901,3);
@@ -407,9 +421,45 @@ for clusnum=1:3
         %         catch nopeak
         %             gspk=0;
         %         end
+
+        % We want to compute only single SSD data -- only if there's a
+        % SSRT available. Also take the opportunity to skip this alignment
+        % if there aren't enough trials
+        if singlessd && iscell(clusmssrt{1, 1}{gsd,1}) && size(gsdata(1, 2).rast,1) > 5 && size(gsdata(1, 3).rast,1) > 5  
+            % keep NC trials with  NSS trials in which a saccade would have been
+            % initiated even if a stop signal had occurred, but with saccade latencies
+            % greater than the stop-signal delay plus a visual-response latency.
+            % We take tachomc-tachowidth/2 rather than the arbitrary 50ms
+            % from Hanes et al 98 (only if tachomc>= 50)
+            if size(clussacRT{clusnum}{gsd,1}{:},2)~=size(gsdata(1, 1).rast,1)
+                gsdata=[]; %AND FIX THST ISSUE!
+            else
+            %most prevalent SSD
+            [ssdbin,ssdbinval]=hist([clusssds{clusnum}{gsd,1}{1, 1};clusssds{clusnum}{gsd,1}{1, 2}]);
+            ssdspread=abs(clusprevssd{clusnum}{gsd,1}{:}-max(ssdbinval(ssdbin==max(ssdbin))));
+            prevssd=clusprevssd{clusnum}{gsd,1}{:}(ssdspread==min(ssdspread));
+            %latency matched NSS trials
+            gsdata(1, 1).rast=gsdata(1, 1).rast(clussacRT{clusnum}{gsd,1}{:}>prevssd+(max([mean(clusmssrt{clusnum}{gsd,1}{2}) 50])-clusmssrt{clusnum}{gsd,1}{3}/2) ...
+                & clussacRT{clusnum}{gsd,1}{:}<prevssd+round(clusmssrt{clusnum}{gsd,1}{1}),:);
+            
+            %keep relevant SS trials (with SSD within +-3ms of prevalent SSD)
+            %CS trials
+            gsdata(1, 2).rast=gsdata(1, 2).rast(logical(arrayfun(@(x) sum(prevssd<=x+3 & prevssd>=x-3),...
+                clusssds{clusnum}{gsd,1}{1, 1})),:);
+            %NCS trials
+            gsdata(1, 3).rast=gsdata(1, 3).rast(logical(arrayfun(@(x) sum(prevssd<=x+3 & prevssd>=x-3),...
+                clusssds{clusnum}{gsd,1}{1, 2})),:);
+            end
+        else
+            gsdata=[];
+        end
+
         
         if ~isempty(gsdata) && clussbslresp_sd{clusnum}(gsd)~=0
             for sacalg=1:3
+                if basicplots && sacalg==2
+                    continue
+                end
                 try
                     rasters=gsdata(sacalg).rast;
                     if prefdironly
@@ -417,12 +467,12 @@ for clusnum=1:3
                     end
                     alignmtt=gsdata(sacalg).alignt;
                     start=alignmtt-sac_startstop(1)-half_sixsig; stop=alignmtt+sac_startstop(2)+half_sixsig;
-                    [sdf, convrasters, convrastsem]=conv_raster(rasters,conv_sigma,start,stop);
+                    sdf=conv_raster(rasters,conv_sigma,start,stop);
                     
                     %normalize sdf by baseline activity
                     normsdf=(sdf-clussblmean{clusnum}(gsd))./clussbslresp_sd{clusnum}(gsd);
                     
-                    %% plots
+                    %% plots (get [sdf, convrasters, convrastsem] if needed)
                     %                              figure
                     %                              hold off
                     %                              patch([1:length(sdf),fliplr(1:length(sdf))],[sdf-convrastsem,fliplr(sdf+convrastsem)],'k','EdgeColor','none','FaceAlpha',0.1);
@@ -450,9 +500,17 @@ for clusnum=1:3
         %         catch nopeak
         %             gspk=0;
         %         end
+        if singlessd
+            % Keeping NSS trials with sac latencies long enough
+            % that they would have occured after a stop-signal
+            %ctmatchlatidx(:,ssdval)=sacdelay>ccssdval(ssdval)+round(mssrt);
+        end
         
         if ~isempty(gsdata) && clussbslresp_sd{clusnum}(gsd)~=0
             for tgtalg=1:3
+                if basicplots && sacalg==3
+                    continue
+                end
                 try
                     rasters=gsdata(tgtalg).rast;
                     if prefdironly
@@ -460,12 +518,12 @@ for clusnum=1:3
                     end
                     alignmtt=gsdata(tgtalg).alignt;
                     start=alignmtt-tgt_startstop(1)-half_sixsig; stop=alignmtt+tgt_startstop(2)+half_sixsig;
-                    [sdf, convrasters, convrastsem]=conv_raster(rasters,conv_sigma,start,stop);
+                    sdf=conv_raster(rasters,conv_sigma,start,stop);
                     
                     %normalize sdf by baseline activity
                     normsdf=(sdf-clussblmean{clusnum}(gsd))./clussbslresp_sd{clusnum}(gsd);
                     
-                    %% plots
+                    %% plots (get [sdf, convrasters, convrastsem] if needed)
                     %                              figure(1)
                     %                              hold off
                     %                              patch([1:length(normsdf),fliplr(1:length(normsdf))],[normsdf-convrastsem,fliplr(normsdf+convrastsem)],'k','EdgeColor','none','FaceAlpha',0.1);
@@ -503,12 +561,12 @@ for clusnum=1:3
                     end
                     alignmtt=gsdata(ssdalg).alignt;
                     start=alignmtt-ssd_startstop(1)-half_sixsig; stop=alignmtt+ssd_startstop(2)+half_sixsig;
-                    [sdf, convrasters, convrastsem]=conv_raster(rasters,conv_sigma,start,stop);
+                    sdf=conv_raster(rasters,conv_sigma,start,stop);
                     
                     %normalize sdf by baseline activity
                     normsdf=(sdf-clussblmean{clusnum}(gsd))./clussbslresp_sd{clusnum}(gsd);
                     
-                    %% plots
+                    %% plots (get [sdf, convrasters, convrastsem] if needed)
                     %          figure(1)
                     %          hold off
                     %          patch([1:length(sdf),fliplr(1:length(sdf))],[sdf-convrastsem,fliplr(sdf+convrastsem)],'k','EdgeColor','none','FaceAlpha',0.1);
@@ -545,12 +603,12 @@ for clusnum=1:3
                     end
                     alignmtt=gsdata(csacalg).alignt;
                     start=alignmtt-corsac_startstop(1)-half_sixsig; stop=alignmtt+corsac_startstop(2)+half_sixsig;
-                    [sdf, convrasters, convrastsem]=conv_raster(rasters,conv_sigma,start,stop);
+                    sdf=conv_raster(rasters,conv_sigma,start,stop);
                     
                     %normalize sdf by baseline activity
                     normsdf=(sdf-clussblmean{clusnum}(gsd))./clussbslresp_sd{clusnum}(gsd);
                     
-                    %% plots
+                    %% plots (get [sdf, convrasters, convrastsem] if needed)
                     %          figure(1)
                     %          hold off
                     %          patch([1:length(sdf),fliplr(1:length(sdf))],[sdf-convrastsem,fliplr(sdf+convrastsem)],'k','EdgeColor','none','FaceAlpha',0.1);
@@ -587,12 +645,12 @@ for clusnum=1:3
                     end
                     alignmtt=gsdata(rewalg).alignt;
                     start=alignmtt-rew_startstop(1)-half_sixsig; stop=alignmtt+rew_startstop(2)+half_sixsig;
-                    [sdf, convrasters, convrastsem]=conv_raster(rasters,conv_sigma,start,stop);
+                    sdf=conv_raster(rasters,conv_sigma,start,stop);
                     
                     %normalize sdf by baseline activity
                     normsdf=(sdf-clussblmean{clusnum}(gsd))./clussbslresp_sd{clusnum}(gsd);
                     
-                    %% plots
+                    %% plots (get [sdf, convrasters, convrastsem] if needed)
                     %          figure(1)
                     %          hold off
                     %          patch([1:length(sdf),fliplr(1:length(sdf))],[sdf-convrastsem,fliplr(sdf+convrastsem)],'k','EdgeColor','none','FaceAlpha',0.1);
@@ -843,7 +901,7 @@ for printfig=1:length(fighandles)
     %print(fighandles(printfig), '-dpdf', '-noui', '-painters','-r600', exportfigname);
     
     %print svg
-%     plot2svg([exportfigname,'.svg'],fighandles(printfig), 'png'); %only vector graphic export function that preserves alpha transparency
+    %     plot2svg([exportfigname,'.svg'],fighandles(printfig), 'png'); %only vector graphic export function that preserves alpha transparency
 end
 
 

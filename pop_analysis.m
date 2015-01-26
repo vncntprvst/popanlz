@@ -23,12 +23,12 @@ end
 % dentatefiles=unique(dentatefiles);
 
 %% prealloc
-alldata=struct('task',{},'aligntype',{},'prevssd',{},'allmssrt',{},...
+alldata=struct('task',{},'aligntype',{},'prevssd',{},'allmssrt_tacho',{},...
     'ssds',{},'sacdelay',{},'prefdiridx',{},...
     'pk',struct('sac',{},'vis',{},'corsac',{},'rew',{}),...
     'ndata',struct('rast',{},'alignt',{}),'db_rec_id',{},...
     'stats',struct('hval',{},'pval',{},'sign',{}));
-%allmssrt=NaN(length(dentatefiles),1);
+%allmssrt_tacho=NaN(length(dentatefiles),1);
 
 %% process files
 for flbn=1:length(dentatefiles)
@@ -127,7 +127,7 @@ for flbn=1:length(dentatefiles)
                 plotstop=600;
                 
                 %% ssd alignement specific:
-                % if aligning to ssd, got to align NSS trials according to latency
+                % if aligning to ssd, need to align NSS trials according to latency
                 
                 % get psychometric values
                 [mssrt,inhibfun,ccssd,nccssd,ssdvalues,tachomc,tachowidth,...
@@ -138,10 +138,10 @@ for flbn=1:length(dentatefiles)
                         mssrt=mean(tachomc)+tachowidth;
                     end
                 else
-                    alldata(flbn,1).allmssrt=NaN;
+                    alldata(flbn,1).allmssrt_tacho=NaN;
                     continue
                 end
-                alldata(flbn,1).allmssrt=mssrt;
+                alldata(flbn,1).allmssrt_tacho={mssrt mean(tachomc) tachowidth};
                 alldata(flbn,1).prevssd={prevssd};
                 alldata(flbn,1).sacdelay={sacdelay};
                 
@@ -424,7 +424,7 @@ end
 
 alltasks=reshape({alldata.task},size(alldata)); alltasks=alltasks(:,1);
 allalignmnt=reshape({alldata.aligntype},size(alldata));
-allmssrt=reshape({alldata.allmssrt},size(alldata)); allmssrt=allmssrt(:,1);
+allmssrt_tacho=reshape({alldata.allmssrt_tacho},size(alldata)); allmssrt_tacho=allmssrt_tacho(:,1);
 allprevssd=reshape({alldata.prevssd},size(alldata));allprevssd=allprevssd(:,1);
 allssds=reshape({alldata.ssds},size(alldata));allssds=allssds(:,1);
 allsacdelay=reshape({alldata.sacdelay},size(alldata));allsacdelay=allsacdelay(:,1);
@@ -438,7 +438,7 @@ allstats=reshape({alldata.stats},size(alldata));
 %% analyze gapstop data
 gsdlist=cellfun(@(x) strcmp(x,'gapstop'),alltasks(:,1)) & ~cellfun('isempty',allndata(:,1));
 
-pop_a_countermanding(allalignmnt(gsdlist,:),allmssrt(gsdlist,1),allpk(gsdlist,:),...
+pop_a_countermanding(allalignmnt(gsdlist,:),allmssrt_tacho(gsdlist,1),allpk(gsdlist,:),...
 allndata(gsdlist,:),all_rec_id(gsdlist,1),allstats(gsdlist,1),allprevssd(gsdlist,1),...
 allssds(gsdlist,1),allsacdelay(gsdlist,1),allprefdir(gsdlist,:));
 
