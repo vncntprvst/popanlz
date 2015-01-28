@@ -223,7 +223,7 @@ nonecodes=[17385 16386];
 datalign=struct('dir',{},'rasters',{},'trials',{},'trigtosac',{},'sactotrig',{},...
     'trigtovis',{},'vistotrig',{},'alignidx',{},'eyeh',{},'eyev',{},'eyevel',{},...
     'amplitudes',{},'peakvels',{},'peakaccs',{},'allgreyareas',{},'stats',{},...
-    'alignlabel',{},'savealignname',{},'bad',{});
+    'alignlabel',{},'savealignname',{},'bad',{},'extras',{});
 
 if  singlerastplot || aligncodes(1)==1030 || aligncodes(1)== 17385
     datalign(1).alignlabel=alignlabel; %only one array
@@ -298,10 +298,12 @@ for cnc=1:numcodes
     adjconditions=conditions;
     if strcmp(tasktype,'gapstop')
         if strcmp(aligntype,'stop')
-            includebad=1; %we want to unclude non-cancelled
+            includebad=1; %we want to include non-cancelled
             d_increment=size([aligncodes alignseccodes],1);%make room for additional "non-cancel" data
             numplots=numcodes+d_increment;
-            if ~isempty(option)
+            if ~isempty(extras)
+                optiondat=extras;
+            elseif~isempty(option)
                 optiondat=option;
             end
         elseif strcmp(aligntype,'ssd')
@@ -321,9 +323,10 @@ for cnc=1:numcodes
     else
        % includebad=0;
         numplots=numcodes;
-    end
+    end 
+    % Should simplify to structures rasters, indices, eyevalues, extras ...
     [rasters,aidx, trialidx, trigtosacs, sactotrigs, trigtovis, vistotrigs, eyeh,eyev,eyevel,...
-        amplitudes,peakvels,peakaccs,allgreyareas,badidx,ssd,dirs] = alignrasters( filename, tasktype, spikechannel, ...
+        amplitudes,peakvels,peakaccs,allgreyareas,badidx,ssd,dirs,extras] = alignrasters( filename, tasktype, spikechannel, ...
         allaligncodes(cnc,:), nonecodes, includebad, alignsacnum, aligntype, collapsecode, adjconditions, firstalign,...
         optiondat);
     

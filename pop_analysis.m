@@ -26,7 +26,8 @@ end
 alldata=struct('task',{},'aligntype',{},'prevssd',{},'allmssrt_tacho',{},...
     'ssds',{},'sacdelay',{},'prefdiridx',{},...
     'pk',struct('sac',{},'vis',{},'corsac',{},'rew',{}),...
-    'ndata',struct('rast',{},'alignt',{}),'db_rec_id',{},...
+    'trialidx',struct('stoptrials',{},'goodsac',{},'noncancel',{},'cancel',{}),...
+    'ndata',struct('rast',{},'alignt',{},'trialnb',{}),'db_rec_id',{},...
     'stats',struct('hval',{},'pval',{},'sign',{}));
 %allmssrt_tacho=NaN(length(dentatefiles),1);
 
@@ -124,14 +125,14 @@ for flbn=1:length(dentatefiles)
                 secondalign=507;
                 plottype = 0;
                 plotstart=800;
-                plotstop=600;
+                plotstop=800;
                 
                 %% ssd alignement specific:
                 % if aligning to ssd, need to align NSS trials according to latency
                 
                 % get psychometric values
                 [mssrt,inhibfun,ccssd,nccssd,ssdvalues,tachomc,tachowidth,...
-                    sacdelay,rewtimes,prevssd]=findssrt(loadfile{:}, 0);
+                    sacdelay,rewtimes,prevssd,trialidx]=findssrt(loadfile{:}, 0);
                 if ~isnan(mssrt)
                     mssrt=max([mssrt (mean(tachomc)+tachowidth/2)]); %replace by: if mssrt < tachomc+tachowidth/2, mssrt=tachomc+tachowidth/2, end; ?
                     if mssrt> 130 && mean(tachomc)>50
@@ -144,6 +145,16 @@ for flbn=1:length(dentatefiles)
                 alldata(flbn,1).allmssrt_tacho={mssrt mean(tachomc) tachowidth};
                 alldata(flbn,1).prevssd={prevssd};
                 alldata(flbn,1).sacdelay={sacdelay};
+                alldata(flbn,1).trialidx=trialidx;
+                
+                if size(trialidx.goodsac,1)~=size(alldata(flbn, 1).ndata(1, 1).rast ,1)
+                    if size(trialidx.goodsac,1)>size(alldata(flbn, 1).ndata(1, 1).rast,1)
+                        alldata(flbn,1).sacdelay={alldata(flbn,1).sacdelay{:}(ismember(trialidx.goodsac,alldata(flbn,1).ndata(1,1).trialnb))};
+                    elseif size(trialidx.goodsac,1)<size(alldata(flbn, 1).ndata(1, 1).rast,1) %that may be an issue later
+                    %let's see if it happens, first
+                    size(trialidx.goodsac,1)
+                    end                     
+                end
                 
                 %allssds=unique([ccssd;nccssd]);
                 
@@ -195,9 +206,12 @@ for flbn=1:length(dentatefiles)
                 option=NaN;
             elseif algn==5 % align to reward time for NSS and CS trials
                 firstalign=4;
-                secondalign=8; % will find reward time in cancelled saccade
-                % trial, and align to time of error code
-                % in failed cancellation
+                % will find reward time in cancelled saccade
+                % for failed cancellation, two possibility:
+                % align to error code (easy, but not time consistent with other trial types)
+                % align to estimated reward time (time between saccade and 
+                % reward, calculated from NSS trials)
+                secondalign=8; 
                 plottype = 0;
                 plotstart=1000;
                 plotstop=200;
@@ -393,7 +407,7 @@ for flbn=1:length(dentatefiles)
                         prefdir(alignd)=NaN;
                     end
                 end
-                %get most found pref dire
+                %get most found pref dir
                 [~,~,prefdir]=mode(prefdir(~isnan(prefdir)));
                 if length(prefdir{:})>1 %then keep dir with most trials
                     prefdirnbtrial=([sum([getaligndata.dir]==prefdir{:}(1)) sum([getaligndata.dir]==prefdir{:}(2))]);
@@ -407,6 +421,7 @@ for flbn=1:length(dentatefiles)
             %keep rasters, alignidx
             [alldata(flbn,algn).ndata(1:size({getaligndata.rasters},2)).rast]=deal(getaligndata.rasters);
             [alldata(flbn,algn).ndata(1:size({getaligndata.rasters},2)).alignt]=deal(getaligndata.alignidx);
+            [alldata(flbn,algn).ndata(1:size({getaligndata.rasters},2)).trialnb]=deal(getaligndata.trials);
             
             % [t df pvals] = statcond({convrasters closeconvrasters}, 'method', 'perm', 'naccu', 20000,'verbose','off');
             
@@ -433,6 +448,7 @@ allprefdir=reshape({alldata.prefdiridx},size(alldata));
 allndata=reshape({alldata.ndata},size(alldata));
 all_rec_id=reshape({alldata.db_rec_id},size(alldata));
 allstats=reshape({alldata.stats},size(alldata));
+alltrialidx=reshape({alldata.trialidx},size(alldata));
 
 
 %% analyze gapstop data
@@ -440,7 +456,7 @@ gsdlist=cellfun(@(x) strcmp(x,'gapstop'),alltasks(:,1)) & ~cellfun('isempty',all
 
 pop_a_countermanding(allalignmnt(gsdlist,:),allmssrt_tacho(gsdlist,1),allpk(gsdlist,:),...
 allndata(gsdlist,:),all_rec_id(gsdlist,1),allstats(gsdlist,1),allprevssd(gsdlist,1),...
-allssds(gsdlist,1),allsacdelay(gsdlist,1),allprefdir(gsdlist,:));
+allssds(gsdlist,1),allsacdelay(gsdlist,1),allprefdir(gsdlist,:),alltrialidx(gsdlist,:));
 
 
 % outputs = struct('mssrt',{},...

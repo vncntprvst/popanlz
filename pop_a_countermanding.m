@@ -1,10 +1,14 @@
 function pop_a_countermanding(allgsalignmnt,allgsmssrt,allgspk,allgsndata,...
-    allgs_rec_id,allgsstats,allgsprevssd,allgsssds,allgssacdelay,allgsprefdir)
+    allgs_rec_id,allgsstats,allgsprevssd,allgsssds,allgssacdelay,...
+    allgsprefdir,allgstrialidx)
 
 %% processing options
 prefdironly=1;
 singlessd=1;
-basicplots=1;
+    if singlessd
+        prefdironly=0; %otherwise we don't keep anything
+    end
+basicplots=0;
 
 %% cluster analysis of population
 %convolve rasters with 200ms before saccade, 200 after saccade, 20ms kernel
@@ -24,14 +28,15 @@ bslresps=cat(1,bslresps{:});
 
 allgsalignmnt=allgsalignmnt(~badapl,:);
 allgsmssrt=allgsmssrt(~badapl,1);
-allgspk=allgspk(~badapl,:);
+%allgspk=allgspk(~badapl,:); %not needed
 allgsndata=allgsndata(~badapl,:);
-allgs_rec_id=allgs_rec_id(~badapl,1);
-allgsstats=allgsstats(~badapl,1);
+%allgs_rec_id=allgs_rec_id(~badapl,1); %not needed
+%allgsstats=allgsstats(~badapl,1); %not needed
 allgsprevssd=allgsprevssd(~badapl,:);
 allgsssds=allgsssds(~badapl,:);
 allgssacdelay=allgssacdelay(~badapl,:);
 allgsprefdir=allgsprefdir(~badapl,:);
+%allgstrialidx=allgstrialidx(~badapl,:); %not needed
 
 %plot population
 % figure;
@@ -325,7 +330,7 @@ end
 compgssdf=struct('clus',{'rampfallclus','sacburstclus','rewrampclus'},...
     'align',struct('sac',struct('NSStrial',nan(1,1301),'CStrial',nan(1,1301),'NCStrial',nan(1,1301)),...
     'tgt',struct('NSStrial',nan(1,901),'CStrial',nan(1,901),'NCStrial',nan(1,901)),...
-    'ssd',struct('LMCS_NSStrial',nan(1,1301),'LMNCS_NSStrial',nan(1,1301),'CStrial',nan(1,1301),'NCStrial',nan(1,1301)),...
+    'ssd',struct('LMCS_NSStrial',nan(1,1501),'LMNCS_NSStrial',nan(1,1501),'CStrial',nan(1,1501),'NCStrial',nan(1,1501)),...
     'corsac',struct('NSStrial',nan(1,1001),'CStrial',nan(1,1001),'NCStrial',nan(1,1001)),...
     'rew',struct('NSStrial',nan(1,1001),'CStrial',nan(1,1001),'NCStrial',nan(1,1001))));
 
@@ -335,7 +340,7 @@ ssdtrialtype={'LMCS_NSStrial','LMNCS_NSStrial','CStrial','NCStrial'};
 % data span
 sac_startstop=[900 400];
 tgt_startstop=[200 700];
-ssd_startstop=[800 500];
+ssd_startstop=[800 700];
 corsac_startstop=[800 200];
 rew_startstop=[800 200];
 
@@ -421,40 +426,39 @@ for clusnum=1:3
         %         catch nopeak
         %             gspk=0;
         %         end
-
+        
         % We want to compute only single SSD data -- only if there's a
         % SSRT available. Also take the opportunity to skip this alignment
         % if there aren't enough trials
-        if singlessd && iscell(clusmssrt{1, 1}{gsd,1}) && size(gsdata(1, 2).rast,1) > 5 && size(gsdata(1, 3).rast,1) > 5  
+        if singlessd && iscell(clusmssrt{clusnum}{gsd,1}) && size(gsdata(1, 2).rast,1) > 5 && size(gsdata(1, 3).rast,1) > 5
             % keep NC trials with  NSS trials in which a saccade would have been
             % initiated even if a stop signal had occurred, but with saccade latencies
             % greater than the stop-signal delay plus a visual-response latency.
             % We take tachomc-tachowidth/2 rather than the arbitrary 50ms
             % from Hanes et al 98 (only if tachomc>= 50)
             if size(clussacRT{clusnum}{gsd,1}{:},2)~=size(gsdata(1, 1).rast,1)
-                gsdata=[]; %AND FIX THST ISSUE!
+                gsdata=[]; %issue should be fixed now
             else
-            %most prevalent SSD
-            [ssdbin,ssdbinval]=hist([clusssds{clusnum}{gsd,1}{1, 1};clusssds{clusnum}{gsd,1}{1, 2}]);
-            ssdspread=abs(clusprevssd{clusnum}{gsd,1}{:}-max(ssdbinval(ssdbin==max(ssdbin))));
-            prevssd=clusprevssd{clusnum}{gsd,1}{:}(ssdspread==min(ssdspread));
-            %latency matched NSS trials
-            gsdata(1, 1).rast=gsdata(1, 1).rast(clussacRT{clusnum}{gsd,1}{:}>prevssd+(max([mean(clusmssrt{clusnum}{gsd,1}{2}) 50])-clusmssrt{clusnum}{gsd,1}{3}/2) ...
-                & clussacRT{clusnum}{gsd,1}{:}<prevssd+round(clusmssrt{clusnum}{gsd,1}{1}),:);
-            
-            %keep relevant SS trials (with SSD within +-3ms of prevalent SSD)
-            %CS trials
-            gsdata(1, 2).rast=gsdata(1, 2).rast(logical(arrayfun(@(x) sum(prevssd<=x+3 & prevssd>=x-3),...
-                clusssds{clusnum}{gsd,1}{1, 1})),:);
-            %NCS trials
-            gsdata(1, 3).rast=gsdata(1, 3).rast(logical(arrayfun(@(x) sum(prevssd<=x+3 & prevssd>=x-3),...
-                clusssds{clusnum}{gsd,1}{1, 2})),:);
+                %most prevalent SSD
+                [ssdbin,ssdbinval]=hist([clusssds{clusnum}{gsd,1}{1, 1};clusssds{clusnum}{gsd,1}{1, 2}]);
+                ssdspread=abs(clusprevssd{clusnum}{gsd,1}{:}-max(ssdbinval(ssdbin==max(ssdbin))));
+                prevssd=clusprevssd{clusnum}{gsd,1}{:}(ssdspread==min(ssdspread));
+                %latency matched NSS trials
+                gsdata(1, 1).rast=gsdata(1, 1).rast(clussacRT{clusnum}{gsd,1}{:}>prevssd+(max([mean(clusmssrt{clusnum}{gsd,1}{2}) 50])-clusmssrt{clusnum}{gsd,1}{3}/2) ...
+                    & clussacRT{clusnum}{gsd,1}{:}<prevssd+round(clusmssrt{clusnum}{gsd,1}{1}),:);
+                
+                %keep relevant SS trials (with SSD within +-3ms of prevalent SSD)
+                %CS trials
+                gsdata(1, 2).rast=gsdata(1, 2).rast(logical(arrayfun(@(x) sum(prevssd<=x+3 & prevssd>=x-3),...
+                    clusssds{clusnum}{gsd,1}{1, 1})),:);
+                %NCS trials
+                gsdata(1, 3).rast=gsdata(1, 3).rast(logical(arrayfun(@(x) sum(prevssd<=x+3 & prevssd>=x-3),...
+                    clusssds{clusnum}{gsd,1}{1, 2})),:);
             end
         else
             gsdata=[];
         end
 
-        
         if ~isempty(gsdata) && clussbslresp_sd{clusnum}(gsd)~=0
             for sacalg=1:3
                 if basicplots && sacalg==2
@@ -500,15 +504,31 @@ for clusnum=1:3
         %         catch nopeak
         %             gspk=0;
         %         end
-        if singlessd
+        if singlessd && iscell(clusmssrt{clusnum}{gsd,1}) && size(gsdata(1, 2).rast,1) > 5 && size(gsdata(1, 3).rast,1) > 5
             % Keeping NSS trials with sac latencies long enough
             % that they would have occured after a stop-signal
-            %ctmatchlatidx(:,ssdval)=sacdelay>ccssdval(ssdval)+round(mssrt);
+                
+            %most prevalent SSD
+                [ssdbin,ssdbinval]=hist([clusssds{clusnum}{gsd,1}{1, 1};clusssds{clusnum}{gsd,1}{1, 2}]);
+                ssdspread=abs(clusprevssd{clusnum}{gsd,1}{:}-max(ssdbinval(ssdbin==max(ssdbin))));
+                prevssd=clusprevssd{clusnum}{gsd,1}{:}(ssdspread==min(ssdspread));
+                %latency matched NSS trials
+                gsdata(1, 1).rast=gsdata(1, 1).rast(clussacRT{clusnum}{gsd,1}{:}>prevssd+round(clusmssrt{clusnum}{gsd,1}{1}),:);
+                
+                %keep relevant SS trials (with SSD within +-3ms of prevalent SSD)
+                %CS trials
+                gsdata(1, 2).rast=gsdata(1, 2).rast(logical(arrayfun(@(x) sum(prevssd<=x+3 & prevssd>=x-3),...
+                    clusssds{clusnum}{gsd,1}{1, 1})),:);
+                %NCS trials
+                gsdata(1, 3).rast=gsdata(1, 3).rast(logical(arrayfun(@(x) sum(prevssd<=x+3 & prevssd>=x-3),...
+                    clusssds{clusnum}{gsd,1}{1, 2})),:);
+        else
+            gsdata=[];
         end
         
         if ~isempty(gsdata) && clussbslresp_sd{clusnum}(gsd)~=0
             for tgtalg=1:3
-                if basicplots && sacalg==3
+                if basicplots && tgtalg==3
                     continue
                 end
                 try
@@ -682,7 +702,7 @@ lineStyles = linspecer(4);
 [sacfig,tgtfig,ssdfig,corsacfig,rewfig]=deal(nan(1,3)); %handles for figures
 
 for clusnum=1:3
-    
+    if basicplots
     %% saccade alignment plot
     sacfig(clusnum)=figure('name',['Cluster' num2str(clusnum) ' saccade plots']);
     hold on;
@@ -710,7 +730,11 @@ for clusnum=1:3
     set(gca,'Color','white','TickDir','out','FontName','Cambria','FontSize',10);
     hxlabel=xlabel(gca,'Time (ms)','FontName','Cambria','FontSize',10);
     hylabel=ylabel(gca,'Firing rate (z-score)','FontName','Cambria','FontSize',10);
-    legh=legend(lineh(1:3),{'No Stop Signal','Stop Signal: Cancelled', 'Stop Signal: Non Cancelled'});
+    if basicplots
+        legh=legend(lineh(1:2:3),{'No Stop Signal', 'Stop Signal: Non Cancelled'});
+    else
+        legh=legend(lineh(1:3),{'No Stop Signal','Stop Signal: Cancelled', 'Stop Signal: Non Cancelled'});
+    end
     set(legh,'Interpreter','none','Location','SouthWest','Box','off','LineWidth',1.5,'FontName','Cambria','FontSize',9); % Interpreter prevents underscores turning character into subscript
     title(['Cluster' num2str(clusnum) ' Aligned to saccade'],'FontName','Cambria','FontSize',15);
     
@@ -741,9 +765,14 @@ for clusnum=1:3
     set(gca,'Color','white','TickDir','out','FontName','Cambria','FontSize',10);
     hxlabel=xlabel(gca,'Time (ms)','FontName','Cambria','FontSize',10);
     hylabel=ylabel(gca,'Firing rate (z-score)','FontName','Cambria','FontSize',10);
-    legh=legend(lineh(1:3),{'No Stop Signal','Stop Signal: Cancelled', 'Stop Signal: Non Cancelled'});
+    if basicplots
+        legh=legend(lineh(1:2),{'No Stop Signal','Stop Signal: Cancelled'});
+    else
+        legh=legend(lineh(1:3),{'No Stop Signal','Stop Signal: Cancelled', 'Stop Signal: Non Cancelled'});
+    end
     set(legh,'Interpreter','none','Location','NorthEast','Box', 'off','LineWidth',1.5,'FontName','Cambria','FontSize',9); % Interpreter prevents underscores turning character into subscript
     title(['Cluster' num2str(clusnum) ' Aligned to target'],'FontName','Cambria','FontSize',15);
+    end
     
     %% ssd alignment plots
     ssdfig(clusnum)=figure('name',['Cluster' num2str(clusnum) ' ssd plots']);
@@ -775,7 +804,7 @@ for clusnum=1:3
     hxlabel=xlabel(gca,'Time (ms)','FontName','Cambria','FontSize',10);
     hylabel=ylabel(gca,'Firing rate (z-score)','FontName','Cambria','FontSize',10);
     legh=legend(lineh(1:2:3),{'Latency Matched No Stop Signal','Stop Signal: Cancelled'});
-    set(legh,'Interpreter','none','Box', 'off','LineWidth',1.5,'FontName','Cambria','FontSize',9); % Interpreter prevents underscores turning character into subscript
+    set(legh,'Interpreter','none','Location','NorthWest','Box', 'off','LineWidth',1.5,'FontName','Cambria','FontSize',9); % Interpreter prevents underscores turning character into subscript
     title(['Cluster' num2str(clusnum) ' NSS CS Aligned to ssd'],'FontName','Cambria','FontSize',15);
     
     %2nd plots
@@ -814,7 +843,7 @@ for clusnum=1:3
     hxlabel=xlabel(gca,'Time (ms)','FontName','Cambria','FontSize',10);
     hylabel=ylabel(gca,'Firing rate (z-score)','FontName','Cambria','FontSize',10);
     legh=legend(lineh(2:2:4),{'Latency Matched No Stop Signal','Stop Signal: Non Cancelled'});
-    set(legh,'Interpreter','none','Box', 'off','LineWidth',1.5,'FontName','Cambria','FontSize',9); % Interpreter prevents underscores turning character into subscript
+    set(legh,'Interpreter','none','Location','NorthWest','Box', 'off','LineWidth',1.5,'FontName','Cambria','FontSize',9); % Interpreter prevents underscores turning character into subscript
     title(['Cluster' num2str(clusnum) ' NSS NCS Aligned to ssd'],'FontName','Cambria','FontSize',15);
     
     %% corrective saccade plots
@@ -846,7 +875,7 @@ for clusnum=1:3
     hxlabel=xlabel(gca,'Time (ms)','FontName','Cambria','FontSize',10);
     hylabel=ylabel(gca,'Firing rate (z-score)','FontName','Cambria','FontSize',10);
     legh=legend(lineh(1:3),{'No Stop Signal','Stop Signal: Cancelled', 'Stop Signal: Non Cancelled'});
-    set(legh,'Interpreter','none','Location','NorthEast','Box', 'off','LineWidth',1.5,'FontName','Cambria','FontSize',9); % Interpreter prevents underscores turning character into subscript
+    set(legh,'Interpreter','none','Location','NorthWest','Box', 'off','LineWidth',1.5,'FontName','Cambria','FontSize',9); % Interpreter prevents underscores turning character into subscript
     title(['Cluster' num2str(clusnum) ' Aligned to corrective saccade'],'FontName','Cambria','FontSize',15);
     
     
@@ -854,8 +883,13 @@ for clusnum=1:3
     
     rewfig(clusnum)=figure('name',['Cluster' num2str(clusnum) ' reward plots']);
     hold on;
-    
-    for rewpop=1:2
+    if basicplots
+        rewcdtnb=2;
+    else
+        rewcdtnb=3;
+    end
+        
+    for rewpop=1:rewcdtnb
         [popsdf, compgssdf(1,clusnum).align.rew.(trialtype_sdf{rewpop})]=deal(nanmean(compgssdf(1,clusnum).align.rew.(trialtype{rewpop})));
         [popci, compgssdf(1,clusnum).align.rew.(trialtype_ci{rewpop})]=deal(nanstd(compgssdf(1,clusnum).align.rew.(trialtype{rewpop}))/...
             sqrt(size(compgssdf(1,clusnum).align.rew.(trialtype{rewpop}),1)));
@@ -878,8 +912,8 @@ for clusnum=1:3
     set(gca,'Color','white','TickDir','out','FontName','Cambria','FontSize',10);
     hxlabel=xlabel(gca,'Time (ms)','FontName','Cambria','FontSize',10);
     hylabel=ylabel(gca,'Firing rate (z-score)','FontName','Cambria','FontSize',10);
-    legh=legend(lineh(1:2),{'No Stop Signal','Stop Signal: Cancelled'});
-    set(legh,'Interpreter','none','Location','NorthEast','Box', 'off','LineWidth',1.5,'FontName','Cambria','FontSize',9); % Interpreter prevents underscores turning character into subscript
+    legh=legend(lineh(1:rewcdtnb),{'No Stop Signal','Stop Signal: Cancelled','Non Cancelled - Rew Time Estimate'});
+    set(legh,'Interpreter','none','Location','SouthWest','Box', 'off','LineWidth',1.5,'FontName','Cambria','FontSize',9); % Interpreter prevents underscores turning character into subscript
     title(['Cluster' num2str(clusnum) ' Aligned to reward'],'FontName','Cambria','FontSize',15);
 end
 

@@ -1,5 +1,5 @@
 % Find SSRT for single file
-function [mssrt,inhibfun,ccssd,nccssd,ssds,tachomc,tachowidth,sacdelay,rewtimes,prevssds]=findssrt(recname, plots)
+function [mssrt,inhibfun,ccssd,nccssd,ssds,tachomc,tachowidth,sacdelay,rewtimes,prevssds,trialidx]=findssrt(recname, plots)
 global directory;
 
 if nargin < 2 | isempty(plots)
@@ -11,13 +11,13 @@ end
 %recname='H53L5A5_20901'; % S148cnttrain
 load(recname,'allcodes','alltimes','allbad','saccadeInfo');
 if ~isfield(saccadeInfo,'latency')
-    [mssrt,inhibfun,ccssd,nccssd,ssds,tachomc,tachowidth,sacdelay,rewtimes,prevssds]=deal(NaN);
+    [mssrt,inhibfun,ccssd,nccssd,ssds,tachomc,tachowidth,sacdelay,rewtimes,prevssds,trialidx]=deal(NaN);
     return;
 end
 %% find stop trials
 trialtypes=floor(allcodes(:,2)./10);%./10 only /10 if pooling data together
-stoptrials=find(trialtypes==407);
-stoptrialcodes=allcodes(stoptrials,:);
+trialidx.stoptrials=find(trialtypes==407);
+stoptrialcodes=allcodes(trialidx.stoptrials,:);
 
 %% find canceled and noncanceled stop trials
 if find(stoptrialcodes(:,8)==1503,1) %recordings with benchmark code (1503)
@@ -46,7 +46,7 @@ allgoodsacs(allcodes(:,ceil(find(allcodes==1030,1)/size(allcodes,1))-1)==2222,:)
 %keeping sac info of non-canceled SS trials
 allncsacs=allgoodsacs;
 allncsacs(floor(allcodes(:,2)./1000)==6,:)=0; % nullifying NSS trials
-nasstrials=stoptrials(~abortedstoptrials);
+nasstrials=trialidx.stoptrials(~abortedstoptrials);
 allncsacs(nasstrials(~noncancel),:)=0; % nullifying CSS trials
 if max(sum(allncsacs,2))>1
     twogoods=find(sum(allncsacs,2)>1);
@@ -67,16 +67,17 @@ end
 sacdelay=(cell2mat(alllats(allgoodsacs')))';
 %get reward time for NSS trials
 goodsactimes=alltimes(logical(sum(allgoodsacs,2)),:);
+trialidx.goodsac=find(sum(allgoodsacs,2));
 rewtimes=goodsactimes(allcodes(logical(sum(allgoodsacs,2)),:)==1030);
 
 %% find trials to the few early saccades that happened just before SSD
-aborsstrials=stoptrials(abortedstoptrials);
+aborsstrials=trialidx.stoptrials(abortedstoptrials);
 earlyncsac=aborsstrials(ismember(aborsstrials,find(sum(allncsacs,2))));
 
 % To adjust abortedstoptrials and noncancel (but impractical because can't
 % calculate ssd from those early trials:
 % if ~isempty(earlyncsac)
-%     abortedstoptrials(ismember(stoptrials,earlyncsac))=0;
+%     abortedstoptrials(ismember(trialidx.stoptrials,earlyncsac))=0;
 %     if find(stoptrialcodes(:,8)==1503,1)
 %         noncancel=logical(sum((stoptrialcodes(~abortedstoptrials,9:10)==17385) |...
 %         (stoptrialcodes(~abortedstoptrials,9:10)==16386),2));
@@ -91,34 +92,34 @@ allncsacs(earlyncsac,:)=0;
 ncsacdelay=cell2mat(alllats(allncsacs'));
 
 %% keep track of trial number
-goodstoptrials=stoptrials(~abortedstoptrials);
-noncanceltrials=goodstoptrials(noncancel);
-canceltrials=goodstoptrials(~noncancel);
-allsactrials=find(trialtypes==604);
-if find(stoptrialcodes(:,8)==1503,1)
-    sactrials=allsactrials(floor(allcodes(allsactrials,9)./10)==704);
-    if isempty(sactrials) && find(floor(allcodes(allsactrials,8)./10)==704,1) %rare case where 1503 was not added everywhere
-        sactrials=allsactrials(floor(allcodes(allsactrials,8)./10)==704);
-    end
-else
-    sactrials=allsactrials(floor(allcodes(allsactrials,8)./10)==704);
-end
+goodstoptrials=trialidx.stoptrials(~abortedstoptrials);
+trialidx.noncancel=goodstoptrials(noncancel);
+trialidx.cancel=goodstoptrials(~noncancel);
+% allsactrials=find(trialtypes==604);
+% if find(stoptrialcodes(:,8)==1503,1)
+%     sactrials=allsactrials(floor(allcodes(allsactrials,9)./10)==704);
+%     if isempty(sactrials) && find(floor(allcodes(allsactrials,8)./10)==704,1) %rare case where 1503 was not added everywhere
+%         sactrials=allsactrials(floor(allcodes(allsactrials,8)./10)==704);
+%     end
+% else
+%     sactrials=allsactrials(floor(allcodes(allsactrials,8)./10)==704);
+% end
 
 %% find "desired" delay times (keep in mind that video synch adds ~65ms, so real ssd are variable)
 
 % calculate ssd
-stoptrialtimes=alltimes(stoptrials(~abortedstoptrials,:),:);
+stoptrialtimes=alltimes(trialidx.stoptrials(~abortedstoptrials,:),:);
 noncanceltimes=stoptrialtimes(noncancel,:);
 canceltimes=stoptrialtimes(~noncancel,:);
 
 if bmssd %benchmark
     nccssd=(noncanceltimes(:,9)-noncanceltimes(:,7))-3; %3 ms added by the state transitions
     ccssd=(canceltimes(:,9)-canceltimes(:,7))-3;
-    allssd=(alltimes(stoptrials(~abortedstoptrials),9)-alltimes(stoptrials(~abortedstoptrials),7))-3;
+    allssd=(alltimes(trialidx.stoptrials(~abortedstoptrials),9)-alltimes(trialidx.stoptrials(~abortedstoptrials),7))-3;
 else
     nccssd=(noncanceltimes(:,8)-noncanceltimes(:,7))-2; %2 ms added by the state transitions
     ccssd=(canceltimes(:,8)-canceltimes(:,7))-2;
-    allssd=(alltimes(stoptrials(~abortedstoptrials),8)-alltimes(stoptrials(~abortedstoptrials),7))-3;
+    allssd=(alltimes(trialidx.stoptrials(~abortedstoptrials),8)-alltimes(trialidx.stoptrials(~abortedstoptrials),7))-3;
 end
 
 ssdvalues=unique([ccssd;nccssd]);
@@ -218,14 +219,14 @@ end
 %% get tachometric curve. Build matrix with 1. SSDs 2. RTs 3. success
 SSDRTs=inf(length(allbad),3); % may differ from sum(~allbad)
 ccssd(ismember(ccssd,unique(ccssd-1)))=ccssd(ismember(ccssd,unique(ccssd-1)))+1;
-SSDRTs(canceltrials,1)=ccssd;
+SSDRTs(trialidx.cancel,1)=ccssd;
 nccssd(ismember(nccssd,unique(nccssd-1)))=nccssd(ismember(nccssd,unique(nccssd-1)))+1;
 SSDRTs(logical(sum(allncsacs,2)),1)=nccssd(ismember(goodstoptrials(noncancel),find(sum(allncsacs,2)))); %got to remove some ssd when sacs are not available
 SSDRTs(logical(sum(allgoodsacs,2)),2)=sacdelay;
 SSDRTs(logical(sum(allncsacs,2)),2)=ncsacdelay;
 SSDRTs(logical(sum(allncsacs,2)),3)=0;
 SSDRTs(logical(allbad),3)=0;
-SSDRTs([find(sum(allgoodsacs,2));canceltrials],3)=1;
+SSDRTs([find(sum(allgoodsacs,2));trialidx.cancel],3)=1;
 try
     [tachomc, xtach, tach, rPTc, rPTe] = tachCM2(SSDRTs);
 catch

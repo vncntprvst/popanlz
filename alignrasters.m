@@ -1,7 +1,7 @@
 function [alignedrasters, alignindex, trialindex, alltrigtosac, ...
     allsactotrig, alltrigtovis, allvistotrig,eyehoriz, eyevert, ....
     eyevelocity, amplitudes, peakvels,...
-    peakaccs, allonoffcodetime,badidx,allssd,alldir] = ...
+    peakaccs, allonoffcodetime,badidx,allssd,alldir,extras] = ...
     alignrasters( name, tasktype, selclus, aligntocode, noneofcodes,...
     allowbadtrials, alignsacnum, aligntype, collapse, conditions,...
     firstalign, option)
@@ -54,6 +54,7 @@ alignto = aligntocode;
 sacamp = NaN;
 sacpeakpeakvel = NaN;
 sacpeakacc = NaN;
+extras=[];
 
 sbad = '';
 if ~allowbadtrials
@@ -184,6 +185,7 @@ while ~islast
                 if  strcmp(aligntype,'sac') || strcmp(aligntype,'corsac') ...
                         || strcmp(aligntype,'error2')% mainsacalign button OR corrective saccade
                     ampsacofint=[];
+%                     ampsacofint=zeros(1,size(curtrialsacInfo,2));
                     nwsacstart=cat(1,curtrialsacInfo.starttime);
                     if strcmp(tasktype,'tokens')
                         if strcmp(aligntype,'error2')
@@ -201,12 +203,15 @@ while ~islast
                     end
                     if strcmp(tasktype,'st_saccades')
                         if nwsacstart(find(sacofint,1))-etimeout(7)<600 %there was a saccade during the delay period that went unnoticed by Rex saccade detection
+                            disp('check that code line in popanlz/alignraters:204')
+                            pause
                             if abs(curtrialsacInfo(find(sacofint,1)).amplitude)>2 % keeping trials with saccades under 2 degrees, which happens pretty frequently with Sixx.
                                 sacofint=0;
                                 alignmentfound = 0;
                             end
                         end
                     end
+%                     ampsacofint(find(sacofint,1):length(sacofint))=arrayfun(@(x) abs(getfield(curtrialsacInfo, {x}, 'amplitude')),find(sacofint,1):length(sacofint));
                     for k=find(sacofint,1):length(sacofint) %yes, this code is ugly.
                         ampsacofint(1,k)=abs(getfield(curtrialsacInfo, {k}, 'amplitude'));
                     end
@@ -236,8 +241,8 @@ while ~islast
                     end
                 end
                 
-                % If it's a stop alignement code, two different cases
-                if strcmp(aligntype,'stop') && sum(isnan(option))
+                %% If it's a stop alignement code, two different cases: NCS or CS
+                if strcmp(aligntype,'stop') && (sum(isnan(option)) || (firstalign==4 && logical(sum(option))))
                     if find(ecodeout==1503)
                         ncecode=10;
                     else
@@ -271,7 +276,20 @@ while ~islast
                                 alignmentfound = 0;
                             end
                          elseif firstalign==4
-                             aligntime=etimeout(find(ecodeout==17385 | ecodeout==16386,1)) * (arate / 1000); %time of error code
+                             %align to time of error code
+%                              aligntime=etimeout(find(ecodeout==17385 | ecodeout==16386,1)) * (arate / 1000); 
+                             % or
+                             % align to estimated time of reward delivery
+                             if ecodeout(ncecode)==17385 || ecodeout(ncecode)==16386
+                                nwsacstart=[curtrialsacInfo.starttime];
+                                sacofint=nwsacstart>etimeout(7); %sacs that occur after event
+                                sacofint=abs([curtrialsacInfo.amplitude])>2.5 & sacofint; % with a large enough amplitude
+                                if sum(sacofint)
+                                    aligntime= curtrialsacInfo(find(sacofint,1)).starttime+round(mean(option)); 
+                                else
+                                    alignmentfound = 0;
+                                end
+                             end
                         end
                     else
                         % for successfully canceled stop trials, align to stop
@@ -318,10 +336,14 @@ while ~islast
                         end
                         if ~logical(sum(goodsacnum)) && (~strcmp(aligntype,'stop') && ~strcmp(aligntype,'ssd') && ~strcmp(aligntype,'touchbell'))
                             s = sprintf('alignrasters: cannot display grey area for trial %d because saccade cannot be found. Removing erroneous trial',d);
-                            disp(s);
+                            disp(s);%ploteyesac(d,name)
                             %                             pause
                             failedsac=1;
                             alignmentfound = 0;
+                        elseif strcmp(aligntype,'rew') && alignmentfound &&... % case of reward aligned where the "good" 
+                                curtrialsacInfo(1,goodsacnum).starttime > etimeout(ecodeout==alignmentfound) % saccade occurs after reward
+                            failedsac=1;
+                            alignmentfound = 0; %same punishment: out
                         end
                     end
                     for j=1:size(conditions,2)
@@ -422,6 +444,27 @@ while ~islast
                         ecodesoff=ecodeout;
                     end
                     visevents=[etimeout(ismember(ecodeson,tgtcode)), etimeout(ismember(ecodesoff,tgtoffcode))]-etimeout(1)-1;
+                    
+                    %collect "extras" 
+                    if firstalign==4 && strcmp(aligntype,'rew') % keep time from saccade to reward
+                        %get saccade time
+                        nwsacstart=[curtrialsacInfo.starttime];
+                        % Adjust timeout ecode if needed
+                        sacecodenb=8; %Here assuming gapstop
+                        sacofint=nwsacstart>etimeout(sacecodenb-1);
+                        sacofint=abs([curtrialsacInfo.amplitude])>2.5 & sacofint; % with a large enough amplitude        
+                        %start time of first saccade greater than 2.5 degrees (typical
+                        %restriction window) after relevant ecode
+                        if sum(sacofint)
+%                             if aligntime-curtrialsacInfo(find(sacofint,1)).starttime < 0
+%                                 curtrialsacInfo(find(sacofint,1)).starttime
+%                             end
+                            extras(nummatch,1)=aligntime-curtrialsacInfo(find(sacofint,1)).starttime;
+                        else
+                            disp('hum, why??') 
+                        end
+                    end
+                    
                     
                     % recordings with trigger channel
                     if find(ecodeout==1502) % Trigger code
