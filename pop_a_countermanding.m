@@ -8,7 +8,7 @@ singlessd=1;
     if singlessd
         prefdironly=0; %otherwise we don't keep anything
     end
-basicplots=0;
+basicplots=1;
 
 %% cluster analysis of population
 %convolve rasters with 200ms before saccade, 200 after saccade, 20ms kernel
@@ -305,18 +305,18 @@ hc_clus = cluster(hc_links,'cutoff',inc_coef_th);
 hc_clus = cluster(hc_links,'maxclust',12);
 
 % plot HC clusters
-for hclus=1:12
-    figure('name',['cluster' num2str(hclus)]);
-    clusn=find(hc_clus==hclus);
-    subplotdim=[ceil(sqrt(numel(clusn))),ceil(sqrt(numel(clusn)))];
-    for sacplot=1:length(clusn)
-        subplot(subplotdim(1),subplotdim(2),sacplot)
-        plot(rnorm_sacresps(clusn(sacplot),:));
-        ylim=get(gca,'ylim');
-        set(gca,'ylim',[min(ylim(1),0) ylim(2)]);
-        text(10,ylim(2)-0.1,['sacplot ' num2str(clusn(sacplot))]);
-    end
-end
+% for hclus=1:12
+%     figure('name',['cluster' num2str(hclus)]);
+%     clusn=find(hc_clus==hclus);
+%     subplotdim=[ceil(sqrt(numel(clusn))),ceil(sqrt(numel(clusn)))];
+%     for sacplot=1:length(clusn)
+%         subplot(subplotdim(1),subplotdim(2),sacplot)
+%         plot(rnorm_sacresps(clusn(sacplot),:));
+%         ylim=get(gca,'ylim');
+%         set(gca,'ylim',[min(ylim(1),0) ylim(2)]);
+%         text(10,ylim(2)-0.1,['sacplot ' num2str(clusn(sacplot))]);
+%     end
+% end
 
 
 %% colors for population plots
@@ -326,24 +326,7 @@ if size(cc,1)==8
     cc(8,:)=[0 0.75 0];
 end
 
-%% prealloc compile data
-compgssdf=struct('clus',{'rampfallclus','sacburstclus','rewrampclus'},...
-    'align',struct('sac',struct('NSStrial',nan(1,1301),'CStrial',nan(1,1301),'NCStrial',nan(1,1301)),...
-    'tgt',struct('NSStrial',nan(1,901),'CStrial',nan(1,901),'NCStrial',nan(1,901)),...
-    'ssd',struct('LMCS_NSStrial',nan(1,1501),'LMNCS_NSStrial',nan(1,1501),'CStrial',nan(1,1501),'NCStrial',nan(1,1501)),...
-    'corsac',struct('NSStrial',nan(1,1001),'CStrial',nan(1,1001),'NCStrial',nan(1,1001)),...
-    'rew',struct('NSStrial',nan(1,1001),'CStrial',nan(1,1001),'NCStrial',nan(1,1001))));
-
-trialtype={'NSStrial','CStrial','NCStrial'};
-ssdtrialtype={'LMCS_NSStrial','LMNCS_NSStrial','CStrial','NCStrial'};
-
-% data span
-sac_startstop=[900 400];
-tgt_startstop=[200 700];
-ssd_startstop=[800 700];
-corsac_startstop=[800 200];
-rew_startstop=[800 200];
-
+%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% separate data by cluster
 %% cb cx cluster
 % clusgsndata{1}=allgsndata(hc_clus==4 | hc_clus==10,:);
@@ -403,11 +386,24 @@ clusmssrt{1}=allgsmssrt(clus1idx);
 clusmssrt{2}=allgsmssrt(clus2idx);
 clusmssrt{3}=allgsmssrt(clus3idx);
 
-% compgssdf{1}=nan(size(allgsalignmnt,1),1301,3);
-% compgssdf{2}=nan(size(allgsalignmnt,1),901,3);
-% compgssdf{3}=nan(size(allgsalignmnt,1),1301,4);
-% compgssdf{4}=nan(size(allgsalignmnt,1),1001,3);
-% compgssdf{5}=nan(size(allgsalignmnt,1),1001,3);
+%% prealloc compile data
+arraysz=max([sum(clus1idx), sum(clus2idx), sum(clus3idx)]);
+compgssdf=struct('clus',{'rampfallclus','sacburstclus','rewrampclus'},...
+    'align',struct('sac',struct('NSStrial',nan(arraysz,1301),'CStrial',nan(arraysz,1301),'NCStrial',nan(arraysz,1301),'evttimes',nan(arraysz,6)),...
+                'tgt',struct('NSStrial',nan(arraysz,901),'CStrial',nan(arraysz,901),'NCStrial',nan(arraysz,901),'evttimes',nan(arraysz,6)),...
+                'ssd',struct('LMCS_NSStrial',nan(arraysz,1501),'LMNCS_NSStrial',nan(arraysz,1501),'CStrial',nan(arraysz,1501),'NCStrial',nan(arraysz,1501),'evttimes',nan(arraysz,6)),...
+                'corsac',struct('NSStrial',nan(arraysz,1001),'CStrial',nan(arraysz,1001),'NCStrial',nan(arraysz,1001),'evttimes',nan(arraysz,6)),...
+                'rew',struct('NSStrial',nan(arraysz,1001),'CStrial',nan(arraysz,1001),'NCStrial',nan(arraysz,1001),'evttimes',nan(arraysz,6))));
+
+trialtype={'NSStrial','CStrial','NCStrial'};
+ssdtrialtype={'LMCS_NSStrial','LMNCS_NSStrial','CStrial','NCStrial'};
+
+% data span
+sac_startstop=[900 400];
+tgt_startstop=[200 700];
+ssd_startstop=[800 700];
+corsac_startstop=[800 200];
+rew_startstop=[800 200];
 
 %% calculate sdf for each outcome in each condition in each cluster (yes, that's nested loops)
 % look at clusters 2,3 and 10
@@ -543,15 +539,19 @@ for clusnum=1:3
                     %normalize sdf by baseline activity
                     normsdf=(sdf-clussblmean{clusnum}(gsd))./clussbslresp_sd{clusnum}(gsd);
                     
+                    %keep ssd+ssrt time
+                    compgssdf(1,clusnum).align.tgt.evttimes(gsd,5:6)=round([tgt_startstop(1)+prevssd+clusmssrt{1, clusnum}{gsd, 1}{1, 1}...
+                        clusmssrt{1, clusnum}{gsd, 1}{1, 3}]); %first number is ssd+ssrt, second number is tachowidth
+                    
                     %% plots (get [sdf, convrasters, convrastsem] if needed)
-                    %                              figure(1)
-                    %                              hold off
-                    %                              patch([1:length(normsdf),fliplr(1:length(normsdf))],[normsdf-convrastsem,fliplr(normsdf+convrastsem)],'k','EdgeColor','none','FaceAlpha',0.1);
-                    %                              hold on
-                    %                              %plot sdf
-                    %                              plot(normsdf,'Color','b','LineWidth',1.8);
-                    %                              set(gca,'xtick',[1:100:1301],'xticklabel',[-800:100:500])
-                    %                              close(gcf)
+%                                                  figure(1)
+%                                                  hold off
+% %                                                  patch([1:length(normsdf),fliplr(1:length(normsdf))],[normsdf-convrastsem,fliplr(normsdf+convrastsem)],'k','EdgeColor','none','FaceAlpha',0.1);
+%                                                  hold on
+%                                                  %plot sdf
+%                                                  plot(normsdf,'Color','b','LineWidth',1.8);
+%                                                  set(gca,'xtick',[1:100:1301],'xticklabel',[-200:100:700])
+%                                                  close(gcf)
                     
                     %% store
                     compgssdf(1,clusnum).align.tgt.(trialtype{tgtalg})(gsd,:)=normsdf;
@@ -586,6 +586,13 @@ for clusnum=1:3
                     %normalize sdf by baseline activity
                     normsdf=(sdf-clussblmean{clusnum}(gsd))./clussbslresp_sd{clusnum}(gsd);
                     
+                    %keep error time for NCS
+                    if ssdalg==4
+                        %change ssd_startstop(1)+cellfun(@(x) x(4,2),
+                        %gsdata(ssdalg).evttime to
+                        %mean(cellfun(@(x) x(4,2), gsdata(ssdalg).evttime)- ssd_startstop(1) ??? 
+                        compgssdf(1,clusnum).align.ssd.evttimes(gsd,4)=round(ssd_startstop(1)+cellfun(@(x) x(4,2), gsdata(ssdalg).evttime)); %first number is ssd+ssrt, second number is tachowidth
+                    end
                     %% plots (get [sdf, convrasters, convrastsem] if needed)
                     %          figure(1)
                     %          hold off
@@ -691,7 +698,9 @@ for clusnum=1:3
     end
 end
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% compute and plot population activity (and ci) by cluster
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 trialtype_sdf={'NSStrial_popsdf','CStrial_popsdf','NCStrial_popsdf'};
 trialtype_ci={'NSStrial_popci','CStrial_popci','NCStrial_popci'};
@@ -741,22 +750,35 @@ for clusnum=1:3
     %% target alignment plot
     tgtfig(clusnum)=figure('name',['Cluster' num2str(clusnum) ' target plots']);
     hold on;
-    
+    popssrt=compgssdf(1, clusnum).align.tgt.evttimes(:,5);
     for tgtpop=1:3
+%         popsdf=compgssdf(1,clusnum).align.tgt.(trialtype{tgtpop});
+%         popsdf=conv_raster(popsdf(~isnan(nanmean(popsdf,2)),:),conv_sigma);         
+%         [popsdf, compgssdf(1,clusnum).align.tgt.(trialtype_sdf{tgtpop})]=deal(popsdf);
         [popsdf, compgssdf(1,clusnum).align.tgt.(trialtype_sdf{tgtpop})]=deal(nanmean(compgssdf(1,clusnum).align.tgt.(trialtype{tgtpop})));
         [popci, compgssdf(1,clusnum).align.tgt.(trialtype_ci{tgtpop})]=deal(nanstd(compgssdf(1,clusnum).align.tgt.(trialtype{tgtpop}))/...
             sqrt(size(compgssdf(1,clusnum).align.tgt.(trialtype{tgtpop}),1)));
-        
+%         conv_raster(repmat(popsdf,19,1)./1000,conv_sigma);
+
+       % plot SEM
         patch([1:length(popci),fliplr(1:length(popci))],...
             [popsdf-popci,fliplr(popsdf+popci)],...
             lineStyles(tgtpop,:),'EdgeColor','none','FaceAlpha',0.1);
         hold on;
+        % plot SSD+SSRTs
+        popssrt=popssrt(~isnan(popssrt));
+        currylim=get(gca,'ylim');
+        for ppssrt=1:length(popssrt)
+            patch([popssrt(ppssrt)-1:popssrt(ppssrt)+1 fliplr(popssrt(ppssrt)-1:popssrt(ppssrt)+1)], ...
+        reshape(repmat([currylim(1) currylim(2)],3,1),1,numel(currylim)*3), ...
+        [0 0 0],'EdgeColor','none','FaceAlpha',0.1);
+        end
         lineh(tgtpop)=plot(popsdf,'LineWidth',2,'color',lineStyles(tgtpop,:));
     end
     currylim=get(gca,'ylim');
     patch([tgt_startstop(1)-2:tgt_startstop(1)+2 fliplr(tgt_startstop(1)-2:tgt_startstop(1)+2)], ...
         reshape(repmat([currylim(1) currylim(2)],5,1),1,numel(currylim)*5), ...
-        [0 0 0],'EdgeColor','none','FaceAlpha',0.5);
+        [0.2 0 0.4],'EdgeColor','none','FaceAlpha',0.5);
     hold off;
     %% beautify plot
     set(gca,'XTick',[0:100:(tgt_startstop(2)+tgt_startstop(1))]);
@@ -778,6 +800,7 @@ for clusnum=1:3
     ssdfig(clusnum)=figure('name',['Cluster' num2str(clusnum) ' ssd plots']);
     % 1st plots
     subplot(1,2,1)
+    poperrcd=compgssdf(1, clusnum).align.tgt.evttimes(:,5);
     for ssdpop=1:2:3
         % keep only files with non-null data (which had correct ssd)
         nz_idx=nansum(compgssdf(1,clusnum).align.ssd.(ssdtrialtype{ssdpop}),2)>0;
@@ -785,11 +808,18 @@ for clusnum=1:3
         [popci, compgssdf(1,clusnum).align.ssd.(ssdtrialtype_ci{ssdpop})]=deal(nanstd(compgssdf(1,clusnum).align.ssd.(ssdtrialtype{ssdpop})(nz_idx,:))/...
             sqrt(size(compgssdf(1,clusnum).align.ssd.(ssdtrialtype{ssdpop})(nz_idx,:),1)));
         
-        patch([1:length(popci),fliplr(1:length(popci))],...
-            [popsdf-popci,fliplr(popsdf+popci)],...
-            lineStyles(ssdpop,:),'EdgeColor','none','FaceAlpha',0.1);
         hold on;
-        lineh(ssdpop)=plot(popsdf,'LineWidth',2,'color',lineStyles(ssdpop,:));
+         if ssdpop==3 %use adequate color
+            patch([1:length(popci),fliplr(1:length(popci))],...
+                [popsdf-popci,fliplr(popsdf+popci)],...
+                lineStyles(2,:),'EdgeColor','none','FaceAlpha',0.1);
+            lineh(ssdpop)=plot(popsdf,'LineWidth',2,'color',lineStyles(1,:));
+        else
+            patch([1:length(popci),fliplr(1:length(popci))],...
+                [popsdf-popci,fliplr(popsdf+popci)],...
+                lineStyles(1,:),'EdgeColor','none','FaceAlpha',0.1);
+            lineh(ssdpop)=plot(popsdf,'LineWidth',2,'color',lineStyles(ssdpop,:));
+        end
     end
     currylim=get(gca,'ylim');
     patch([ssd_startstop(1)-2:ssd_startstop(1)+2 fliplr(ssd_startstop(1)-2:ssd_startstop(1)+2)], ...
@@ -826,7 +856,7 @@ for clusnum=1:3
         else
             patch([1:length(popci),fliplr(1:length(popci))],...
                 [popsdf-popci,fliplr(popsdf+popci)],...
-                lineStyles(ssdpop,:),'EdgeColor','none','FaceAlpha',0.1);
+                lineStyles(3,:),'EdgeColor','none','FaceAlpha',0.1);
             lineh(ssdpop)=plot(popsdf,'LineWidth',2,'color',lineStyles(ssdpop,:));
         end
     end

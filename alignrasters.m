@@ -84,6 +84,7 @@ badidx=[];
 allssd=[];
 alldir=[];
 % allcondtime = [];
+cutcond=0;
 
 %% Which Cluster?
 %%%%%%%%%%%%%%%%%
@@ -313,12 +314,14 @@ while ~islast
                 % all, and just displaying the requested ones in
                 % rdd_rasters_sdf. VP 7/14/2012
                 
-                greytypes={'cue';'eyemvt';'fix'};
+                greytypes={'cue';'eyemvt';'fix';'fail'};
                 failedsac=0;
                 %caveat: some conditions may be 4 or 5 digits long,
                 %such as user defined codes such as TOKSWCD (1501)
-                
-                conditions(conditions>=1000)=floor(conditions(conditions>=1000)/10); %cut last digit off of them
+                if ~cutcond
+                    conditions(conditions>=1000)=floor(conditions(conditions>=1000)/10); %cut last digit off of them
+                    cutcond=1;
+                end
                 
                 %                 greytypes=(greytypes(selectedgrey));
                 codepairnb=floor(size(conditions,2)/2);%there may be multiple code. See l. 421 as well as here (273)
@@ -363,7 +366,9 @@ while ~islast
                         onoffcodetime(i,1+codepairnb)=getfield(curtrialsacInfo, {goodsacnum}, 'endtime');
                     end
                 end
-                %                     else % if only one conition selected
+                
+                %% former code
+                % else % if only one condition selected
                 %                         goodsacnum=0;
                 %                         if strcmp(greytypes,'eyemvt') %adjust times to real saccade times
                 %                                 % find which saccade is the "good" one (if any) in this trial
@@ -496,7 +501,7 @@ while ~islast
                     end
                     
                 end
-                %                 elseif alignsacnum < 0
+                %%                 elseif alignsacnum < 0
                 %                     cond_disp( 'In rdd_rasters, aligning to saccades BEFORE alignment codes has not been implemented yet. ');
                 %                     alignmentfound = 0;
                 %                 elseif alignsacnum > 0

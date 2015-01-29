@@ -27,7 +27,7 @@ alldata=struct('task',{},'aligntype',{},'prevssd',{},'allmssrt_tacho',{},...
     'ssds',{},'sacdelay',{},'prefdiridx',{},...
     'pk',struct('sac',{},'vis',{},'corsac',{},'rew',{}),...
     'trialidx',struct('stoptrials',{},'goodsac',{},'noncancel',{},'cancel',{}),...
-    'ndata',struct('rast',{},'alignt',{},'trialnb',{}),'db_rec_id',{},...
+    'ndata',struct('rast',{},'alignt',{},'trialnb',{},'evttime',{}),'db_rec_id',{},...
     'stats',struct('hval',{},'pval',{},'sign',{}));
 %allmssrt_tacho=NaN(length(dentatefiles),1);
 
@@ -97,7 +97,9 @@ for flbn=1:length(dentatefiles)
         togrey=[];
         singlerastplot=0;
         
-        %%prealloc
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        %% prealloc
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         fails=[];
         alignments={'failed_fast','correct_slow','ssd','corrsacfailed','rewcorrect_rewslow'};
         for algn=1:5
@@ -219,8 +221,12 @@ for flbn=1:length(dentatefiles)
             end
             
             alldata(flbn,algn).aligntype=alignments{algn};
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %% align rasters to conditions
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             
-            %% use GUI-independent prealign
+            %use GUI-independent prealign
             getaligndata={}; %re-init structure
             try
                 getaligndata = prealign(loadfile{:}(1:end-4), trialdirs, task, firstalign,...
@@ -230,8 +236,11 @@ for flbn=1:length(dentatefiles)
                 fails={fails; [loadfile{:}(1:end-4), prealign_fail.message]}; %prealign_fail
                 continue
             end
+            
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             %% z-score pre-ssd and pre-sac?
             
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             %% get peak firing rate for future normalization. Find prefered dir.
             % also keep ssds for cs and ncs trials
             if find(strcmp({getaligndata.alignlabel},'sac'))
@@ -418,10 +427,12 @@ for flbn=1:length(dentatefiles)
                 alldata(flbn,algn).pk.rew=max(convrasters);
             end
             
-            %keep rasters, alignidx
+            %%%%%%%%%%%%%%%%%%%%%%%%
+            %% store rasters, alignment index, trial index, "grey" event times
             [alldata(flbn,algn).ndata(1:size({getaligndata.rasters},2)).rast]=deal(getaligndata.rasters);
             [alldata(flbn,algn).ndata(1:size({getaligndata.rasters},2)).alignt]=deal(getaligndata.alignidx);
             [alldata(flbn,algn).ndata(1:size({getaligndata.rasters},2)).trialnb]=deal(getaligndata.trials);
+            [alldata(flbn,algn).ndata(1:size({getaligndata.rasters},2)).evttime]=deal(getaligndata.allgreyareas);
             
             % [t df pvals] = statcond({convrasters closeconvrasters}, 'method', 'perm', 'naccu', 20000,'verbose','off');
             
@@ -437,6 +448,10 @@ for flbn=1:length(dentatefiles)
     
 end
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %% reshape data
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 alltasks=reshape({alldata.task},size(alldata)); alltasks=alltasks(:,1);
 allalignmnt=reshape({alldata.aligntype},size(alldata));
 allmssrt_tacho=reshape({alldata.allmssrt_tacho},size(alldata)); allmssrt_tacho=allmssrt_tacho(:,1);
@@ -450,7 +465,7 @@ all_rec_id=reshape({alldata.db_rec_id},size(alldata));
 allstats=reshape({alldata.stats},size(alldata));
 alltrialidx=reshape({alldata.trialidx},size(alldata));
 
-
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% analyze gapstop data
 gsdlist=cellfun(@(x) strcmp(x,'gapstop'),alltasks(:,1)) & ~cellfun('isempty',allndata(:,1));
 
