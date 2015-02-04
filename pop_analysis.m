@@ -23,7 +23,7 @@ end
 % dentatefiles=unique(dentatefiles);
 
 %% prealloc
-alldata=struct('task',{},'aligntype',{},'prevssd',{},'allmssrt_tacho',{},...
+alldata=struct('fname',{},'task',{},'aligntype',{},'prevssd',{},'allmssrt_tacho',{},...
     'ssds',{},'sacdelay',{},'prefdiridx',{},...
     'pk',struct('sac',{},'vis',{},'corsac',{},'rew',{}),...
     'trialidx',struct('stoptrials',{},'goodsac',{},'noncancel',{},'cancel',{}),...
@@ -39,7 +39,7 @@ for flbn=1:length(dentatefiles)
     end
     %% get task and id
     try
-        % issue with db at the moment
+        % if no issue with db
         query = ['SELECT r.task, r.recording_id FROM recordings r WHERE r.a_file = ''' dfile 'A'''];
         results=fetch(CCNdb,query);
         [alldata(flbn,1).task,task]=deal(results{1});
@@ -87,6 +87,8 @@ for flbn=1:length(dentatefiles)
                 loadfile=loadfile(~cellfun('isempty',regexpi(loadfile,'REX','match')));
             end
         end
+        
+        alldata(flbn,1).fname=loadfile{:}(1:end-4);
         
         %% align rasters
         % common presets
@@ -448,31 +450,14 @@ for flbn=1:length(dentatefiles)
     
 end
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    %% reshape data
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %% analyze gapstop data
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-alltasks=reshape({alldata.task},size(alldata)); alltasks=alltasks(:,1);
-allalignmnt=reshape({alldata.aligntype},size(alldata));
-allmssrt_tacho=reshape({alldata.allmssrt_tacho},size(alldata)); allmssrt_tacho=allmssrt_tacho(:,1);
-allprevssd=reshape({alldata.prevssd},size(alldata));allprevssd=allprevssd(:,1);
-allssds=reshape({alldata.ssds},size(alldata));allssds=allssds(:,1);
-allsacdelay=reshape({alldata.sacdelay},size(alldata));allsacdelay=allsacdelay(:,1);
-allpk=reshape({alldata.pk},size(alldata));
-allprefdir=reshape({alldata.prefdiridx},size(alldata));
-allndata=reshape({alldata.ndata},size(alldata));
-all_rec_id=reshape({alldata.db_rec_id},size(alldata));
-allstats=reshape({alldata.stats},size(alldata));
-alltrialidx=reshape({alldata.trialidx},size(alldata));
+gsdlist=cellfun(@(x) strcmp(x,'gapstop'),{alldata(:,1).task}) & ~cellfun('isempty',{alldata(:,1).ndata});
+recluster=1;
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% analyze gapstop data
-gsdlist=cellfun(@(x) strcmp(x,'gapstop'),alltasks(:,1)) & ~cellfun('isempty',allndata(:,1));
-
-pop_a_countermanding(allalignmnt(gsdlist,:),allmssrt_tacho(gsdlist,1),allpk(gsdlist,:),...
-allndata(gsdlist,:),all_rec_id(gsdlist,1),allstats(gsdlist,1),allprevssd(gsdlist,1),...
-allssds(gsdlist,1),allsacdelay(gsdlist,1),allprefdir(gsdlist,:),alltrialidx(gsdlist,:));
-
+pop_a_countermanding(alldata(gsdlist,:),recluster,CCNdb);
 
 % outputs = struct('mssrt',{},...
 %     'ssdvalues',{});

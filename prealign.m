@@ -195,13 +195,15 @@ end
 %% Grey area in raster
 greycodes=[];
 failcode=[errcode1 errcode2];
+
 if strcmp(tasktype,'gapstop') %otherwise CAT arguments dimensions are not consistent below
     saccode=[saccode saccode];
     stopcode=[stopcode stopcode];
+    rewcode=[rewcode rewcode];
     failcode=[errcode1 errcode1 errcode2 errcode2];
 end
 
-conditions =[tgtcode tgtoffcode;saccode saccode;fixcode fixoffcode;failcode];
+conditions =[tgtcode tgtoffcode;saccode saccode;fixcode fixoffcode;rewcode rewcode;failcode];
 
 if logical(sum(togrey))
     greycodes=conditions(togrey,:); %selecting out the codes

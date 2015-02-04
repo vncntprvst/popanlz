@@ -1,16 +1,35 @@
-function pop_a_countermanding(allgsalignmnt,allgsmssrt,allgspk,allgsndata,...
-    allgs_rec_id,allgsstats,allgsprevssd,allgsssds,allgssacdelay,...
-    allgsprefdir,allgstrialidx)
+function pop_a_countermanding(data,recluster,conn)
 
 %% processing options
-prefdironly=1;
+prefdironly=0;
 singlessd=1;
     if singlessd
         prefdironly=0; %otherwise we don't keep anything
     end
 basicplots=1;
 
-%% cluster analysis of population
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %% reshape data
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+allgsalignmnt=reshape({data.aligntype},size(data));
+allgsprevssd=reshape({data.prevssd},size(data));allgsprevssd=allgsprevssd(:,1);
+allgsssds=reshape({data.ssds},size(data));allgsssds=allgsssds(:,1);
+allgssacdelay=reshape({data.sacdelay},size(data));allgssacdelay=allgssacdelay(:,1);
+allgsprefdir=reshape({data.prefdiridx},size(data));
+allgsndata=reshape({data.ndata},size(data));
+allgsmssrt_tacho=reshape({data.allmssrt_tacho},size(data)); allgsmssrt_tacho=allgsmssrt_tacho(:,1);
+
+% allgstasks=reshape({data.task},size(data)); allgstasks=allgstasks(:,1);
+% allgspk=reshape({data.pk},size(data));
+% allgs_rec_id=reshape({data.db_rec_id},size(data));
+% allgsstats=reshape({data.stats},size(data));
+% allgstrialidx=reshape({data.trialidx},size(data));
+% allgsfname=reshape({data.fname},size(data)); 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %% normalize data
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %convolve rasters with 200ms before saccade, 200 after saccade, 20ms kernel
 %time window. Add kernel * 6 ms (see fullgauss_filtconv), e.g. 60 ms at both
 % ends, which will be cut.
@@ -27,7 +46,7 @@ bslresps=bslresps(~badapl,:);
 bslresps=cat(1,bslresps{:});
 
 allgsalignmnt=allgsalignmnt(~badapl,:);
-allgsmssrt=allgsmssrt(~badapl,1);
+allgsmssrt_tacho=allgsmssrt_tacho(~badapl,1);
 %allgspk=allgspk(~badapl,:); %not needed
 allgsndata=allgsndata(~badapl,:);
 %allgs_rec_id=allgs_rec_id(~badapl,1); %not needed
@@ -63,296 +82,49 @@ rnorm_sacresps=(sacresps-repmat(sacresp_mean',1,size(sacresps,2)))./repmat(sacre
 % colormap gray
 % colorbar;
 
-% %% k-means clustering
-% % define seeds
-% seeds=cellfun(@(x) mean(x(1,100:200))-mean(x(1,200:300)), mat2cell(bnorm_sacresps,ones(size(bnorm_sacresps,1),1)));
-% wavedropseed=seeds==max(seeds);
-% waveburstseed=seeds==min(seeds);
-% waveflatseed=seeds==min(abs(seeds));
-% seeds=[bnorm_sacresps(wavedropseed,:);...
-%     bnorm_sacresps(waveburstseed,:);...
-%     bnorm_sacresps(waveflatseed,:)];
-%
-% %% plot seeds
-% figure
-% plot(seeds(1,:))
-% hold on
-% plot(seeds(2,:),'r')
-% plot(seeds(3,:),'g')
-%
-% %% calculate k-means
-% % at random
-% % [IDX,C,sumd,D]=kmeans(sacresps,3,'dist','city','display','iter');
-% % seeded
-% [kMidx,kMeansClus,sumd,D]=kmeans(bnorm_sacresps,3,'dist','city','start',seeds,'display','iter');
-%
-% %% plot means
-% figure
-% plot(kMeansClus(1,:),'b')
-% hold on
-% plot(kMeansClus(2,:),'r')
-% plot(kMeansClus(3,:),'g')
-%
-% %% k-means scatterplot
-% figure
-% scatter3(D(kMidx==1,1),D(kMidx==1,2),D(kMidx==1,3),40,'b.')
-% hold on
-% scatter3(D(kMidx==2,1),D(kMidx==2,2),D(kMidx==2,3),40,'r.')
-% scatter3(D(kMidx==3,1),D(kMidx==3,2),D(kMidx==3,3),40,'g.')
-%
-% % Fit Gaussian Mixture Model using the k-means centers as the initial conditions
-% % We only have mean initial conditions from the k-means algorithm, so we
-% % can specify some arbitrary initial variance and mixture weights.
-% % gmInitialVariance = 0.1;
-% % initialSigma = cat(3,gmInitialVariance,gmInitialVariance,gmInitialVariance);
-% % % Initial weights are set at 50%
-% % initialWeights = [0.5 0.5 0.5];
-% % % Initial condition structure for the gmdistribution.fit function
-% % S.mu = kMeansClus;
-% % S.Sigma = initialSigma;
-% % S.PComponents = initialWeights;
-%
-% %% plot sdfs from each k-means cluster
-% clus1=find(kMidx==1); clus2=find(kMidx==2); clus3=find(kMidx==3);
-% figure('name','cluster1')
-% subplotdim=[ceil(length(clus1)/2)-(2*floor(length(clus1)/10)),2+floor(length(clus1)/10)];
-% for sacplot=1:length(clus1)
-%     subplot(subplotdim(1),subplotdim(2),sacplot)
-%     plot(bnorm_sacresps(clus1(sacplot),:));
-%     ylim=get(gca,'ylim');
-%     set(gca,'ylim',[0 ylim(2)]);
-%     text(20,10,['sacplot ' num2str(clus1(sacplot))]);
-% end
-% figure('name','cluster2')
-% subplotdim=[ceil(length(clus2)/2)-(2*floor(length(clus2)/10)),2+floor(length(clus2)/10)];
-% for sacplot=1:length(clus2)
-%     subplot(subplotdim(1),subplotdim(2),sacplot)
-%     plot(bnorm_sacresps(clus2(sacplot),:));
-%     ylim=get(gca,'ylim');
-%     set(gca,'ylim',[0 ylim(2)]);
-%     text(20,10,['sacplot ' num2str(clus2(sacplot))]);
-% end
-% figure('name','cluster3')
-% subplotdim=[ceil(length(clus3)/2)-(2*floor(length(clus3)/10)),2+floor(length(clus3)/10)];
-% for sacplot=1:length(clus3)
-%     subplot(subplotdim(1),subplotdim(2),sacplot)
-%     plot(bnorm_sacresps(clus3(sacplot),:));
-%     ylim=get(gca,'ylim');
-%     set(gca,'ylim',[0 ylim(2)]);
-%     text(20,10,['sacplot ' num2str(clus3(sacplot))]);
-% end
-%
-% %% PCA clustering
-% [coeffs,PrComps,latent] = pca(bnorm_sacresps);
-% % D=coeffs(:,1:8)';
-% % figure
-% % plot(coeffs(:,1),'.','MarkerSize',.5)
-% % hold on
-% % plot(coeffs(:,2),'.','MarkerSize',.5)
-% % plot(coeffs(:,3),'.','MarkerSize',.5)
-% % plot(coeffs(:,4),'.','MarkerSize',.5)
-%
-% %% scatterplot
-% % in 2D
-% figure
-% scatter(PrComps(:,1), PrComps(:,2), 'k.');
-% xlabel('PC 1'); ylabel('PC 2')
-% % hold on
-% % scatter(PrComps([6,11,21,24,29,32],1),PrComps([6,11,21,24,29,32],2),80,'r','filled')
-% % scatter(PrComps([7,14,17,25,27],1),PrComps([7,14,17,25,27],2),80,'g','filled')
-%
-% %% isolate clusters
-% FirstPrComps=[PrComps(:,1),PrComps(:,2)];
-% try
-%     gmm_fit_clusters = gmdistribution.fit(FirstPrComps,4,...
-%         'Start','randSample','Replicates',5,'Option',statset('Display','final')); % 4 clusters
-%     fourclus=1;
-% catch
-%     gmm_fit_clusters = gmdistribution.fit(FirstPrComps,3,...
-%         'Start','randSample','Replicates',5,'Option',statset('Display','final')); % 3 clusters
-%     fourclus=0;
-% end
-%
-% % Look at clusters mu and sigma
-% % gmm_fit_clusters.mu(1,:)
-% % gmm_fit_clusters.Sigma(:,:,1)
-%
-% % plot cluster contours
-% hold on
-% clusgmmfith = ezcontour(@(x,y)pdf(gmm_fit_clusters,[x y]),[min(PrComps(:,1))-1 max(PrComps(:,1))+1],[min(PrComps(:,2))-1 max(PrComps(:,2))+1]);
-% % ezsurf(@(x,y)pdf(gaussmixmodel_fit,[x y]),[min(PrComps(:,1))-1 max(PrComps(:,1))+1],[min(PrComps(:,2))-1 max(PrComps(:,2))+1]);
-%
-% % cluster and find posterior probability
-% %[PCAclusidx,nlogl,P,logpdf,M] = cluster(gmm_fit_clusters,FirstPrComps);
-% % actually use posterior value to
-% ClusPr = posterior(gmm_fit_clusters,[PrComps(:,1),PrComps(:,2)]);
-% % add a 5th column for junk
-% ClusPr(max(ClusPr,[],2)<0.95,5)=1;
-% % classify into clusters (or junk)
-% [~,PCAclusidx] = max(ClusPr,[],2);
-% maxClusPr = max(ClusPr(:,1:4),[],2);
-% tabulate(PCAclusidx);
-%
-% gscatter(FirstPrComps(:,1), FirstPrComps(:,2), PCAclusidx)
-% %print index number
-% text(PrComps(:,1), PrComps(:,2),num2str(rot90(size(PrComps(:,1),1):-1:1)))
-% %and print proba value
-% text(PrComps(:,1), PrComps(:,2)-0.5,num2str(floor(maxClusPr*100)))
-%
-% hold off
-% title('PC1 vs PC2, 4 clusters');
-%
-% %%
-% % cluster1 = FirstPrComps(PCAclusidx == 1,:);
-% % cluster2 = FirstPrComps(PCAclusidx == 2,:);
-% % cluster3 = FirstPrComps(PCAclusidx == 3,:);
-% % if fourclus && sum(PCAclusidx == 4)
-% %     cluster4 = FirstPrComps(PCAclusidx == 4,:);
-% % end
-% % delete(clusgmmfith);
-% % gaussfith1 = scatter(cluster1(:,1),cluster1(:,2),80,'b.');
-% % gaussfith2 = scatter(cluster2(:,1),cluster2(:,2),80,'r.');
-% % gaussfith3 = scatter(cluster3(:,1),cluster3(:,2),80,'g.');
-% % if fourclus
-% %     gaussfith4 = scatter(cluster4(:,1),cluster4(:,2),80,'c.');
-% %     legend([gaussfith1 gaussfith2 gaussfith3 gaussfith4],'Cluster 1','Cluster 2','Cluster 3','Cluster 4','Location','NW')
-% % else
-% %     legend([gaussfith1 gaussfith2 gaussfith3],'Cluster 1','Cluster 2','Cluster 3','Location','NW')
-% % end
-%
-% % % in 2D, with variance multiplier
-% % figure
-% % plot(PrComps(:,1).*latent(1),PrComps(:,2).*latent(2),'.b')
-%
-% %% in 3D
-% figure
-% scatter3(PrComps(:,1),PrComps(:,2),PrComps(:,3),40,'b.')
-% xlabel('PC 1'); ylabel('PC 2'); zlabel('PC 3')
-% hold on
-% % outline just seeds
-% scatter3(PrComps(wavedropseed,1),PrComps(wavedropseed,2),PrComps(wavedropseed,3),80,'r','filled')
-% scatter3(PrComps(waveburstseed,1),PrComps(waveburstseed,2),PrComps(waveburstseed,3),80,'g','filled')
-% scatter3(PrComps(waveflatseed,1),PrComps(waveflatseed,2),PrComps(waveflatseed,3),80,'k','filled')
-% % outline bests
-% scatter3(PrComps([6,11,21,24,29,32],1),PrComps([6,11,21,24,29,32],2),PrComps([6,11,21,24,29,32],3),80,'r','filled')
-% scatter3(PrComps([7,14,17,25,27],1),PrComps([7,14,17,25,27],2),PrComps([7,14,17,25,27],3),80,'g','filled')
-%
-% %% plot sdfs from each cluster
-% clus1=find(PCAclusidx==1); clus2=find(PCAclusidx==2);
-% clus3=find(PCAclusidx==3); clus4=find(PCAclusidx==4);
-% clus5=find(PCAclusidx==5);
-%
-% figure('name','cluster1')
-% subplotdim=[ceil(sqrt(numel(clus1))),ceil(sqrt(numel(clus1)))];
-% for sacplot=1:length(clus1)
-%     subplot(subplotdim(1),subplotdim(2),sacplot)
-%     plot(bnorm_sacresps(clus1(sacplot),:));
-%     ylim=get(gca,'ylim');
-%     set(gca,'ylim',[min(ylim(1),0) ylim(2)]);
-%     text(10,ylim(2)-0.1,['sacplot ' num2str(clus1(sacplot))]);
-% end
-% figure('name','cluster2')
-% subplotdim=[ceil(sqrt(numel(clus2))),ceil(sqrt(numel(clus2)))];
-% for sacplot=1:length(clus2)
-%     subplot(subplotdim(1),subplotdim(2),sacplot)
-%     plot(bnorm_sacresps(clus2(sacplot),:));
-%     ylim=get(gca,'ylim');
-%     set(gca,'ylim',[min(ylim(1),0) ylim(2)]);
-%     text(10,ylim(2)-0.1,['sacplot ' num2str(clus2(sacplot))]);
-% end
-% figure('name','cluster3')
-% subplotdim=[ceil(sqrt(numel(clus3))),ceil(sqrt(numel(clus3)))];
-% for sacplot=1:length(clus3)
-%     subplot(subplotdim(1),subplotdim(2),sacplot)
-%     plot(bnorm_sacresps(clus3(sacplot),:));
-%     ylim=get(gca,'ylim');
-%     set(gca,'ylim',[min(ylim(1),0) ylim(2)]);
-%     text(10,ylim(2)-0.1,['sacplot ' num2str(clus3(sacplot))]);
-% end
-% figure('name','cluster4')
-% subplotdim=[ceil(sqrt(numel(clus4))),ceil(sqrt(numel(clus4)))];
-% for sacplot=1:length(clus4)
-%     subplot(subplotdim(1),subplotdim(2),sacplot)
-%     plot(bnorm_sacresps(clus4(sacplot),:));
-%     ylim=get(gca,'ylim');
-%     set(gca,'ylim',[min(ylim(1),0) ylim(2)]);
-%     text(10,ylim(2)-0.1,['sacplot ' num2str(clus4(sacplot))]);
-% end
-% if fourclus && sum(clus5)
-%     figure('name','cluster5')
-%     subplotdim=[ceil(sqrt(numel(clus5))),ceil(sqrt(numel(clus5)))];
-%     for sacplot=1:length(clus5)
-%         subplot(subplotdim(1),subplotdim(2),sacplot)
-%         plot(bnorm_sacresps(clus5(sacplot),:));
-%         ylim=get(gca,'ylim');
-%         set(gca,'ylim',[min(ylim(1),0) ylim(2)]);
-%         text(10,ylim(2)-0.1,['sacplot ' num2str(clus5(sacplot))]);
-%     end
-% end
-
-%% Hierarchical clustering
-pairw_dist = pdist(rnorm_sacresps,'cityblock'); %'cityblock'
-squareform(pairw_dist);
-hc_links = linkage(pairw_dist,'average'); %'average'
-dendrogram(hc_links);
-%verify inconsistencies and dissimilarities
-hc_inco = inconsistent(hc_links);
-hc_dissim = cophenet(hc_links,pairw_dist);
-%cluster by setting inconsistency coefficient threshold
-inc_coef_th=1.15;
-hc_clus = cluster(hc_links,'cutoff',inc_coef_th);
-% or define number of cluster wanted
-hc_clus = cluster(hc_links,'maxclust',12);
-
-% plot HC clusters
-% for hclus=1:12
-%     figure('name',['cluster' num2str(hclus)]);
-%     clusn=find(hc_clus==hclus);
-%     subplotdim=[ceil(sqrt(numel(clusn))),ceil(sqrt(numel(clusn)))];
-%     for sacplot=1:length(clusn)
-%         subplot(subplotdim(1),subplotdim(2),sacplot)
-%         plot(rnorm_sacresps(clusn(sacplot),:));
-%         ylim=get(gca,'ylim');
-%         set(gca,'ylim',[min(ylim(1),0) ylim(2)]);
-%         text(10,ylim(2)-0.1,['sacplot ' num2str(clusn(sacplot))]);
-%     end
-% end
-
-
-%% colors for population plots
-%     figure(1);
-cc=lines(size(allgsalignmnt,1)); % one color per file
-if size(cc,1)==8
-    cc(8,:)=[0 0.75 0];
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %% Cluster population
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+if recluster
+    method='hclus';
+    [clusidx,clustypes,clusavwf]=clus_pop(sacresps,bnorm_sacresps,rnorm_sacresps,method);
+    % add / change unit's profile
+    conn
+else
+    % access unit profiles
+    conn
+    %clusidx
 end
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% separate data by cluster
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %% separate data by cluster
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 %% cb cx cluster
-% clusgsndata{1}=allgsndata(hc_clus==4 | hc_clus==10,:);
-% clusgsndata{2}=allgsndata(hc_clus==2,:);
-% clusgsndata{3}=allgsndata(hc_clus==6,:);
+% clusgsndata{1}=allgsndata(clusidx==4 | clusidx==10,:);
+% clusgsndata{2}=allgsndata(clusidx==2,:);
+% clusgsndata{3}=allgsndata(clusidx==6,:);
 %
-% clussblmean{1}=bslresp_mean(hc_clus==4 | hc_clus==10);
-% clussblmean{2}=bslresp_mean(hc_clus==2);
-% clussblmean{3}=bslresp_mean(hc_clus==6);
+% clussblmean{1}=bslresp_mean(clusidx==4 | clusidx==10);
+% clussblmean{2}=bslresp_mean(clusidx==2);
+% clussblmean{3}=bslresp_mean(clusidx==6);
 %
-% clussbslresp_sd{1}=bslresp_sd(hc_clus==4 | hc_clus==10);
-% clussbslresp_sd{2}=bslresp_sd(hc_clus==2);
-% clussbslresp_sd{3}=bslresp_sd(hc_clus==6);
+% clussbslresp_sd{1}=bslresp_sd(clusidx==4 | clusidx==10);
+% clussbslresp_sd{2}=bslresp_sd(clusidx==2);
+% clussbslresp_sd{3}=bslresp_sd(clusidx==6);
 %
-% clusprefdir{1}=allgsprefdir(hc_clus==4 | hc_clus==10,:);
-% clusprefdir{2}=allgsprefdir(hc_clus==2,:);
-% clusprefdir{3}=allgsprefdir(hc_clus==6,:);
+% clusprefdir{1}=allgsprefdir(clusidx==4 | clusidx==10,:);
+% clusprefdir{2}=allgsprefdir(clusidx==2,:);
+% clusprefdir{3}=allgsprefdir(clusidx==6,:);
 %
-% clusssds{1}=allgsssds(hc_clus==4 | hc_clus==10);
-% clusssds{2}=allgsssds(hc_clus==2);
-% clusssds{3}=allgsssds(hc_clus==6);
+% clusssds{1}=allgsssds(clusidx==4 | clusidx==10);
+% clusssds{2}=allgsssds(clusidx==2);
+% clusssds{3}=allgsssds(clusidx==6);
 
 %% cDN clusters
-clus1idx=hc_clus==6 | hc_clus==8 | hc_clus==11;
-clus2idx=hc_clus==9;
-clus3idx=hc_clus==10;
+clus1idx=clusidx==6 | clusidx==8 | clusidx==11;
+clus2idx=clusidx==9;
+clus3idx=clusidx==10;
 % raster data
 clusgsndata{1}=allgsndata(clus1idx,:);
 clusgsndata{2}=allgsndata(clus2idx,:);
@@ -382,18 +154,18 @@ clusprevssd{1}=allgsprevssd(clus1idx);
 clusprevssd{2}=allgsprevssd(clus2idx);
 clusprevssd{3}=allgsprevssd(clus3idx);
 % ssrts
-clusmssrt{1}=allgsmssrt(clus1idx);
-clusmssrt{2}=allgsmssrt(clus2idx);
-clusmssrt{3}=allgsmssrt(clus3idx);
+clusmssrt{1}=allgsmssrt_tacho(clus1idx);
+clusmssrt{2}=allgsmssrt_tacho(clus2idx);
+clusmssrt{3}=allgsmssrt_tacho(clus3idx);
 
 %% prealloc compile data
 arraysz=max([sum(clus1idx), sum(clus2idx), sum(clus3idx)]);
 compgssdf=struct('clus',{'rampfallclus','sacburstclus','rewrampclus'},...
-    'align',struct('sac',struct('NSStrial',nan(arraysz,1301),'CStrial',nan(arraysz,1301),'NCStrial',nan(arraysz,1301),'evttimes',nan(arraysz,6)),...
-                'tgt',struct('NSStrial',nan(arraysz,901),'CStrial',nan(arraysz,901),'NCStrial',nan(arraysz,901),'evttimes',nan(arraysz,6)),...
-                'ssd',struct('LMCS_NSStrial',nan(arraysz,1501),'LMNCS_NSStrial',nan(arraysz,1501),'CStrial',nan(arraysz,1501),'NCStrial',nan(arraysz,1501),'evttimes',nan(arraysz,6)),...
-                'corsac',struct('NSStrial',nan(arraysz,1001),'CStrial',nan(arraysz,1001),'NCStrial',nan(arraysz,1001),'evttimes',nan(arraysz,6)),...
-                'rew',struct('NSStrial',nan(arraysz,1001),'CStrial',nan(arraysz,1001),'NCStrial',nan(arraysz,1001),'evttimes',nan(arraysz,6))));
+    'align',struct('sac',struct('NSStrial',nan(arraysz,1301),'CStrial',nan(arraysz,1301),'NCStrial',nan(arraysz,1301),'evttimes',nan(arraysz,7)),...
+                'tgt',struct('NSStrial',nan(arraysz,901),'CStrial',nan(arraysz,901),'NCStrial',nan(arraysz,901),'evttimes',nan(arraysz,7)),...
+                'ssd',struct('LMCS_NSStrial',nan(arraysz,1501),'LMNCS_NSStrial',nan(arraysz,1501),'CStrial',nan(arraysz,1501),'NCStrial',nan(arraysz,1501),'evttimes',nan(arraysz,7)),...
+                'corsac',struct('NSStrial',nan(arraysz,1001),'CStrial',nan(arraysz,1001),'NCStrial',nan(arraysz,1001),'evttimes',nan(arraysz,7)),...
+                'rew',struct('NSStrial',nan(arraysz,1001),'CStrial',nan(arraysz,1001),'NCStrial',nan(arraysz,1001),'evttimes',nan(arraysz,7))));
 
 trialtype={'NSStrial','CStrial','NCStrial'};
 ssdtrialtype={'LMCS_NSStrial','LMNCS_NSStrial','CStrial','NCStrial'};
@@ -404,6 +176,14 @@ tgt_startstop=[200 700];
 ssd_startstop=[800 700];
 corsac_startstop=[800 200];
 rew_startstop=[800 200];
+
+%% colors for population plots
+%     figure(1);
+close all
+cc=lines(size(allgsalignmnt,1)); % one color per file
+if size(cc,1)==8
+    cc(8,:)=[0 0.75 0];
+end
 
 %% calculate sdf for each outcome in each condition in each cluster (yes, that's nested loops)
 % look at clusters 2,3 and 10
@@ -471,6 +251,13 @@ for clusnum=1:3
                     
                     %normalize sdf by baseline activity
                     normsdf=(sdf-clussblmean{clusnum}(gsd))./clussbslresp_sd{clusnum}(gsd);
+                    
+                    %keep cue on-times
+                        compgssdf(1,clusnum).align.sac.evttimes(gsd,1)=round(median(cellfun(@(x) x(1,1), gsdata(sacalg).evttime))-(alignmtt-ssd_startstop(1))); %median rew signal time
+                    %keep SS time
+                    if sacalg==2 || sacalg==3
+                        compgssdf(1,clusnum).align.sac.evttimes(gsd,6)=compgssdf(1,clusnum).align.sac.evttimes(gsd,1)+prevssd; 
+                    end
                     
                     %% plots (get [sdf, convrasters, convrastsem] if needed)
                     %                              figure
@@ -540,7 +327,7 @@ for clusnum=1:3
                     normsdf=(sdf-clussblmean{clusnum}(gsd))./clussbslresp_sd{clusnum}(gsd);
                     
                     %keep ssd+ssrt time
-                    compgssdf(1,clusnum).align.tgt.evttimes(gsd,5:6)=round([tgt_startstop(1)+prevssd+clusmssrt{1, clusnum}{gsd, 1}{1, 1}...
+                    compgssdf(1,clusnum).align.tgt.evttimes(gsd,6:7)=round([tgt_startstop(1)+prevssd+clusmssrt{1, clusnum}{gsd, 1}{1, 1}...
                         clusmssrt{1, clusnum}{gsd, 1}{1, 3}]); %first number is ssd+ssrt, second number is tachowidth
                     
                     %% plots (get [sdf, convrasters, convrastsem] if needed)
@@ -587,22 +374,23 @@ for clusnum=1:3
                     normsdf=(sdf-clussblmean{clusnum}(gsd))./clussbslresp_sd{clusnum}(gsd);
                     
                     %keep error time for NCS
-                    if ssdalg==4
-                        %change ssd_startstop(1)+cellfun(@(x) x(4,2),
-                        %gsdata(ssdalg).evttime to
-                        %mean(cellfun(@(x) x(4,2), gsdata(ssdalg).evttime)- ssd_startstop(1) ??? 
-                        compgssdf(1,clusnum).align.ssd.evttimes(gsd,4)=round(ssd_startstop(1)+cellfun(@(x) x(4,2), gsdata(ssdalg).evttime)); %first number is ssd+ssrt, second number is tachowidth
+                    if ssdalg==2 %keep reward time from latency-matched NSS trials
+                        compgssdf(1,clusnum).align.ssd.evttimes(gsd,4)=round(median(cellfun(@(x) x(4,2), gsdata(ssdalg).evttime))-(alignmtt-ssd_startstop(1))); %median rew signal time
+                    elseif ssdalg==4 %keep error / cue off time
+                        compgssdf(1,clusnum).align.ssd.evttimes(gsd,5)=round(median(cellfun(@(x) x(5,2), gsdata(ssdalg).evttime))-(alignmtt-ssd_startstop(1))); %median error signal time
                     end
                     %% plots (get [sdf, convrasters, convrastsem] if needed)
-                    %          figure(1)
-                    %          hold off
-                    %          patch([1:length(sdf),fliplr(1:length(sdf))],[sdf-convrastsem,fliplr(sdf+convrastsem)],'k','EdgeColor','none','FaceAlpha',0.1);
-                    %          hold on
-                    %          %plot sdf
-                    %          plot(sdf,'Color','b','LineWidth',1.8);
-                    %          set(gca,'xtick',[1:100:1301],'xticklabel',[-800:100:500])
-                    %          close(gcf)
-                    
+%                     if clusnum==1 && ssdalg==4
+%                              figure%(1)
+%                              hold off
+%                              patch([1:length(sdf),fliplr(1:length(sdf))],[sdf-convrastsem,fliplr(sdf+convrastsem)],'k','EdgeColor','none','FaceAlpha',0.1);
+%                              hold on
+                             %plot sdf
+%                              plot(sdf,'Color','b','LineWidth',1.8);
+%                              set(gca,'xtick',[1:100:1501],'xticklabel',[-800:100:700])
+%                              axis(gca,'tight'); box off;
+%                              close(gcf)
+%                     end
                     %% store
                     compgssdf(1,clusnum).align.ssd.(ssdtrialtype{ssdalg})(gsd,:)=normsdf;
                 catch norast
@@ -715,7 +503,8 @@ for clusnum=1:3
     %% saccade alignment plot
     sacfig(clusnum)=figure('name',['Cluster' num2str(clusnum) ' saccade plots']);
     hold on;
-    
+    saccues=compgssdf(1, clusnum).align.sac.evttimes(:,1);
+    sacsst=compgssdf(1, clusnum).align.sac.evttimes(:,6);
     for sacpop=1:3
         [popsdf, compgssdf(1,clusnum).align.sac.(trialtype_sdf{sacpop})]=deal(nanmean(compgssdf(1,clusnum).align.sac.(trialtype{sacpop})));
         [popci, compgssdf(1,clusnum).align.sac.(trialtype_ci{sacpop})]=deal(nanstd(compgssdf(1,clusnum).align.sac.(trialtype{sacpop}))/...
@@ -725,12 +514,30 @@ for clusnum=1:3
             [popsdf-popci,fliplr(popsdf+popci)],...
             lineStyles(sacpop,:),'EdgeColor','none','FaceAlpha',0.1);
         hold on;
+        % plot cues
+        saccues=saccues(~isnan(saccues));
+        currylim=get(gca,'ylim');
+        for ppcue=1:length(saccues)
+            cueph=patch([saccues(ppcue)-1:saccues(ppcue)+1 fliplr(saccues(ppcue)-1:saccues(ppcue)+1)], ...
+        reshape(repmat([currylim(1) currylim(2)],3,1),1,numel(currylim)*3), ...
+        [0.5 0.5 0.5],'EdgeColor','none','FaceAlpha',0.5);
+        end
+        %plot stop signals
+%         if sacpop==2 || sacpop==3
+%             sacsst=sacsst(~isnan(sacsst));
+%             currylim=get(gca,'ylim');
+%             for ppsst=1:length(sacsst)
+%                 patch([sacsst(ppsst)-1:sacsst(ppsst)+1 fliplr(sacsst(ppsst)-1:sacsst(ppsst)+1)], ...
+%             reshape(repmat([currylim(1) currylim(2)],3,1),1,numel(currylim)*3), ...
+%             lineStyles(sacpop,:),'EdgeColor','none','FaceAlpha',0.3);
+%             end
+%         end
         lineh(sacpop)=plot(popsdf,'LineWidth',2,'color',lineStyles(sacpop,:));
     end
     currylim=get(gca,'ylim');
     patch([sac_startstop(1)-2:sac_startstop(1)+2 fliplr(sac_startstop(1)-2:sac_startstop(1)+2)], ...
         reshape(repmat([currylim(1) currylim(2)],5,1),1,numel(currylim)*5), ...
-        [0 0 0],'EdgeColor','none','FaceAlpha',0.5);
+        [0 0 0],'EdgeColor','none','FaceAlpha',1);
     hold off;
     %% beautify plot
     set(gca,'XTick',[0:100:(sac_startstop(2)+sac_startstop(1))]);
@@ -740,9 +547,9 @@ for clusnum=1:3
     hxlabel=xlabel(gca,'Time (ms)','FontName','Cambria','FontSize',10);
     hylabel=ylabel(gca,'Firing rate (z-score)','FontName','Cambria','FontSize',10);
     if basicplots
-        legh=legend(lineh(1:2:3),{'No Stop Signal', 'Stop Signal: Non Cancelled'});
+        legh=legend([lineh(1:2:3) cueph],{'No Stop Signal', 'Stop Signal: Non Cancelled','Target onset'});
     else
-        legh=legend(lineh(1:3),{'No Stop Signal','Stop Signal: Cancelled', 'Stop Signal: Non Cancelled'});
+        legh=legend([lineh(1:3) cueph],{'No Stop Signal','Stop Signal: Cancelled', 'Stop Signal: Non Cancelled','Target onset'});
     end
     set(legh,'Interpreter','none','Location','SouthWest','Box','off','LineWidth',1.5,'FontName','Cambria','FontSize',9); % Interpreter prevents underscores turning character into subscript
     title(['Cluster' num2str(clusnum) ' Aligned to saccade'],'FontName','Cambria','FontSize',15);
@@ -750,7 +557,9 @@ for clusnum=1:3
     %% target alignment plot
     tgtfig(clusnum)=figure('name',['Cluster' num2str(clusnum) ' target plots']);
     hold on;
-    popssrt=compgssdf(1, clusnum).align.tgt.evttimes(:,5);
+    popssrt=compgssdf(1, clusnum).align.tgt.evttimes(:,6);
+%     poptacho=compgssdf(1, clusnum).align.tgt.evttimes(:,7); %if we want
+%     the curve width
     for tgtpop=1:3
 %         popsdf=compgssdf(1,clusnum).align.tgt.(trialtype{tgtpop});
 %         popsdf=conv_raster(popsdf(~isnan(nanmean(popsdf,2)),:),conv_sigma);         
@@ -769,9 +578,9 @@ for clusnum=1:3
         popssrt=popssrt(~isnan(popssrt));
         currylim=get(gca,'ylim');
         for ppssrt=1:length(popssrt)
-            patch([popssrt(ppssrt)-1:popssrt(ppssrt)+1 fliplr(popssrt(ppssrt)-1:popssrt(ppssrt)+1)], ...
+            ssrtph=patch([popssrt(ppssrt)-1:popssrt(ppssrt)+1 fliplr(popssrt(ppssrt)-1:popssrt(ppssrt)+1)], ...
         reshape(repmat([currylim(1) currylim(2)],3,1),1,numel(currylim)*3), ...
-        [0 0 0],'EdgeColor','none','FaceAlpha',0.1);
+        [0.5 0.5 0.5],'EdgeColor','none','FaceAlpha',0.5);
         end
         lineh(tgtpop)=plot(popsdf,'LineWidth',2,'color',lineStyles(tgtpop,:));
     end
@@ -788,9 +597,9 @@ for clusnum=1:3
     hxlabel=xlabel(gca,'Time (ms)','FontName','Cambria','FontSize',10);
     hylabel=ylabel(gca,'Firing rate (z-score)','FontName','Cambria','FontSize',10);
     if basicplots
-        legh=legend(lineh(1:2),{'No Stop Signal','Stop Signal: Cancelled'});
+        legh=legend([lineh(1:2) ssrtph],{'No Stop Signal','Stop Signal: Cancelled','Stop Sig. Reac. Time'});
     else
-        legh=legend(lineh(1:3),{'No Stop Signal','Stop Signal: Cancelled', 'Stop Signal: Non Cancelled'});
+        legh=legend([lineh(1:3) ssrtph],{'No Stop Signal','Stop Signal: Cancelled', 'Stop Signal: Non Cancelled','Stop Sig. Reac. Time'});
     end
     set(legh,'Interpreter','none','Location','NorthEast','Box', 'off','LineWidth',1.5,'FontName','Cambria','FontSize',9); % Interpreter prevents underscores turning character into subscript
     title(['Cluster' num2str(clusnum) ' Aligned to target'],'FontName','Cambria','FontSize',15);
@@ -800,7 +609,6 @@ for clusnum=1:3
     ssdfig(clusnum)=figure('name',['Cluster' num2str(clusnum) ' ssd plots']);
     % 1st plots
     subplot(1,2,1)
-    poperrcd=compgssdf(1, clusnum).align.tgt.evttimes(:,5);
     for ssdpop=1:2:3
         % keep only files with non-null data (which had correct ssd)
         nz_idx=nansum(compgssdf(1,clusnum).align.ssd.(ssdtrialtype{ssdpop}),2)>0;
@@ -813,22 +621,22 @@ for clusnum=1:3
             patch([1:length(popci),fliplr(1:length(popci))],...
                 [popsdf-popci,fliplr(popsdf+popci)],...
                 lineStyles(2,:),'EdgeColor','none','FaceAlpha',0.1);
-            lineh(ssdpop)=plot(popsdf,'LineWidth',2,'color',lineStyles(1,:));
+            lineh(ssdpop)=plot(popsdf,'LineWidth',2,'color',lineStyles(2,:));
         else
             patch([1:length(popci),fliplr(1:length(popci))],...
                 [popsdf-popci,fliplr(popsdf+popci)],...
                 lineStyles(1,:),'EdgeColor','none','FaceAlpha',0.1);
-            lineh(ssdpop)=plot(popsdf,'LineWidth',2,'color',lineStyles(ssdpop,:));
+            lineh(ssdpop)=plot(popsdf,'LineWidth',2,'color',lineStyles(1,:));
         end
     end
     currylim=get(gca,'ylim');
     patch([ssd_startstop(1)-2:ssd_startstop(1)+2 fliplr(ssd_startstop(1)-2:ssd_startstop(1)+2)], ...
         reshape(repmat([currylim(1) currylim(2)],5,1),1,numel(currylim)*5), ...
-        [0 0 0],'EdgeColor','none','FaceAlpha',0.5);
+        [0.2 0 0.4],'EdgeColor','none','FaceAlpha',0.5);
     hold off;
     %% beautify plot
-    set(gca,'XTick',[0:100:(ssd_startstop(2)+ssd_startstop(1))]);
-    set(gca,'XTickLabel',[-ssd_startstop(1):100:ssd_startstop(2)]);
+    set(gca,'XTick',[0:200:(ssd_startstop(2)+ssd_startstop(1))]);
+    set(gca,'XTickLabel',[-ssd_startstop(1):200:ssd_startstop(2)]);
     axis(gca,'tight'); box off;
     set(gca,'Color','white','TickDir','out','FontName','Cambria','FontSize',10);
     hxlabel=xlabel(gca,'Time (ms)','FontName','Cambria','FontSize',10);
@@ -839,7 +647,8 @@ for clusnum=1:3
     
     %2nd plots
     subplot(1,2,2)
-    
+    poperrcd=compgssdf(1, clusnum).align.ssd.evttimes(:,5);
+    poprew=compgssdf(1, clusnum).align.ssd.evttimes(:,4);
     for ssdpop=2:2:4
         % keep only files with non-null data (which had correct ssd)
         nz_idx=nansum(compgssdf(1,clusnum).align.ssd.(ssdtrialtype{ssdpop}),2)>0;
@@ -853,26 +662,34 @@ for clusnum=1:3
                 [popsdf-popci,fliplr(popsdf+popci)],...
                 lineStyles(1,:),'EdgeColor','none','FaceAlpha',0.1);
             lineh(ssdpop)=plot(popsdf,'LineWidth',2,'color',lineStyles(1,:));
+            % plot reward times
+            poprew=poprew(~isnan(poprew));
+            currylim=get(gca,'ylim');
+            for ppssrt=1:length(poprew)
+                rewph=patch([poprew(ppssrt)-1:poprew(ppssrt)+1 fliplr(poprew(ppssrt)-1:poprew(ppssrt)+1)], ...
+            reshape(repmat([currylim(1) currylim(2)],3,1),1,numel(currylim)*3), ...
+            [0.5 0.5 0.5],'EdgeColor','none','FaceAlpha',0.5);
+            end
         else
             patch([1:length(popci),fliplr(1:length(popci))],...
                 [popsdf-popci,fliplr(popsdf+popci)],...
                 lineStyles(3,:),'EdgeColor','none','FaceAlpha',0.1);
-            lineh(ssdpop)=plot(popsdf,'LineWidth',2,'color',lineStyles(ssdpop,:));
+            lineh(ssdpop)=plot(popsdf,'LineWidth',2,'color',lineStyles(3,:));
         end
     end
     currylim=get(gca,'ylim');
     patch([ssd_startstop(1)-2:ssd_startstop(1)+2 fliplr(ssd_startstop(1)-2:ssd_startstop(1)+2)], ...
         reshape(repmat([currylim(1) currylim(2)],5,1),1,numel(currylim)*5), ...
-        [0 0 0],'EdgeColor','none','FaceAlpha',0.5);
+        [0.2 0 0.4],'EdgeColor','none','FaceAlpha',0.5);
     hold off;
     %% beautify plot
-    set(gca,'XTick',[0:100:(ssd_startstop(2)+ssd_startstop(1))]);
-    set(gca,'XTickLabel',[-ssd_startstop(1):100:ssd_startstop(2)]);
+    set(gca,'XTick',[0:200:(ssd_startstop(2)+ssd_startstop(1))]);
+    set(gca,'XTickLabel',[-ssd_startstop(1):200:ssd_startstop(2)]);
     axis(gca,'tight'); box off;
     set(gca,'Color','white','TickDir','out','FontName','Cambria','FontSize',10);
     hxlabel=xlabel(gca,'Time (ms)','FontName','Cambria','FontSize',10);
     hylabel=ylabel(gca,'Firing rate (z-score)','FontName','Cambria','FontSize',10);
-    legh=legend(lineh(2:2:4),{'Latency Matched No Stop Signal','Stop Signal: Non Cancelled'});
+    legh=legend([lineh(2:2:4) rewph],{'Lat.Matched No Stop Signal','Stop Signal: Non Cancelled','Sac trials reward'});
     set(legh,'Interpreter','none','Location','NorthWest','Box', 'off','LineWidth',1.5,'FontName','Cambria','FontSize',9); % Interpreter prevents underscores turning character into subscript
     title(['Cluster' num2str(clusnum) ' NSS NCS Aligned to ssd'],'FontName','Cambria','FontSize',15);
     

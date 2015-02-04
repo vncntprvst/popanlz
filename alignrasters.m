@@ -314,7 +314,7 @@ while ~islast
                 % all, and just displaying the requested ones in
                 % rdd_rasters_sdf. VP 7/14/2012
                 
-                greytypes={'cue';'eyemvt';'fix';'fail'};
+                greytypes={'cue';'eyemvt';'fix';'rew';'fail'};
                 failedsac=0;
                 %caveat: some conditions may be 4 or 5 digits long,
                 %such as user defined codes such as TOKSWCD (1501)
