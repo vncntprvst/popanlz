@@ -4,27 +4,38 @@ if nargin<4
     method='hclus';
 end
 
+%% smooth sdfs
+sm_bnorm_sacresps=bnorm_sacresps;
+sm_rnorm_sacresps=rnorm_sacresps;
+for resp=1:size(bnorm_sacresps,1)         
+    sm_bnorm_sacresps(resp,:) = gauss_filtconv(bnorm_sacresps(resp,:),50);
+    sm_rnorm_sacresps(resp,:) = gauss_filtconv(rnorm_sacresps(resp,:),50);
+end
+
+%% activity profiles (used for seeds)
+midrange=size(bnorm_sacresps,2)/2;
+seeds=cellfun(@(x) mean(x(1,midrange-150:midrange-50))-mean(x(1,midrange+50:midrange+150)), mat2cell(bnorm_sacresps,ones(size(bnorm_sacresps,1),1)));
+wavedropseed=seeds==max(seeds);
+waveburstseed=seeds==min(seeds);
+waveflatseed=seeds==min(abs(seeds));
+seeds=[bnorm_sacresps(wavedropseed,:);...
+    bnorm_sacresps(waveburstseed,:);...
+     bnorm_sacresps(waveflatseed,:)];
+
+%% plot seeds
+% figure
+% plot(seeds(1,:))
+% hold on
+% plot(seeds(2,:),'r')
+% plot(seeds(3,:),'g')
+
+
 %%%%%%%%%%%%%%%%%%%%%%
     %% clusterization
 %%%%%%%%%%%%%%%%%%%%%%
 
 if strcmp(method,'kmean')
 %% k-means clustering
-% define seeds
-seeds=cellfun(@(x) mean(x(1,100:200))-mean(x(1,200:300)), mat2cell(bnorm_sacresps,ones(size(bnorm_sacresps,1),1)));
-wavedropseed=seeds==max(seeds);
-waveburstseed=seeds==min(seeds);
-waveflatseed=seeds==min(abs(seeds));
-seeds=[bnorm_sacresps(wavedropseed,:);...
-    bnorm_sacresps(waveburstseed,:);...
-    bnorm_sacresps(waveflatseed,:)];
-
-%% plot seeds
-figure
-plot(seeds(1,:))
-hold on
-plot(seeds(2,:),'r')
-plot(seeds(3,:),'g')
 
 %% calculate k-means
 % at random
@@ -92,6 +103,7 @@ elseif strcmp(method,'PCA')
 
 %% PCA clustering
 [coeffs,PrComps,latent] = pca(bnorm_sacresps);
+
 % D=coeffs(:,1:8)';
 % figure
 % plot(coeffs(:,1),'.','MarkerSize',.5)
@@ -240,7 +252,7 @@ end
 
 elseif strcmp(method,'hclus')
 %% Hierarchical clustering
-pairw_dist = pdist(rnorm_sacresps,'cityblock'); %'cityblock'
+pairw_dist = pdist(sm_rnorm_sacresps,'cityblock'); %'cityblock'
 squareform(pairw_dist);
 hc_links = linkage(pairw_dist,'average'); %'average'
 % dendrogram(hc_links);
@@ -253,21 +265,33 @@ hc_dissim = cophenet(hc_links,pairw_dist);
 % inc_coef_th=1.15;
 % hc_clus = cluster(hc_links,'cutoff',inc_coef_th);
 % or define number of cluster wanted
-hc_clus = cluster(hc_links,'maxclust',12);
+hc_clus = cluster(hc_links,'maxclust',6);
 
 % plot HC clusters
-% for hclus=1:12
-%     figure('name',['cluster' num2str(hclus)]);
+for hclus=1:6
+    figure('name',['cluster' num2str(hclus)]);
+    clusn=find(hc_clus==hclus);
+    subplotdim=[ceil(sqrt(numel(clusn))),ceil(sqrt(numel(clusn)))];
+    for sacplot=1:length(clusn)
+        subplot(subplotdim(1),subplotdim(2),sacplot)
+        plot(rnorm_sacresps(clusn(sacplot),:));
+        ylim=get(gca,'ylim');
+        set(gca,'ylim',[min(ylim(1),0) ylim(2)]);
+        text(10,ylim(2)-0.1,['sacplot ' num2str(clusn(sacplot))]);
+    end
+    % diffs
+%     figure('name',['cluster' num2str(hclus) 'diffs']);
 %     clusn=find(hc_clus==hclus);
 %     subplotdim=[ceil(sqrt(numel(clusn))),ceil(sqrt(numel(clusn)))];
 %     for sacplot=1:length(clusn)
 %         subplot(subplotdim(1),subplotdim(2),sacplot)
-%         plot(rnorm_sacresps(clusn(sacplot),:));
+%         smoothresp = gauss_filtconv(rnorm_sacresps(clusn(sacplot),:),50);
+%         plot(diff(smoothresp));
 %         ylim=get(gca,'ylim');
 %         set(gca,'ylim',[min(ylim(1),0) ylim(2)]);
 %         text(10,ylim(2)-0.1,['sacplot ' num2str(clusn(sacplot))]);
 %     end
-% end
+end
 end
 
 switch method
@@ -283,9 +307,50 @@ end
     %% cluster categories
 %%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%% plot average waveform
+%% refine clusters
+for clus=1:max(clusidx)
+    %PCA
+    clusresps=sm_bnorm_sacresps(clusidx==clus,:);
+    [~,PrComps] = pca(clusresps);
+
+    %% isolate clusters
+    FirstPrComps=[PrComps(:,1),PrComps(:,2)];
+    gmm_fit_clusters = gmdistribution.fit(FirstPrComps,3,...
+            'Start','randSample','Replicates',5,'Option',statset('Display','final')); % 3 clusters
+
+    % cluster and find posterior probability
+    ClusPr = posterior(gmm_fit_clusters,[PrComps(:,1),PrComps(:,2)]);
+    % add a 4th column for junk
+    ClusPr(max(ClusPr,[],2)<0.95,4)=1;
+    % classify into clusters (or junk)
+    [~,PCAclusidx] = max(ClusPr,[],2);
+%     maxClusPr = max(ClusPr(:,1:4),[],2);
+%     tabulate(PCAclusidx);
+    
+    % plot means
+      subclusmeans=[mean(clusresps(PCAclusidx==1,:));...
+                    mean(clusresps(PCAclusidx==2,:));...
+                    mean(clusresps(PCAclusidx==3,:));...
+                    mean(clusresps(PCAclusidx==4,:))];
+
+    % compare to reference (seeds), using mahal distance
+    % needs to reduce vectors to simpler values: take max diffs, and cumsu
+    subclusmeans_vals=[round(max(diff(subclusmeans,1,2),[],2).*10000) round(max(cumsum(abs(subclusmeans),2),[],2))]
+    
+    seeds=cellfun(@(x) mean(x(1,midrange-150:midrange-50))-mean(x(1,midrange+50:midrange+150)), mat2cell(bnorm_sacresps,ones(size(bnorm_sacresps,1),1)));
+    [~,seeds_vals_idx]=sort(seeds)
+    % 10 highest seed values
+    seeds_vals=bnorm_sacresps(seeds_vals_idx(end-10:end),:);
+    seeds_vals=[round(max(diff(seeds_vals,1,2),[],2).*10000) round(max(cumsum(abs(seeds_vals),2),[],2))]
+    d = mahal(subclusmeans_vals,seeds_vals)
+
+end
+
 % save clusters average waveform
-clusavwf=[];
+clusavwf=nan(length(unique(clusidx)),size(rnorm_sacresps,2));
+for hclus=1:length(unique(clusidx))
+    clusavwf(hclus,:)=mean(rnorm_sacresps(clusidx==hclus,:));
+end
 
 %% define cluster type
 % waiting for better method ...
