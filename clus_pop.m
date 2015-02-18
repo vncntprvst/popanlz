@@ -307,13 +307,13 @@ end
     %% cluster categories
 %%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%% refine clusters
+%% refine clusters and save average waveform
+clusavwf=nan(length(unique(clusidx)),size(rnorm_sacresps,2));
 for clus=1:max(clusidx)
-    %PCA
-    clusresps=sm_bnorm_sacresps(clusidx==clus,:);
+    % isolate 3 subclusters using PCA
+    subclusidx=find(clusidx==clus);
+    clusresps=sm_bnorm_sacresps(subclusidx,:);
     [~,PrComps] = pca(clusresps);
-
-    %% isolate clusters
     FirstPrComps=[PrComps(:,1),PrComps(:,2)];
     gmm_fit_clusters = gmdistribution.fit(FirstPrComps,3,...
             'Start','randSample','Replicates',5,'Option',statset('Display','final')); % 3 clusters
@@ -327,30 +327,34 @@ for clus=1:max(clusidx)
 %     maxClusPr = max(ClusPr(:,1:4),[],2);
 %     tabulate(PCAclusidx);
     
-    % plot means
-      subclusmeans=[mean(clusresps(PCAclusidx==1,:));...
-                    mean(clusresps(PCAclusidx==2,:));...
-                    mean(clusresps(PCAclusidx==3,:));...
-                    mean(clusresps(PCAclusidx==4,:))];
+    % keep means
+      subclusmeans=[nanmean(clusresps(PCAclusidx==1,:));...
+                    nanmean(clusresps(PCAclusidx==2,:));...
+                    nanmean(clusresps(PCAclusidx==3,:));...
+                    nanmean(clusresps(PCAclusidx==4,:))];
 
     % compare to reference (seeds), using mahal distance
     % needs to reduce vectors to simpler values: take max diffs, and cumsu
-    subclusmeans_vals=[round(max(diff(subclusmeans,1,2),[],2).*10000) round(max(cumsum(abs(subclusmeans),2),[],2))]
-    
+    subclusmeans_vals=[round(max(diff(subclusmeans,1,2),[],2).*10000) round(max(cumsum(abs(subclusmeans),2),[],2))];
     seeds=cellfun(@(x) mean(x(1,midrange-150:midrange-50))-mean(x(1,midrange+50:midrange+150)), mat2cell(bnorm_sacresps,ones(size(bnorm_sacresps,1),1)));
-    [~,seeds_vals_idx]=sort(seeds)
-    % 10 highest seed values
+    [~,seeds_vals_idx]=sort(seeds);
+    % compare to 10 highest seed values
     seeds_vals=bnorm_sacresps(seeds_vals_idx(end-10:end),:);
-    seeds_vals=[round(max(diff(seeds_vals,1,2),[],2).*10000) round(max(cumsum(abs(seeds_vals),2),[],2))]
-    d = mahal(subclusmeans_vals,seeds_vals)
-
+    seeds_vals=[round(max(diff(seeds_vals,1,2),[],2).*10000) round(max(cumsum(abs(seeds_vals),2),[],2))];
+    % get mahalanobis value
+    mahald = mahal(subclusmeans_vals,seeds_vals);
+    
+    % keep subclusters with mahal distance smaller than 5 (very lax)
+    % send the rest to a reclassify pool
+    resubclus=find([mahald>5 | isnan(mahald)]);
+    for reclus=1:size(resubclus,1)
+        clusidx(subclusidx(PCAclusidx==resubclus(reclus)))=-1;
+    end
+    
+    % save average waveform
+    clusavwf(clus,:)=mean(rnorm_sacresps(clusidx==clus,:));
 end
 
-% save clusters average waveform
-clusavwf=nan(length(unique(clusidx)),size(rnorm_sacresps,2));
-for hclus=1:length(unique(clusidx))
-    clusavwf(hclus,:)=mean(rnorm_sacresps(clusidx==hclus,:));
-end
 
 %% define cluster type
 % waiting for better method ...
