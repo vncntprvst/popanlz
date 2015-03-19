@@ -23,11 +23,11 @@ seeds=[bnorm_sacresps(wavedropseed,:);...
      bnorm_sacresps(waveflatseed,:)];
 
 %% plot seeds
-% figure
-% plot(seeds(1,:))
-% hold on
-% plot(seeds(2,:),'r')
-% plot(seeds(3,:),'g')
+figure
+plot(seeds(1,:))
+hold on
+plot(seeds(2,:),'r')
+plot(seeds(3,:),'g')
 
 
 %%%%%%%%%%%%%%%%%%%%%%
@@ -333,23 +333,34 @@ for clus=1:max(clusidx)
                     nanmean(clusresps(PCAclusidx==3,:));...
                     nanmean(clusresps(PCAclusidx==4,:))];
 
-    % compare to reference (seeds), using mahal distance
-    % needs to reduce vectors to simpler values: take max diffs, and cumsu
+    %% compare to reference (seeds), using mahal distance   
     subclusmeans_vals=[round(max(diff(subclusmeans,1,2),[],2).*10000) round(max(cumsum(abs(subclusmeans),2),[],2))];
-    seeds=cellfun(@(x) mean(x(1,midrange-150:midrange-50))-mean(x(1,midrange+50:midrange+150)), mat2cell(bnorm_sacresps,ones(size(bnorm_sacresps,1),1)));
-    [~,seeds_vals_idx]=sort(seeds);
-    % compare to 10 highest seed values
-    seeds_vals=bnorm_sacresps(seeds_vals_idx(end-10:end),:);
-    seeds_vals=[round(max(diff(seeds_vals,1,2),[],2).*10000) round(max(cumsum(abs(seeds_vals),2),[],2))];
-    % get mahalanobis value
-    mahald = mahal(subclusmeans_vals,seeds_vals);
+    midrangeseeds=cellfun(@(x) mean(x(1,midrange-150:midrange-50))-mean(x(1,midrange+50:midrange+150)), mat2cell(bnorm_sacresps,ones(size(bnorm_sacresps,1),1)));  
+    peakseeds=cellfun(@(x) (mean(x(1,midrange+50:midrange+100))-mean(x(1,midrange-150:midrange-50)))+...
+        (mean(x(1,midrange+50:midrange+100))-mean(x(1,midrange+100:midrange+200))), mat2cell(bnorm_sacresps,ones(size(bnorm_sacresps,1),1)));  
+    outerrangeseeds=cellfun(@(x) mean(x(1,length(x)-150:length(x)-1))-mean(x(1,1:150)), mat2cell(bnorm_sacresps,ones(size(bnorm_sacresps,1),1)));  
     
-    % keep subclusters with mahal distance smaller than 5 (very lax)
-    % send the rest to a reclassify pool
-    resubclus=find([mahald>5 | isnan(mahald)]);
+    % Make seed that represent midrange drop / midrange burst / ramp to end
+    [~,mrseeds_vals_idx]=sort(midrangeseeds);
+    [~,pkseeds_vals_idx]=sort(peakseeds);
+    [~,orseeds_vals_idx]=sort(outerrangeseeds);
+    % compare to 10 highest seed values
+    drop_seeds_vals=bnorm_sacresps(mrseeds_vals_idx(end-10:end),:); 
+    burst_seeds_vals=bnorm_sacresps(pkseeds_vals_idx(end-10:end),:); 
+    rampatw_seeds_vals=bnorm_sacresps(orseeds_vals_idx(end-10:end),:); 
+    % needs to reduce vectors to simpler values: take max diffs, and cumsu
+    drop_seeds_vals=[round(max(diff(drop_seeds_vals,1,2),[],2).*10000) round(max(cumsum(abs(drop_seeds_vals),2),[],2))];
+    burst_seeds_vals=[round(max(diff(burst_seeds_vals,1,2),[],2).*10000) round(max(cumsum(abs(burst_seeds_vals),2),[],2))];
+    rampatw_seeds_vals=[round(max(diff(rampatw_seeds_vals,1,2),[],2).*10000) round(max(cumsum(abs(rampatw_seeds_vals),2),[],2))];
+    % get mahalanobis value for each seed comparison
+    mahald = [mahal(subclusmeans_vals,drop_seeds_vals) mahal(subclusmeans_vals,burst_seeds_vals) mahal(subclusmeans_vals,rampatw_seeds_vals)];
+    % keep subclusters with mean mahal distance smaller than 3
+    % classify the rest or send to a common pool
+    resubclus=find([mean(round(mahald),2)>3 | isnan(mean(mahald,2))]);
     for reclus=1:size(resubclus,1)
         clusidx(subclusidx(PCAclusidx==resubclus(reclus)))=-1;
     end
+    mahald==min(mahald(:,1)) |  mahald==min(mahald(:,2)) | mahald==min(mahald(:,3))
     
     % save average waveform
     clusavwf(clus,:)=mean(rnorm_sacresps(clusidx==clus,:));
