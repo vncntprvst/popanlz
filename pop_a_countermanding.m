@@ -88,21 +88,22 @@ rnorm_sacresps=(sacresps-repmat(sacresp_mean',1,size(sacresps,2)))./repmat(sacre
 if recluster
     method='hclus';
     [clusidx,clustypes,clusavwf]=clus_pop(sacresps,bnorm_sacresps,rnorm_sacresps,method);
+    [clusidx,sortidx]=sort(clusidx)
     
     figure
-subplot(1,2,1)
-imagesc(1:size(bnorm_sacresps,2),1:size(bnorm_sacresps,1),bnorm_sacresps)
-set(gca,'FontSize',18);
-xlabel('Time')
-ylabel('Cell Response Number')
-title('Unsorted')
+    subplot(1,2,1)
+    imagesc(1:size(bnorm_sacresps,2),1:size(bnorm_sacresps,1),bnorm_sacresps)
+    set(gca,'FontSize',18);
+    xlabel('Time')
+    ylabel('Cell Response Number')
+    title('Unsorted')
 
-subplot(1,2,2)
-imagesc(1:size(bnorm_sacresps,2),1:size(bnorm_sacresps,1),bnorm_sacresps(clusidx,:))
-set(gca,'FontSize',18);
-xlabel('Time')
-ylabel('Cell Response Number')
-title('Sorted')
+    subplot(1,2,2)
+    imagesc(1:size(bnorm_sacresps,2),1:size(bnorm_sacresps,1),bnorm_sacresps(sortidx,:))
+    set(gca,'FontSize',18);
+    xlabel('Time')
+    ylabel('Cell Response Number')
+    title('Sorted')
     
     % add / change unit's profile
     conn
