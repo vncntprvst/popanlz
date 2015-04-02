@@ -88,22 +88,46 @@ rnorm_sacresps=(sacresps-repmat(sacresp_mean',1,size(sacresps,2)))./repmat(sacre
 if recluster
     method='hclus';
     [clusidx,clustypes,clusavwf]=clus_pop(sacresps,bnorm_sacresps,rnorm_sacresps,method);
-    [clusidx,sortidx]=sort(clusidx)
-    
-    figure
-    subplot(1,2,1)
-    imagesc(1:size(bnorm_sacresps,2),1:size(bnorm_sacresps,1),bnorm_sacresps)
-    set(gca,'FontSize',18);
-    xlabel('Time')
-    ylabel('Cell Response Number')
-    title('Unsorted')
+    [~,sortidx]=sort(clusidx)
+    clusid=unique(clusidx);
 
-    subplot(1,2,2)
-    imagesc(1:size(bnorm_sacresps,2),1:size(bnorm_sacresps,1),bnorm_sacresps(sortidx,:))
-    set(gca,'FontSize',18);
+    %population raster
+figure('name','population raster')
+subplot(1,20,1:9)
+imagesc(1:size(bnorm_sacresps,2),1:size(bnorm_sacresps,1),bnorm_sacresps)
+set(gca,'FontSize',18);
+xlabel('Time')
+ylabel('Neuron #')
+title('Unsorted')
+subplot(1,20,12:19)
+imagesc(1:size(bnorm_sacresps,2),1:size(bnorm_sacresps,1),bnorm_sacresps(sortidx,:))
+set(gca,'FontSize',18);
+xlabel('Time')
+ylabel('Neuron #')
+title('Sorted by cluster')
+rangesph=subplot(1,20,20)
+clusrange=[zeros(sum(clusidx==clusid(1)),5);ones(sum(clusidx==clusid(2)),5);...
+zeros(sum(clusidx==clusid(3)),5);ones(sum(clusidx==clusid(4)),5);zeros(sum(clusidx==clusid(5)),5)];
+imagesc(clusrange)
+set(gca,'XTick', [],'XTickLabel',[],'YTick', [],'YTickLabel',[]);
+cd('E:\BoxSync\Box Sync\Home Folder vp35\Sync\SommerLab\projects\countermanding\popclusters')
+exportfigname='population raster';
+%     print(gcf, '-dpng', '-noui', '-opengl','-r600', exportfigname);
+plot2svg([exportfigname,'.svg'],gcf, 'png');
+    
+    % clusters mean response
+figure('name','clusters mean response')
+cmrtitles={'Unsorted','ramp & fall','burst','ramp all the way','ramp down'};
+for mclussp=1:length(unique(clusidx))
+    subplot(5,1,mclussp)
+    plot(clusavwf(mclussp,:));
     xlabel('Time')
-    ylabel('Cell Response Number')
-    title('Sorted')
+    ylabel('Norm. Firing rate')
+    title(cmrtitles{mclussp})
+    set(gca,'xtick',1:100:clusavwf(mclussp,:),'xticklabel',1:100:clusavwf(mclussp,:),'TickDir','out');
+    set(gca,'Color','white','FontSize',18,'FontName','calibri');
+    axis(gca,'tight'); box off;
+end
     
     % add / change unit's profile
     conn

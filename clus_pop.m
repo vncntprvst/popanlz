@@ -42,23 +42,31 @@ opti_clusnm=find(davies_index(2:end)==max(davies_index(2:end)))+1;
 %% activity profiles (used for seeds)
 midrange=size(bnorm_sacresps,2)/2;
 
-% Make seed that represent midrange drop / midrange burst / ramp to end
+% Make seed that represent midrange drop / midrange burst / ramp to end /
+% ramp down
 midrangeseeds=cellfun(@(x) mean(x(1,midrange-150:midrange-50))-mean(x(1,midrange+50:midrange+150)), mat2cell(bnorm_sacresps,ones(size(bnorm_sacresps,1),1)));
+% for ramps all the way up, or down, keep only non-bursting / falling % response (~monotonic)
+leastdiff_bnorm_sacresps=bnorm_sacresps(max(abs(diff(bnorm_sacresps)),[],2)<5,:);
+outerrangeseeds=cellfun(@(x) mean(x(1,length(x)-150:length(x)-1))-mean(x(1,1:150)), mat2cell(leastdiff_bnorm_sacresps,ones(size(leastdiff_bnorm_sacresps,1),1)));
+% diff sort works for peaks as well, by opposition, and could be used
+% to separate sharp bursts from smoth bursts (and template 2 from 3 apparently):
+% [~,pkseeds_vals_idx]=sort(max(abs(diff(bnorm_sacresps)),[],2),'descend');
 peakseeds=cellfun(@(x) (mean(x(1,midrange+50:midrange+100))-mean(x(1,midrange-150:midrange-50)))+...
-    (mean(x(1,midrange+50:midrange+100))-mean(x(1,midrange+100:midrange+200))), mat2cell(bnorm_sacresps,ones(size(bnorm_sacresps,1),1)));
-outerrangeseeds=cellfun(@(x) mean(x(1,length(x)-150:length(x)-1))-mean(x(1,1:150)), mat2cell(bnorm_sacresps,ones(size(bnorm_sacresps,1),1)));
+   (mean(x(1,midrange+50:midrange+100))-mean(x(1,midrange+100:midrange+200))), mat2cell(bnorm_sacresps,ones(size(bnorm_sacresps,1),1)));
 
 % keep 10 highest seed values
 [~,mrseeds_vals_idx]=sort(midrangeseeds);
 [~,pkseeds_vals_idx]=sort(peakseeds);
 [~,orseeds_vals_idx]=sort(outerrangeseeds);
 drop_seeds_vals=bnorm_sacresps(mrseeds_vals_idx(end-10:end),:);
-burst_seeds_vals=bnorm_sacresps(pkseeds_vals_idx(end-10:end),:);
-rampatw_seeds_vals=bnorm_sacresps(orseeds_vals_idx(end-10:end),:);
+burst_seeds_vals=bnorm_sacresps(pkseeds_vals_idx(end-10:end),:); %(1:11),:); 
+rampatw_seeds_vals=leastdiff_bnorm_sacresps(orseeds_vals_idx(end-10:end),:);
+rampdown_seeds_vals=leastdiff_bnorm_sacresps(orseeds_vals_idx(1:11),:);
 
 seeds=[nanmean(drop_seeds_vals);...
     nanmean(burst_seeds_vals);...
-    nanmean(rampatw_seeds_vals)];
+    nanmean(rampatw_seeds_vals);...
+    nanmean(rampdown_seeds_vals)];
 
 % create parameters for fit template function
 xfit_vals=linspace(1,size(seeds,2),size(seeds,2));
@@ -68,6 +76,7 @@ burst_seed_polyf = polyfit(xfit_vals,seeds(2,:),5);
 % burst_yfit_vals=polyval(burst_seed_polyf,xfit_vals);
 rampatw_seed_polyf = polyfit(xfit_vals,seeds(3,:),5);
 % rampatw_yfit_vals=polyval(rampatw_seed_polyf,xfit_vals);
+rampdown_seed_polyf = polyfit(xfit_vals,seeds(4,:),5);
 
 % for i=1:20
 %     figure; plot(bnorm_sacresps(i,:));
@@ -376,12 +385,13 @@ for clus=1:max(clusidx)
     %
     
     if size(clusresps,1)==1 %skip other niceties
-        varminshift=nan(size(clusresps,1),4);
+        varminshift=nan(size(clusresps,1),5);
         varminshift(:,1)=var(clusresps,0,2);
         for respsnm=1:size(clusresps,1)
             [~,varminshift(respsnm,2)] = fminsearch(@(shift) template_curve_match(shift,xfit_vals,clusresps(respsnm,:),drop_seed_polyf), 250);
             [~,varminshift(respsnm,3)] = fminsearch(@(shift) template_curve_match(shift,xfit_vals,clusresps(respsnm,:),burst_seed_polyf), 250);
             [~,varminshift(respsnm,4)] = fminsearch(@(shift) template_curve_match(shift,xfit_vals,clusresps(respsnm,:),rampatw_seed_polyf), 250);
+            [~,varminshift(respsnm,5)] = fminsearch(@(shift) template_curve_match(shift,xfit_vals,clusresps(respsnm,:),rampdown_seed_polyf), 250);
         end
         [~,besttempl]=min(varminshift(:,2:4),[],2);
         if varminshift(1)>0.5 & varminshift(besttempl)<0.5 %save it
@@ -429,17 +439,23 @@ for clus=1:max(clusidx)
 %     text(PrComps(:,1), PrComps(:,2),num2str(rot90(size(PrComps(:,1),1):-1:1)));
 
     % find best template by minimizing shift
-    varminshift=nan(size(clusresps,1),4);
+    varminshift=nan(size(clusresps,1),5);
     varminshift(:,1)=var(clusresps,0,2);
     for respsnm=1:size(clusresps,1)
+%         max(abs(diff(rnorm_sacresps(subclusidx(respsnm),:))),[],2)
         [~,varminshift(respsnm,2)] = fminsearch(@(shift) template_curve_match(shift,xfit_vals,clusresps(respsnm,:),drop_seed_polyf), 250);
         [~,varminshift(respsnm,3)] = fminsearch(@(shift) template_curve_match(shift,xfit_vals,clusresps(respsnm,:),burst_seed_polyf), 250);
         [~,varminshift(respsnm,4)] = fminsearch(@(shift) template_curve_match(shift,xfit_vals,clusresps(respsnm,:),rampatw_seed_polyf), 250);
+        [~,varminshift(respsnm,5)] = fminsearch(@(shift) template_curve_match(shift,xfit_vals,clusresps(respsnm,:),rampdown_seed_polyf), 250);
     end
+
+    % find responses with sharp shifts and pre-set their template profile
+%     [foo,faa]=sort(mean(abs(diff(clusresps,1,2)),2),'descend')
+    varminshift(mean(abs(diff(clusresps,1,2)),2)>0.02,4:5)=ones(sum(mean(abs(diff(clusresps,1,2)),2)>0.02),2).*100;
     
     if strcmp(option,'round1')      
         %tag other responses according to best template matching
-        [~,besttempl]=min(varminshift(:,2:4),[],2);
+        [~,besttempl]=min(varminshift(:,2:5),[],2);
         clusidx(subclusidx(varminshift(:,1)>1))=besttempl(varminshift(:,1)>1)+100;
         %tag responses with variance <1 to trash/recluster pool
         clusidx(subclusidx(varminshift(:,1)<1))=-1;
@@ -464,7 +480,7 @@ for clus=1:max(clusidx)
         % by default tag all response as junk
         clusidx(subclusidx(varminshift(:,1)<1))=-1;
         %but save those with high enough variance and very good template fit 
-        [~,besttempl]=min(varminshift(:,2:4),[],2);
+        [~,besttempl]=min(varminshift(:,2:5),[],2);
         gdfit_jk=varminshift(:,1)'>0.1 & varminshift(sub2ind(size(varminshift),1:size(varminshift,1),(besttempl+1)'))<0.1 ;
         matchtp=unique(besttempl(gdfit_jk));
         if ~isempty(matchtp) %not low variance cluster
@@ -497,12 +513,13 @@ for clus=1:max(clusidx)
 end
 
     %% define cluster type
-    clustypes={'rampup','sacburst','ramp_to_reward','junk'};
+    clustypes={'rampup','sacburst','ramp_to_reward','ramp_all_down','junk'};
     allclustypes=cell(size(clusidx));
     allclustypes(clusidx==101)=clustypes(1);
     allclustypes(clusidx==102)=clustypes(2);
     allclustypes(clusidx==103)=clustypes(3);
-    allclustypes(clusidx==-1)=clustypes(4);
+    allclustypes(clusidx==104)=clustypes(4);
+    allclustypes(clusidx==-1)=clustypes(5);
 
 %% recluster discarded responses
 if strcmp(option,'round1')
@@ -621,9 +638,11 @@ end
 % Include template in clustering, get distance and residuals, classify accordingly
 
 %% save average waveform
-clusavwf=nan(length(unique(clusidx)),size(rnorm_sacresps,2));
-clusavwf(clus,:)=mean(rnorm_sacresps(clusidx==clus,:));
-
+clusid=unique(clusidx);
+clusavwf=nan(length(clusid),size(rnorm_sacresps,2));
+for clus=1:length(clusid)
+clusavwf(clus,:)=nanmean(bnorm_sacresps(clusidx==clusid(clus),:));
+end
 end
 
 
