@@ -41,27 +41,28 @@ opti_clusnm=find(davies_index(2:end)==max(davies_index(2:end)))+1;
 
 %% activity profiles (used for seeds)
 midrange=size(bnorm_sacresps,2)/2;
-
-% Make seed that represent midrange drop / midrange burst / ramp to end /
-% ramp down
-midrangeseeds=cellfun(@(x) mean(x(1,midrange-150:midrange-50))-mean(x(1,midrange+50:midrange+150)), mat2cell(bnorm_sacresps,ones(size(bnorm_sacresps,1),1)));
-% for ramps all the way up, or down, keep only non-bursting / falling % response (~monotonic)
+% Make seed that represent midrange drop / midrange burst / ramp to end / ramp down
+midrangedropseeds=cellfun(@(x) mean(x(1,midrange-150:midrange-50))-mean(x(1,midrange+50:midrange+150)), mat2cell(bnorm_sacresps,ones(size(bnorm_sacresps,1),1)));
+% ramp to end
+outerrangerampseeds=cellfun(@(x) mean(x(1,length(x)-150:length(x)-1))-mean(x(1,1:150)), mat2cell(bnorm_sacresps,ones(size(bnorm_sacresps,1),1)));
+% for ramps all the way down, keep only non-bursting / falling response (~monotonic)
 leastdiff_bnorm_sacresps=bnorm_sacresps(max(abs(diff(bnorm_sacresps)),[],2)<5,:);
-outerrangeseeds=cellfun(@(x) mean(x(1,length(x)-150:length(x)-1))-mean(x(1,1:150)), mat2cell(leastdiff_bnorm_sacresps,ones(size(leastdiff_bnorm_sacresps,1),1)));
+outerrangerampdownseeds=cellfun(@(x) mean(x(1,length(x)-150:length(x)-1))-mean(x(1,1:150)), mat2cell(leastdiff_bnorm_sacresps,ones(size(leastdiff_bnorm_sacresps,1),1)));
 % diff sort works for peaks as well, by opposition, and could be used
 % to separate sharp bursts from smoth bursts (and template 2 from 3 apparently):
 % [~,pkseeds_vals_idx]=sort(max(abs(diff(bnorm_sacresps)),[],2),'descend');
-peakseeds=cellfun(@(x) (mean(x(1,midrange+50:midrange+100))-mean(x(1,midrange-150:midrange-50)))+...
-   (mean(x(1,midrange+50:midrange+100))-mean(x(1,midrange+100:midrange+200))), mat2cell(bnorm_sacresps,ones(size(bnorm_sacresps,1),1)));
+midrangepeakseeds=cellfun(@(x) (mean(x(1,midrange+50:midrange+100))-mean(x(1,midrange-150:midrange-50)))+...
+    (mean(x(1,midrange+50:midrange+100))-mean(x(1,midrange+100:midrange+200))), mat2cell(bnorm_sacresps,ones(size(bnorm_sacresps,1),1)));
 
 % keep 10 highest seed values
-[~,mrseeds_vals_idx]=sort(midrangeseeds);
-[~,pkseeds_vals_idx]=sort(peakseeds);
-[~,orseeds_vals_idx]=sort(outerrangeseeds);
-drop_seeds_vals=bnorm_sacresps(mrseeds_vals_idx(end-10:end),:);
-burst_seeds_vals=bnorm_sacresps(pkseeds_vals_idx(end-10:end),:); %(1:11),:); 
-rampatw_seeds_vals=leastdiff_bnorm_sacresps(orseeds_vals_idx(end-10:end),:);
-rampdown_seeds_vals=leastdiff_bnorm_sacresps(orseeds_vals_idx(1:11),:);
+[~,mrdropseeds_vals_idx]=sort(midrangedropseeds);
+[~,mrpkseeds_vals_idx]=sort(midrangepeakseeds);
+[~,orruseeds_vals_idx]=sort(outerrangerampseeds);
+[~,orrdseeds_vals_idx]=sort(outerrangerampdownseeds);
+drop_seeds_vals=bnorm_sacresps(mrdropseeds_vals_idx(end-10:end),:);
+burst_seeds_vals=bnorm_sacresps(mrpkseeds_vals_idx(end-10:end),:); %(1:11),:);
+rampatw_seeds_vals=bnorm_sacresps(orruseeds_vals_idx(end-10:end),:);
+rampdown_seeds_vals=leastdiff_bnorm_sacresps(orrdseeds_vals_idx(1:11),:);
 
 seeds=[nanmean(drop_seeds_vals);...
     nanmean(burst_seeds_vals);...
@@ -401,65 +402,83 @@ for clus=1:max(clusidx)
         end
         continue
     end
-
+    
     % isolate clusters using PCA
     [~,PrComps] = pca(clusresps);
     FirstPrComps=[PrComps(:,1),PrComps(:,2)];
     
     %fit gaussiam mixture model
-    try 
+    try
         gmm_fit_clusters = gmdistribution.fit(FirstPrComps,2,...
-    'Start','randSample','Replicates',5);
-    catch 
+            'Start','randSample','Replicates',5);
+    catch
         %try again
-        gmm_fit_clusters = gmdistribution.fit(FirstPrComps,2,...
-    'Start','randSample','Replicates',5);
+        try
+            gmm_fit_clusters = gmdistribution.fit(FirstPrComps,2,...
+                'Start','randSample','Replicates',5);
+        catch
+            %and again
+            try 
+                gmm_fit_clusters = gmdistribution.fit(FirstPrComps,2,...
+                'Start','randSample','Replicates',5);
+            catch
+                if strcmp(option,'round3')
+                    [gmm_fit_clusters,PCAclusidx]=deal([]);
+                end
+            end
+        end
     end
     if strcmp(lastwarn,...
-        ['Failed to converge in 100 iterations duringreplicate 4 for gmdistribution with ' num2str(2) ' components'])
+            ['Failed to converge in 100 iterations duringreplicate 4 for gmdistribution with ' num2str(2) ' components'])
         %try again
-    gmm_fit_clusters = gmdistribution.fit(FirstPrComps,2,...
-        'Start','randSample','Replicates',5);
+        gmm_fit_clusters = gmdistribution.fit(FirstPrComps,2,...
+            'Start','randSample','Replicates',5);
     end
     
-    % cluster and find posterior probability
-    ClusPr = posterior(gmm_fit_clusters,[PrComps(:,1),PrComps(:,2)]);
-    % add a n+1th column for outcasts
-    ClusPr(max(ClusPr,[],2)<0.95,3)=1;
-    % classify into clusters (or outcasts / junk)
-    [~,PCAclusidx] = max(ClusPr,[],2);
+    if ~isempty(gmm_fit_clusters)
+        % cluster and find posterior probability
+        ClusPr = posterior(gmm_fit_clusters,[PrComps(:,1),PrComps(:,2)]);
+        % add a n+1th column for outcasts
+        ClusPr(max(ClusPr,[],2)<0.95,3)=1;
+        % classify into clusters (or outcasts / junk)
+        [~,PCAclusidx] = max(ClusPr,[],2);
+    end
     
     %PCA plot
-%     figure
-%     scatter(PrComps(:,1), PrComps(:,2), 'k.');
-%     xlabel('PC 1'); ylabel('PC 2')
-%     hold on
-%     clusgmmfith = ezcontour(@(x,y)pdf(gmm_fit_clusters,[x y]),[min(PrComps(:,1))-1 max(PrComps(:,1))+1],[min(PrComps(:,2))-1 max(PrComps(:,2))+1]);
-%     gscatter(FirstPrComps(:,1), FirstPrComps(:,2), PCAclusidx);
-%     text(PrComps(:,1), PrComps(:,2),num2str(rot90(size(PrComps(:,1),1):-1:1)));
-
+    %     figure
+    %     scatter(PrComps(:,1), PrComps(:,2), 'k.');
+    %     xlabel('PC 1'); ylabel('PC 2')
+    %     hold on
+    %     clusgmmfith = ezcontour(@(x,y)pdf(gmm_fit_clusters,[x y]),[min(PrComps(:,1))-1 max(PrComps(:,1))+1],[min(PrComps(:,2))-1 max(PrComps(:,2))+1]);
+    %     gscatter(FirstPrComps(:,1), FirstPrComps(:,2), PCAclusidx);
+    %     text(PrComps(:,1), PrComps(:,2),num2str(rot90(size(PrComps(:,1),1):-1:1)));
+    
     % find best template by minimizing shift
     varminshift=nan(size(clusresps,1),5);
     varminshift(:,1)=var(clusresps,0,2);
     for respsnm=1:size(clusresps,1)
-%         max(abs(diff(rnorm_sacresps(subclusidx(respsnm),:))),[],2)
+        %         max(abs(diff(rnorm_sacresps(subclusidx(respsnm),:))),[],2)
         [~,varminshift(respsnm,2)] = fminsearch(@(shift) template_curve_match(shift,xfit_vals,clusresps(respsnm,:),drop_seed_polyf), 250);
         [~,varminshift(respsnm,3)] = fminsearch(@(shift) template_curve_match(shift,xfit_vals,clusresps(respsnm,:),burst_seed_polyf), 250);
         [~,varminshift(respsnm,4)] = fminsearch(@(shift) template_curve_match(shift,xfit_vals,clusresps(respsnm,:),rampatw_seed_polyf), 250);
-        [~,varminshift(respsnm,5)] = fminsearch(@(shift) template_curve_match(shift,xfit_vals,clusresps(respsnm,:),rampdown_seed_polyf), 250);
+        if strcmp(option,'round3')
+            [~,varminshift(respsnm,5)] = fminsearch(@(shift) template_curve_match(shift,xfit_vals,clusresps(respsnm,:),rampdown_seed_polyf), 250);
+        else
+            varminshift(respsnm,5) = 100;
+        end
     end
-
-    % find responses with sharp shifts and pre-set their template profile
-%     [foo,faa]=sort(mean(abs(diff(clusresps,1,2)),2),'descend')
-    varminshift(mean(abs(diff(clusresps,1,2)),2)>0.02,4:5)=ones(sum(mean(abs(diff(clusresps,1,2)),2)>0.02),2).*100;
     
-    if strcmp(option,'round1')      
+    if strcmp(option,'round1')
+        % find responses with sharp shifts and pre-set their template
+        % profile, because templates 4 /5 fit too easily to data
+        %       [foo,faa]=sort(mean(abs(diff(clusresps,1,2)),2),'descend')
+        varminshift(mean(abs(diff(clusresps,1,2)),2)>0.02,4:5)=ones(sum(mean(abs(diff(clusresps,1,2)),2)>0.02),2).*100; %replace 4 and 5 values by 100
         %tag other responses according to best template matching
         [~,besttempl]=min(varminshift(:,2:5),[],2);
         clusidx(subclusidx(varminshift(:,1)>1))=besttempl(varminshift(:,1)>1)+100;
         %tag responses with variance <1 to trash/recluster pool
         clusidx(subclusidx(varminshift(:,1)<1))=-1;
-        %but save the ones closest to the best template-matching response 
+        %but save the ones closest to the best template-matching response
         % (that might 'convert" some good ones as well, not a bad idea
         matchtp=unique(besttempl(varminshift(:,1)>1));
         if ~isempty(matchtp) %not low variance cluster
@@ -473,34 +492,74 @@ for clus=1:max(clusidx)
             end
             bestrespFPC=FirstPrComps(bestmtresp,:);
             bestrespFPC_buddies=PrComps(:,1)>bestrespFPC(1)-clus_std(1)/2 & PrComps(:,1)<bestrespFPC(1)+clus_std(1)/2 &...
-            PrComps(:,2)>bestrespFPC(2)-clus_std(2)/2 & PrComps(:,2)<bestrespFPC(1)+clus_std(2)/2;
-            clusidx(subclusidx(bestrespFPC_buddies))=besttempl(bestmtresp)+100;  
+                PrComps(:,2)>bestrespFPC(2)-clus_std(2)/2 & PrComps(:,2)<bestrespFPC(1)+clus_std(2)/2;
+            clusidx(subclusidx(bestrespFPC_buddies))=besttempl(bestmtresp)+100;
         end
     elseif strcmp(option,'round2')
         % by default tag all response as junk
         clusidx(subclusidx(varminshift(:,1)<1))=-1;
-        %but save those with high enough variance and very good template fit 
+        %but save those with high enough variance and bad 4/5 match
         [~,besttempl]=min(varminshift(:,2:5),[],2);
+        tosave_idx=varminshift(:,1)>0.5 & min(varminshift(:,4:5),[],2)>0.1;
+        %         varminshift(tosave_idx,4:5)=ones(sum(tosave_idx),2).*100; %replace 4 and 5 values by 100
+        [~,besttrctempl]=min(varminshift(tosave_idx,2:3),[],2);
+        clusidx(subclusidx(tosave_idx))=besttrctempl+100;
+        % and those with high enough variance and very good template fit
         gdfit_jk=varminshift(:,1)'>0.1 & varminshift(sub2ind(size(varminshift),1:size(varminshift,1),(besttempl+1)'))<0.1 ;
         matchtp=unique(besttempl(gdfit_jk));
         if ~isempty(matchtp) %not low variance cluster
             if length(matchtp)==1 %save all - good cluster
                 clusidx(subclusidx(gdfit_jk))=besttempl(gdfit_jk)+100;
             else
-                % save the best element and its neighbours 
+                % save the best element and its neighbours
+                nlvarclus=find(varminshift(:,1)>0.1);
                 matchnb=arrayfun(@(x) besttempl(gdfit_jk)==x, matchtp,'UniformOutput',false);
-                bestmtresp_var=min(varminshift(:,matchtp(cellfun(@(x)sum(x),matchnb)==max(cellfun(@(x)sum(x),matchnb)))+1));
-                bestmtresp=varminshift(:,matchtp(cellfun(@(x)sum(x),matchnb)==max(cellfun(@(x)sum(x),matchnb)))+1)==bestmtresp_var;
+                bestmtresp_var=min(varminshift(nlvarclus,matchtp(cellfun(@(x)sum(x),matchnb)==max(cellfun(@(x)sum(x),matchnb)))+1));
+                bestmtresp=varminshift(nlvarclus,matchtp(cellfun(@(x)sum(x),matchnb)==max(cellfun(@(x)sum(x),matchnb)))+1)==bestmtresp_var;
                 try
-                    clus_std = sqrt(diag(gmm_fit_clusters.Sigma(:,:,PCAclusidx(bestmtresp))));
+                    clus_std = sqrt(diag(gmm_fit_clusters.Sigma(:,:,PCAclusidx(nlvarclus(bestmtresp)))));
                 catch
                     clus_std = sqrt(diag(gmm_fit_clusters.Sigma(:,:,PCAclusidx(1))));
                 end
-                bestrespFPC=FirstPrComps(bestmtresp,:);
+                bestrespFPC=FirstPrComps(nlvarclus(bestmtresp),:);
                 bestrespFPC_buddies=PrComps(:,1)>bestrespFPC(1)-clus_std(1)/2 & PrComps(:,1)<bestrespFPC(1)+clus_std(1)/2 &...
-                PrComps(:,2)>bestrespFPC(2)-clus_std(2)/2 & PrComps(:,2)<bestrespFPC(1)+clus_std(2)/2;
-                clusidx(subclusidx(bestrespFPC_buddies))=besttempl(bestmtresp)+100;  
+                    PrComps(:,2)>bestrespFPC(2)-clus_std(2)/2 & PrComps(:,2)<bestrespFPC(1)+clus_std(2)/2;
+                clusidx(subclusidx(bestrespFPC_buddies))=besttempl(nlvarclus(bestmtresp))+100;
             end
+        end
+    elseif strcmp(option,'round3')
+        % by default tag all response as junk
+        clusidx(subclusidx(varminshift(:,1)<1))=-1;
+        % save those with high enough variance and really good template fit
+        [~,besttempl]=min(varminshift(:,2:5),[],2);
+        gdfit_jk=varminshift(:,1)'>0.1 & varminshift(sub2ind(size(varminshift),1:size(varminshift,1),(besttempl+1)'))<0.07 ;
+        matchtp=unique(besttempl(gdfit_jk));
+        if ~isempty(matchtp) %not low variance cluster
+            if length(matchtp)==1 %save all - good cluster
+                clusidx(subclusidx(gdfit_jk))=besttempl(gdfit_jk)+100;
+            elseif length(matchtp)> 1 & ~isempty(PCAclusidx)
+                % save the best element and its neighbours
+                nlvarclus=find(varminshift(:,1)>0.1);
+                matchnb=arrayfun(@(x) besttempl(gdfit_jk)==x, matchtp,'UniformOutput',false);
+                bestmtresp_var=min(varminshift(nlvarclus,matchtp(cellfun(@(x)sum(x),matchnb)==max(cellfun(@(x)sum(x),matchnb)))+1));
+                bestmtresp=varminshift(nlvarclus,matchtp(cellfun(@(x)sum(x),matchnb)==max(cellfun(@(x)sum(x),matchnb)))+1)==bestmtresp_var;
+                try
+                    clus_std = sqrt(diag(gmm_fit_clusters.Sigma(:,:,PCAclusidx(nlvarclus(bestmtresp)))));
+                catch
+                    clus_std = sqrt(diag(gmm_fit_clusters.Sigma(:,:,PCAclusidx(1))));
+                end
+                bestrespFPC=FirstPrComps(nlvarclus(bestmtresp),:);
+                bestrespFPC_buddies=PrComps(:,1)>bestrespFPC(1)-clus_std(1)/2 & PrComps(:,1)<bestrespFPC(1)+clus_std(1)/2 &...
+                    PrComps(:,2)>bestrespFPC(2)-clus_std(2)/2 & PrComps(:,2)<bestrespFPC(1)+clus_std(2)/2;
+                clusidx(subclusidx(bestrespFPC_buddies))=besttempl(nlvarclus(bestmtresp))+100;
+            elseif length(matchtp)> 1 & isempty(PCAclusidx)
+                %we'll see 
+                varminshift
+            end
+        else
+            % save some craggy ramp
+            gdfit_jk=varminshift(:,1)>0.2 & varminshift(:,2)<0.4 ;
+            clusidx(subclusidx(gdfit_jk))=101;
         end
     end
     
@@ -512,21 +571,29 @@ for clus=1:max(clusidx)
     
 end
 
-    %% define cluster type
-    clustypes={'rampup','sacburst','ramp_to_reward','ramp_all_down','junk'};
-    allclustypes=cell(size(clusidx));
-    allclustypes(clusidx==101)=clustypes(1);
-    allclustypes(clusidx==102)=clustypes(2);
-    allclustypes(clusidx==103)=clustypes(3);
-    allclustypes(clusidx==104)=clustypes(4);
-    allclustypes(clusidx==-1)=clustypes(5);
+%% define cluster type
+clustypes={'rampup','sacburst','ramp_to_reward','ramp_all_down','junk'};
+allclustypes=cell(size(clusidx));
+allclustypes(clusidx==101)=clustypes(1);
+allclustypes(clusidx==102)=clustypes(2);
+allclustypes(clusidx==103)=clustypes(3);
+allclustypes(clusidx==104)=clustypes(4);
+allclustypes(clusidx==-1)=clustypes(5);
 
 %% recluster discarded responses
 if strcmp(option,'round1')
+    close all
     [jkclusidx,jkallclustypes,jkclusavwf]=clus_pop(sacresps(clusidx==-1,:),bnorm_sacresps(clusidx==-1,:),rnorm_sacresps(clusidx==-1,:),method,'round2');
     allclustypes(clusidx==-1,:)=jkallclustypes;
     clusavwf(clusidx==-1,:)=jkclusavwf;
     clusidx(clusidx==-1,:)=jkclusidx;
+elseif strcmp(option,'round2')
+    close all
+    [jkclusidx,jkallclustypes,jkclusavwf]=clus_pop(sacresps(clusidx==-1,:),bnorm_sacresps(clusidx==-1,:),rnorm_sacresps(clusidx==-1,:),method,'round3');
+    allclustypes(clusidx==-1,:)=jkallclustypes;
+    clusavwf(clusidx==-1,:)=jkclusavwf;
+    clusidx(clusidx==-1,:)=jkclusidx;
+    return
 else
     clusavwf=nan(size(clusidx,1),1);
     return
@@ -641,8 +708,24 @@ end
 clusid=unique(clusidx);
 clusavwf=nan(length(clusid),size(rnorm_sacresps,2));
 for clus=1:length(clusid)
-clusavwf(clus,:)=nanmean(bnorm_sacresps(clusidx==clusid(clus),:));
+    clusavwf(clus,:)=nanmean(bnorm_sacresps(clusidx==clusid(clus),:));
 end
+
+%% plot each cluster
+
+%     for clusp=1:length(clusid)
+%         figure('name',['cluster' num2str(clusp)]);
+%         clusn=find(clusidx==clusid(clusp));
+%         subplotdim=[ceil(sqrt(numel(clusn))),ceil(sqrt(numel(clusn)))];
+%         for sacplot=1:length(clusn)
+%             subplot(subplotdim(1),subplotdim(2),sacplot)
+%             plot(rnorm_sacresps(clusn(sacplot),:));
+%             ylim=get(gca,'ylim');
+%             set(gca,'ylim',[min(ylim(1),0) ylim(2)]);
+%             text(10,ylim(2)-0.1,['sacplot ' num2str(clusn(sacplot))]);
+%         end
+%     end
+    
 end
 
 

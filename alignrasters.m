@@ -332,14 +332,25 @@ while ~islast
                     goodsacnum=0;
                     if strcmp(greytypes(i),'eyemvt') %adjust times to real saccade times
                         % find which saccade is the "good" one (if any) in this trial
-                        try
-                            goodsacnum=find(~cellfun(@isempty,{curtrialsacInfo.latency}));
+                        try 
+                            if length(find(~cellfun(@isempty,{curtrialsacInfo.latency})))==1
+                                goodsacnum=find(~cellfun(@isempty,{curtrialsacInfo.latency}));
+                            elseif length(find(~cellfun(@isempty,{curtrialsacInfo.latency})))>1 && ... % toomany good sac
+                                     ... %diff(find(~cellfun(@isempty,{curtrialsacInfo.latency})))==1 && ... % are consecutive
+                                    abs(diff([curtrialsacInfo(~cellfun(@isempty,{curtrialsacInfo.latency})).latency]))<50 % under 50ms diffference
+                                goodsacnum=find(~cellfun(@isempty,{curtrialsacInfo.latency}),1,'last');
+                            elseif isempty(find(~cellfun(@isempty,{curtrialsacInfo.latency}), 1))
+                                goodsacnum=0;
+                            else
+                                %problem. Got to fix REX_process
+                             goodsacnum=find(~cellfun(@isempty,{curtrialsacInfo.latency}))   
+                            end
                         catch
                             goodsacnum=0;
                         end
                         if ~logical(sum(goodsacnum)) && (~strcmp(aligntype,'stop') && ~strcmp(aligntype,'ssd') && ~strcmp(aligntype,'touchbell'))
-                            s = sprintf('alignrasters: cannot display grey area for trial %d because saccade cannot be found. Removing erroneous trial',d);
-                            disp(s);%ploteyesac(d,name)
+%                             s = sprintf('alignrasters: cannot display grey area for trial %d because saccade cannot be found. Removing erroneous trial',d);
+%                             disp(s);%ploteyesac(d,name)
                             %                             pause
                             failedsac=1;
                             alignmentfound = 0;

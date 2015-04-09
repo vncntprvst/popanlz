@@ -27,9 +27,12 @@ alldata=struct('fname',{},'task',{},'aligntype',{},'prevssd',{},'allmssrt_tacho'
     'ssds',{},'sacdelay',{},'prefdiridx',{},...
     'pk',struct('sac',{},'vis',{},'corsac',{},'rew',{}),...
     'trialidx',struct('stoptrials',{},'goodsac',{},'noncancel',{},'cancel',{}),...
-    'ndata',struct('rast',{},'alignt',{},'trialnb',{},'evttime',{}),'db_rec_id',{},...
+    'ndata',struct('rast',{},'alignt',{},'trialnb',{},'evttime',{}),...
+    'db',struct('rec_id',{},'sort_id',{},'unit_id',{}),...
     'stats',struct('hval',{},'pval',{},'sign',{}));
 %allmssrt_tacho=NaN(length(dentatefiles),1);
+
+noclusfiles=[];
 
 %% process files
 for flbn=1:length(dentatefiles)
@@ -37,58 +40,100 @@ for flbn=1:length(dentatefiles)
     if strcmp('A',dfile(end))
         dfile=dfile(1:end-1);
     end
+    
+    %% subject and procdir
+    if strcmp('R',dfile(1))
+        subject='Rigel';
+        procdir = [directory,'processed',slash,'Rigel',slash];
+    elseif strcmp('S',dfile(1))
+        subject='Sixx';
+        procdir = [directory,'processed',slash,'Sixx',slash];
+    elseif strcmp('H',dfile(1))
+        subject='Hilda';
+        procdir = [directory,'processed',slash,'Hilda',slash];
+    end
+    
+    %% what file to load
+    procdirlisting=dir(procdir);
+    procdirfileNames={procdirlisting.name};
+    loadfile=procdirfileNames(~cellfun('isempty',regexpi(procdirfileNames,dfile,'match')));
+    
+    % if two versions (REX and Spike2), chose REX (for now)
+    if length(loadfile)>1
+        loadfile=loadfile(~cellfun('isempty',regexpi(loadfile,'REX','match')));
+        if isempty(loadfile) %actually it's an old file that sneaked in
+            loadfile=procdirfileNames(~cellfun('isempty',regexpi(procdirfileNames,dfile,'match')));
+            loadfile=loadfile(~cellfun('isempty',regexpi(loadfile,'REX','match')));
+        end
+    end
+    try
+        rectype=regexp(loadfile{:},'(?<=\d\d_)\w+(?=\.\w+)','match'); % get recording type (REX or Sp2)
+    catch
+        loadfile{:}
+        continue
+    end
+    if strcmp(rectype{:},'REX')
+        rectype='Rex';
+    elseif strcmp(rectype{:},'Sp2')
+        rectype='Spike2';
+    end
+    alldata(flbn,1).fname=loadfile{:}(1:end-4);
+    
     %% get task and id
     try
         % if no issue with db
         query = ['SELECT r.task, r.recording_id FROM recordings r WHERE r.a_file = ''' dfile 'A'''];
-        results=fetch(CCNdb,query);
-        [alldata(flbn,1).task,task]=deal(results{1});
-        alldata(flbn,1).db_rec_id=results{2};
-        
+        task_rec_id=fetch(CCNdb,query);
+        if isempty(task_rec_id)
+            %retry. Sometimes db access is deficient
+            task_rec_id=fetch(CCNdb,query);
+        end
+        [alldata(flbn,1).task,task]=deal(task_rec_id{1});
+        alldata(flbn,1).db.rec_id=task_rec_id{2};
         %check valid task
         fcodes =load([dfile,'_REX.mat'], 'allcodes');
         if ~strcmp(task,taskdetect(fcodes.allcodes))
-            alldata(flbn,1).db_rec_id=[];
+            [alldata(flbn,1).db.rec_id,alldata(flbn,1).db.sort_id,alldata(flbn,1).db.unit_id]=deal([]);
             continue
+        else
+            query = ['SELECT s.sort_id FROM sorts s WHERE s.recording_id_fk = '...
+                num2str(task_rec_id{2}) ' AND s.origin = ''' rectype ''' AND s.user = ''' user ''''];
+            sort_id=fetch(CCNdb,query);
+            if length(sort_id)==1
+                usesort=1;
+                alldata(flbn,1).db.sort_id=sort_id{1};
+            else
+                %% need to choose which sort!
+                disp('too many sorts to choose from')
+                %             usesort=1;
+                break
+            end
+            % get the unit ID (cluster here means spike cluster - from spike sorting)
+            query = ['SELECT c.cluster_id FROM clusters c WHERE c.sort_id_fk = '...
+                num2str(sort_id{usesort}) ' AND c.phenotype != ''junk'''];
+            unit_id=fetch(CCNdb,query);
+            if isempty(unit_id)
+                % create one, e basta
+                [~, alldata(flbn,1).db.unit_id] = addCluster(sort_id{usesort}, 1,CCNdb);
+%                 noclusfiles=[noclusfiles; dfile];
+                continue
+            elseif length(unit_id)==1
+                useunit=1;
+                alldata(flbn,1).db.unit_id=unit_id{1};
+            elseif length(unit_id)> 1%need to go 1 by 1
+                disp('need to process units 1 by 1')
+                break
+            end
         end
         clear fcodes;
     catch db_fail
         task='gapstop';
         r_id=[];
     end
-    
     %% sort ou
     if strcmp(task,'st_saccades')
         %test peak shift on prefered dir vs anti-dir
     elseif strcmp(task,'gapstop')
-        
-        %% subject and procdir
-        if strcmp('R',dfile(1))
-            subject='Rigel';
-            procdir = [directory,'processed',slash,'Rigel',slash];
-        elseif strcmp('S',dfile(1))
-            subject='Sixx';
-            procdir = [directory,'processed',slash,'Sixx',slash];
-        elseif strcmp('H',dfile(1))
-            subject='Hilda';
-            procdir = [directory,'processed',slash,'Hilda',slash];
-        end
-        
-        %% what file to load
-        procdirlisting=dir(procdir);
-        procdirfileNames={procdirlisting.name};
-        loadfile=procdirfileNames(~cellfun('isempty',regexpi(procdirfileNames,dfile,'match')));
-        
-        % if two versions (REX and Spike2), chose REX.
-        if length(loadfile)>1
-            loadfile=loadfile(~cellfun('isempty',regexpi(loadfile,'REX','match')));
-            if isempty(loadfile) %actually it's an old file that sneaked in
-                loadfile=procdirfileNames(~cellfun('isempty',regexpi(procdirfileNames,dfile,'match')));
-                loadfile=loadfile(~cellfun('isempty',regexpi(loadfile,'REX','match')));
-            end
-        end
-        
-        alldata(flbn,1).fname=loadfile{:}(1:end-4);
         
         %% align rasters
         % common presets
@@ -99,9 +144,9 @@ for flbn=1:length(dentatefiles)
         togrey=[];
         singlerastplot=0;
         
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         %% prealloc
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         fails=[];
         alignments={'failed_fast','correct_slow','ssd','corrsacfailed','rewcorrect_rewslow'};
         for algn=1:5
@@ -155,9 +200,9 @@ for flbn=1:length(dentatefiles)
                     if size(trialidx.goodsac,1)>size(alldata(flbn, 1).ndata(1, 1).rast,1)
                         alldata(flbn,1).sacdelay={alldata(flbn,1).sacdelay{:}(ismember(trialidx.goodsac,alldata(flbn,1).ndata(1,1).trialnb))};
                     elseif size(trialidx.goodsac,1)<size(alldata(flbn, 1).ndata(1, 1).rast,1) %that may be an issue later
-                    %let's see if it happens, first
-                    size(trialidx.goodsac,1)
-                    end                     
+                        %let's see if it happens, first
+                        size(trialidx.goodsac,1)
+                    end
                 end
                 
                 %allssds=unique([ccssd;nccssd]);
@@ -213,9 +258,9 @@ for flbn=1:length(dentatefiles)
                 % will find reward time in cancelled saccade
                 % for failed cancellation, two possibility:
                 % align to error code (easy, but not time consistent with other trial types)
-                % align to estimated reward time (time between saccade and 
+                % align to estimated reward time (time between saccade and
                 % reward, calculated from NSS trials)
-                secondalign=8; 
+                secondalign=8;
                 plottype = 0;
                 plotstart=1000;
                 plotstop=200;
@@ -223,10 +268,10 @@ for flbn=1:length(dentatefiles)
             end
             
             alldata(flbn,algn).aligntype=alignments{algn};
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    %% align rasters to conditions
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            %% align rasters to conditions
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             
             %use GUI-independent prealign
             getaligndata={}; %re-init structure
@@ -451,7 +496,7 @@ for flbn=1:length(dentatefiles)
 end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    %% analyze gapstop data
+%% analyze gapstop data
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 gsdlist=cellfun(@(x) strcmp(x,'gapstop'),{alldata(:,1).task}) & ~cellfun('isempty',{alldata(:,1).ndata});
