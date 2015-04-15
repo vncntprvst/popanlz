@@ -506,22 +506,21 @@ gsdlist=cellfun(@(x) strcmp(x,'gapstop'),{alldata(:,1).task}) & ~cellfun('isempt
 recluster=0;
 
 %% reshape data
-gsdata=alldata(gsdlist,:);
-allgsalignmnt=reshape({gsdata.aligntype},size(gsdata));
-allgsprevssd=reshape({gsdata.prevssd},size(gsdata));allgsprevssd=allgsprevssd(:,1);
-allgsssds=reshape({gsdata.ssds},size(gsdata));allgsssds=allgsssds(:,1);
-allgssacdelay=reshape({gsdata.sacdelay},size(gsdata));allgssacdelay=allgssacdelay(:,1);
-allgsprefdir=reshape({gsdata.prefdiridx},size(gsdata));
-allgsndata=reshape({gsdata.ndata},size(gsdata));
-allgsmssrt_tacho=reshape({gsdata.allmssrt_tacho},size(gsdata)); allgsmssrt_tacho=allgsmssrt_tacho(:,1);
-alldb=reshape({gsdata.db},size(gsdata)); alldb=alldb(:,1);
+gsdata.allgsalignmnt=reshape({alldata(gsdlist,:).aligntype},size(alldata(gsdlist,:)));
+gsdata.allgsprevssd=reshape({alldata(gsdlist,:).prevssd},size(alldata(gsdlist,:)));gsdata.allgsprevssd=gsdata.allgsprevssd(:,1);
+gsdata.allgsssds=reshape({alldata(gsdlist,:).ssds},size(alldata(gsdlist,:)));gsdata.allgsssds=gsdata.allgsssds(:,1);
+gsdata.allgssacdelay=reshape({alldata(gsdlist,:).sacdelay},size(alldata(gsdlist,:)));gsdata.allgssacdelay=gsdata.allgssacdelay(:,1);
+gsdata.allgsprefdir=reshape({alldata(gsdlist,:).prefdiridx},size(alldata(gsdlist,:)));
+gsdata.allgsndata=reshape({alldata(gsdlist,:).ndata},size(alldata(gsdlist,:)));
+gsdata.allgsmssrt_tacho=reshape({alldata(gsdlist,:).allmssrt_tacho},size(alldata(gsdlist,:))); gsdata.allgsmssrt_tacho=gsdata.allgsmssrt_tacho(:,1);
+gsdata.alldb=reshape({alldata(gsdlist,:).db},size(alldata(gsdlist,:))); gsdata.alldb=gsdata.alldb(:,1);
 
-% allgstasks=reshape({gsdata.task},size(gsdata)); allgstasks=allgstasks(:,1);
-% allgspk=reshape({gsdata.pk},size(gsdata));
-% allgs_rec_id=reshape({gsdata.db_rec_id},size(gsdata));
-% allgsstats=reshape({gsdata.stats},size(gsdata));
-% allgstrialidx=reshape({gsdata.trialidx},size(gsdata));
-% allgsfname=reshape({gsdata.fname},size(gsdata));
+% allgstasks=reshape({alldata(gsdlist,:).task},size(alldata(gsdlist,:))); allgstasks=allgstasks(:,1);
+% allgspk=reshape({alldata(gsdlist,:).pk},size(alldata(gsdlist,:)));
+% allgs_rec_id=reshape({alldata(gsdlist,:).db_rec_id},size(alldata(gsdlist,:)));
+% allgsstats=reshape({alldata(gsdlist,:).stats},size(alldata(gsdlist,:)));
+% allgstrialidx=reshape({alldata(gsdlist,:).trialidx},size(alldata(gsdlist,:)));
+% allgsfname=reshape({alldata(gsdlist,:).fname},size(alldata(gsdlist,:)));
 
 pop_a_countermanding(gsdata,recluster,CCNdb);
 
