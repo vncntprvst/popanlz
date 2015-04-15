@@ -12,6 +12,9 @@ catch db_fail
     results = [];
 end
 
+%% cut file in two: make it pop_analysis_process
+
+
 % CmdFileName={'S113L4A5_13500';'S114L4A5_14321';'R132L4P4_20152';'S112l4a5_12971';...
 %     'S117L4A6_12741';'S118L4A5_13081';'S115L4A6_12871';...
 %     'H56L5A5_21502';'S116L4A6_15450';'H53L5A5_20901';...
@@ -155,7 +158,7 @@ for flbn=1:length(dentatefiles)
                 firstalign=6;
                 secondalign=8;
                 plottype = 0;
-                plotstart=1000;
+                plotstart=1100;
                 plotstop=1000;
                 option=NaN;
             elseif algn==2 % tgt vs stop
@@ -500,12 +503,25 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 gsdlist=cellfun(@(x) strcmp(x,'gapstop'),{alldata(:,1).task}) & ~cellfun('isempty',{alldata(:,1).ndata});
-recluster=1;
+recluster=0;
 
-pop_a_countermanding(alldata(gsdlist,:),recluster,CCNdb);
+%% reshape data
+gsdata=alldata(gsdlist,:);
+allgsalignmnt=reshape({gsdata.aligntype},size(gsdata));
+allgsprevssd=reshape({gsdata.prevssd},size(gsdata));allgsprevssd=allgsprevssd(:,1);
+allgsssds=reshape({gsdata.ssds},size(gsdata));allgsssds=allgsssds(:,1);
+allgssacdelay=reshape({gsdata.sacdelay},size(gsdata));allgssacdelay=allgssacdelay(:,1);
+allgsprefdir=reshape({gsdata.prefdiridx},size(gsdata));
+allgsndata=reshape({gsdata.ndata},size(gsdata));
+allgsmssrt_tacho=reshape({gsdata.allmssrt_tacho},size(gsdata)); allgsmssrt_tacho=allgsmssrt_tacho(:,1);
+alldb=reshape({gsdata.db},size(gsdata)); alldb=alldb(:,1);
 
-% outputs = struct('mssrt',{},...
-%     'ssdvalues',{});
+% allgstasks=reshape({gsdata.task},size(gsdata)); allgstasks=allgstasks(:,1);
+% allgspk=reshape({gsdata.pk},size(gsdata));
+% allgs_rec_id=reshape({gsdata.db_rec_id},size(gsdata));
+% allgsstats=reshape({gsdata.stats},size(gsdata));
+% allgstrialidx=reshape({gsdata.trialidx},size(gsdata));
+% allgsfname=reshape({gsdata.fname},size(gsdata));
 
-% datainsert(conn,'recordings',col_names, this_data);
-%         commit(conn);
+pop_a_countermanding(gsdata,recluster,CCNdb);
+
