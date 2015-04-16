@@ -488,7 +488,11 @@ for clus=1:max(clusidx)
             try
                 clus_std = sqrt(diag(gmm_fit_clusters.Sigma(:,:,PCAclusidx(bestmtresp))));
             catch
-                clus_std = sqrt(diag(gmm_fit_clusters.Sigma(:,:,PCAclusidx(1))));
+                try
+                    clus_std = sqrt(diag(gmm_fit_clusters.Sigma(:,:,PCAclusidx(1))));
+                catch
+                    clus_std = sqrt(diag(gmm_fit_clusters.Sigma(:,:,PCAclusidx(2))));
+                end
             end
             bestrespFPC=FirstPrComps(bestmtresp,:);
             bestrespFPC_buddies=PrComps(:,1)>bestrespFPC(1)-clus_std(1)/2 & PrComps(:,1)<bestrespFPC(1)+clus_std(1)/2 &...

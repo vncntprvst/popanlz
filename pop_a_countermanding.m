@@ -6,10 +6,10 @@ singlessd=1;
 if singlessd
     prefdironly=0; %otherwise we don't keep anything
 end
-popplots=0;
-printplots=0;
-basicplots=0;
-controlplots=0;
+popplots=1;
+printplots=1;
+basicplots=1;
+controlplots=1;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% normalize data
@@ -87,7 +87,7 @@ if recluster
     clusid=unique(clusidx);
     
     %population raster
-    figure('name','population raster')
+    poprasthm=figure('name','population raster')
     subplot(1,20,1:9)
     imagesc(1:size(bnorm_sacresps,2),1:size(bnorm_sacresps,1),bnorm_sacresps)
     set(gca,'FontSize',18);
@@ -188,11 +188,12 @@ end
 
 %% prealloc compile data
 arraysz=max([sum(clusidx==101), sum(clusidx==102), sum(clusidx==103), sum(clusidx==104)]);
-compgssdf=struct('clus',{'rampfallclus','sacburstclus','rewrampclus'},...
+compgssdf=struct('clus',{'rampfallclus','sacburstclus','rampatw','fallatw'},...
     'align',struct('sac',struct('NSStrial',nan(arraysz,1301),'CStrial',nan(arraysz,1301),'NCStrial',nan(arraysz,1301),'evttimes',nan(arraysz,7)),...
     'tgt',struct('NSStrial',nan(arraysz,901),'CStrial',nan(arraysz,901),'NCStrial',nan(arraysz,901),'evttimes',nan(arraysz,7)),...
     'ssd',struct('LMCS_NSStrial',nan(arraysz,1501),'LMNCS_NSStrial',nan(arraysz,1501),'CStrial',nan(arraysz,1501),'NCStrial',nan(arraysz,1501),...
-    'evttimes',nan(arraysz,7),'RPE',struct('trialtype',{},'burst',[],'timing',[],'amplitude',[],'nxtrial_pktiming',[],'nxtrial_pktimediff',[],'nxtrial_bsline',[])),...
+    'evttimes',nan(arraysz,7),'RPE',struct('LMCS_NSStrial',[],'LMNCS_NSStrial',[],'CStrial',[],'NCStrial',[],'PETH_REPburst_time',[],'timing',{},'amplitude',{},...
+    'nxtrial_type',{},'nxtrial_pktiming',{},'nxtrial_bsline_pk',{})),...
     'corsac',struct('NSStrial',nan(arraysz,1001),'CStrial',nan(arraysz,1001),'NCStrial',nan(arraysz,1001),'evttimes',nan(arraysz,7)),...
     'rew',struct('NSStrial',nan(arraysz,1001),'CStrial',nan(arraysz,1001),'NCStrial',nan(arraysz,1001),'evttimes',nan(arraysz,7))));
 
@@ -208,7 +209,7 @@ rew_startstop=[800 200];
 
 %% colors for population plots
 %     figure(1);
-close all
+% close all
 cc=lines(size(data.allgsalignmnt,1)); % one color per file
 if size(cc,1)==8
     cc(8,:)=[0 0.75 0];
@@ -279,8 +280,8 @@ for clusnum=1:4
                     normsdf=conv_raster(rasters,conv_sigma,start,stop,clussblmean{clusnum}(gsd),clussbslresp_sd{clusnum}(gsd)); %normalize by baseline
                     
                     %normalize sdf by baseline activity
-%                     normsdf=(sdf-clussfrmean{clusnum}(gsd))./clussfr_sd{clusnum}(gsd);
-%                     normsdf=(sdf-clussblmean{clusnum}(gsd))./clussbslresp_sd{clusnum}(gsd);
+                    %                     normsdf=(sdf-clussfrmean{clusnum}(gsd))./clussfr_sd{clusnum}(gsd);
+                    %                     normsdf=(sdf-clussblmean{clusnum}(gsd))./clussbslresp_sd{clusnum}(gsd);
                     
                     %keep cue on-times
                     compgssdf(1,clusnum).align.sac.evttimes(gsd,1)=round(median(cellfun(@(x) x(1,1), gsdata(sacalg).evttime))-(alignmtt-ssd_startstop(1))); %median rew signal time
@@ -355,8 +356,8 @@ for clusnum=1:4
                     normsdf=conv_raster(rasters,conv_sigma,start,stop,clussblmean{clusnum}(gsd),clussbslresp_sd{clusnum}(gsd)); %normalize by baseline
                     
                     %normalize sdf by baseline activity
-%                     normsdf=(sdf-clussfrmean{clusnum}(gsd))./clussfr_sd{clusnum}(gsd);
-%                     normsdf=(sdf-clussblmean{clusnum}(gsd))./clussbslresp_sd{clusnum}(gsd);
+                    %                     normsdf=(sdf-clussfrmean{clusnum}(gsd))./clussfr_sd{clusnum}(gsd);
+                    %                     normsdf=(sdf-clussblmean{clusnum}(gsd))./clussbslresp_sd{clusnum}(gsd);
                     
                     %keep ssd+ssrt time
                     compgssdf(1,clusnum).align.tgt.evttimes(gsd,6:7)=round([tgt_startstop(1)+prevssd+clusmssrt{1, clusnum}{gsd, 1}{1, 1}...
@@ -383,7 +384,7 @@ for clusnum=1:4
         end
         
         %% ssd alignment ('ssd')
-        gsdata=clusgsndata{clusnum}{gsd,3}; %this will be 4 structures containing rasters
+        gsdata=clusgsndata{1, clusnum}{gsd, 3}; %this will be 4 structures containing rasters
         % and alignment CS & NCS with corresponding
         % Lm-NSS trials (Lm-CS,Lm-NCS,CS,NCS)
         %         try
@@ -404,8 +405,8 @@ for clusnum=1:4
                     normsdf=conv_raster(rasters,conv_sigma,start,stop,clussblmean{clusnum}(gsd),clussbslresp_sd{clusnum}(gsd)); %normalize by baseline
                     
                     %normalize sdf by baseline activity
-%                     normsdf=(sdf-clussfrmean{clusnum}(gsd))./clussfr_sd{clusnum}(gsd);
-%                     normsdf=(sdf-clussblmean{clusnum}(gsd))./clussbslresp_sd{clusnum}(gsd);
+                    %                     normsdf=(sdf-clussfrmean{clusnum}(gsd))./clussfr_sd{clusnum}(gsd);
+                    %                     normsdf=(sdf-clussblmean{clusnum}(gsd))./clussbslresp_sd{clusnum}(gsd);
                     
                     %% plots (get [sdf, convrasters, convrastsem] if needed)
                     %                     if clusnum==1 && ssdalg==4
@@ -428,20 +429,124 @@ for clusnum=1:4
                         compgssdf(1,clusnum).align.ssd.evttimes(gsd,5)=round(median(cellfun(@(x) x(5,2), gsdata(ssdalg).evttime))-(alignmtt-ssd_startstop(1))); %median error signal time
                     end
                     %keep RPE info
-%                     'RPE',struct('trialtype',{},'burst',[],'timing',[],'amplitude',[],'nxtrial_pktiming',[],'nxtrial_pktimediff',[],'nxtrial_bsline',[])
-                    % burst no burst
+                    % number trials by trial type (some NSS trials can be in
+                    % both NSS trial type)
+                    if ssdalg==1 % no need to do it every time
+                    compgssdf(1,clusnum).align.ssd.RPE(gsd,1).(ssdtrialtype{1})=gsdata(1, 1).trialnb;
+                    compgssdf(1,clusnum).align.ssd.RPE(gsd,1).(ssdtrialtype{2})=gsdata(1, 2).trialnb;
+                    compgssdf(1,clusnum).align.ssd.RPE(gsd,1).(ssdtrialtype{3})=gsdata(1, 3).trialnb;
+                    compgssdf(1,clusnum).align.ssd.RPE(gsd,1).(ssdtrialtype{4})=gsdata(1, 4).trialnb;
+                    end
                     
-                    % burst timing
-                    
-                    % burst amplitude
-                    
-                    % 
+                    if ssdalg==2 | ssdalg==4
+                        %                     'RPE',struct('trialtype',{},'burst',[],'timing',[],'amplitude',[],'nxtrial_type',{},'nxtrial_pktiming',[],'nxtrial_pktimediff',[],'nxtrial_bsline',[])
+                        %                   % check if PETH RPE burst
+                        normsdf_peaks=normsdf(ssd_startstop(1)+200:end)>std(normsdf) & [roundn(diff(normsdf(ssd_startstop(1)+200:end)), -2) 0]==0;
+                        if sum(normsdf_peaks) %else, keep values as NaN
+                            compgssdf(1,clusnum).align.ssd.RPE(gsd,1).PETH_REPburst_time(ssdalg)=...
+                                find(normsdf(ssd_startstop(1)+200:end)==max(normsdf(find(normsdf_peaks)+ssd_startstop(1)+200)),1)+ssd_startstop(1)+149;
+                        
+                        % preallocate RPE data
+                                                
+                        [compgssdf(1, clusnum).align.ssd.RPE(gsd, 1).timing,...
+                            compgssdf(1, clusnum).align.ssd.RPE(gsd, 1).nxtrial_bsline,...
+                            compgssdf(1, clusnum).align.ssd.RPE(gsd, 1).nxtrial_pktiming,...
+                            compgssdf(1, clusnum).align.ssd.RPE(gsd, 1).amplitude]=deal(nan(length([gsdata.trialnb]),2));
+                        
+                        compgssdf(1, clusnum).align.ssd.RPE(gsd, 1).nxtrial_type=cell(length([gsdata.trialnb]),1);
+                        
+                        % compute trial by trial
+                        for rast=1:size(rasters,1)
+%                             close all
+                            
+                            convrasters=fullgauss_filtconv(rasters(rast,start:stop),conv_sigma,0).*1000;
+                            convrasters=(convrasters-clussblmean{clusnum}(gsd))./clussbslresp_sd{clusnum}(gsd);
+                            convrasters=convrasters(conv_sigma*3+1:end-3*conv_sigma);
+                            
+%                             figure; plot(convrasters);
+                            
+                            % burst or no burst
+                            % peak has to be > 200ms after alignment, over PETH
+                            % std, and peak (like a burst, duh)
+                            convrasters_burst=convrasters(ssd_startstop(1)+150:end)>std(normsdf)+...
+                                ... %median(convrasters(ssd_startstop(1)-(gsdata(1, ssdalg).alignt-gsdata(1, ssdalg).evttime{rast}(1,1)):end)) &...
+                                min(convrasters(ssd_startstop(1)-(gsdata(1, ssdalg).alignt-gsdata(1, ssdalg).evttime{rast}(1,1)):end)) &...
+                                [roundn(diff(convrasters(ssd_startstop(1)+150:end)), -2) 0.1]==0;
+                            %                        compgssdf(1,clusnum).align.ssd.RPE(gsd,1).
+                            if logical(sum(convrasters_burst))
+                                try
+                                % burst timing 
+                                    % w/ respect to sac 
+                                convrasters_burst_timing=find(convrasters(ssd_startstop(1)+150:end)==max(convrasters(find(convrasters_burst)+ssd_startstop(1)+150)),1)+ssd_startstop(1)+149;
+                                compgssdf(1, clusnum).align.ssd.RPE(gsd, 1).timing(gsdata(1, ssdalg).trialnb(rast),1)=...
+                                    convrasters_burst_timing-(gsdata(1, ssdalg).evttime{rast}(2,1)-gsdata(1, ssdalg).alignt+ssd_startstop(1));
+                                    %and w/ respect to PETH "RPE" burst
+                                    
+                                    compgssdf(1, clusnum).align.ssd.RPE(gsd, 1).timing(gsdata(1, ssdalg).trialnb(rast),2)=...
+                                         convrasters_burst_timing-compgssdf(1,clusnum).align.ssd.RPE(gsd,1).PETH_REPburst_time(ssdalg);
+                                
+                                % burst amplitude: absolute and from median
+                                compgssdf(1, clusnum).align.ssd.RPE(gsd, 1).amplitude(gsdata(1, ssdalg).trialnb(rast),1)=...
+                                    convrasters(find(convrasters(ssd_startstop(1)+150:end)==max(convrasters(find(convrasters_burst)+ssd_startstop(1)+150)),1)+ssd_startstop(1)+149);
+                                compgssdf(1, clusnum).align.ssd.RPE(gsd, 1).amplitude(gsdata(1, ssdalg).trialnb(rast),2)=...
+                                    convrasters(find(convrasters(ssd_startstop(1)+150:end)==max(convrasters(find(convrasters_burst)+ssd_startstop(1)+150)),1)+ssd_startstop(1)+149)-median(convrasters);
+                                
+                                % next trial type
+                                for nxtt=1:4
+                                    if ~isempty(find(compgssdf(1,clusnum).align.ssd.RPE(gsd,1).(ssdtrialtype{nxtt})==...
+                                            gsdata(1, ssdalg).trialnb(rast)+1, 1))
+                                        if strcmp(ssdtrialtype{nxtt},'LMCS_NSStrial') || strcmp(ssdtrialtype{nxtt},'LMNCS_NSStrial')
+                                            compgssdf(1, clusnum).align.ssd.RPE(gsd, 1).nxtrial_type{gsdata(1, ssdalg).trialnb(rast),1}='NSStrial';
+                                        else
+                                            compgssdf(1, clusnum).align.ssd.RPE(gsd, 1).nxtrial_type{gsdata(1, ssdalg).trialnb(rast),1}=ssdtrialtype{nxtt};
+                                        end
+                                        nxtrial_ssdalg=nxtt;
+                                    end
+                                end
+                                
+                                % next trial peak timing
+                                    %absolute
+                                nx_convrasters=gsdata(nxtrial_ssdalg).rast(compgssdf(1,clusnum).align.ssd.RPE(gsd,1).(ssdtrialtype{nxtrial_ssdalg})==...
+                                    gsdata(1, ssdalg).trialnb(rast)+1,:); 
+                                nx_convrasters=fullgauss_filtconv(nx_convrasters(start:stop),conv_sigma,0).*1000;
+                                nx_convrasters=(nx_convrasters-clussblmean{clusnum}(gsd))./clussbslresp_sd{clusnum}(gsd);
+                                nx_convrasters=nx_convrasters(conv_sigma*3+1:end-3*conv_sigma);
+                                
+%                                 figure; plot(nx_convrasters)
+                                nx_convrasters_pk=nx_convrasters(nx_convrasters(1:ssd_startstop(1)+150)>std(normsdf)+min(convrasters) &...
+                                    [roundn(diff(nx_convrasters(1:ssd_startstop(1)+150)), -2) 0.1]==0);
+                                compgssdf(1, clusnum).align.ssd.RPE(gsd, 1).nxtrial_pktiming(gsdata(1, ssdalg).trialnb(rast),1)=...
+                                    find((nx_convrasters(1:ssd_startstop(1)+150)>std(normsdf)+min(convrasters) &...
+                                    [roundn(diff(nx_convrasters(1:ssd_startstop(1)+150)), -2) 0.1]==0),1)+find(nx_convrasters_pk==max(nx_convrasters_pk),1);
+
+                                    % peak time diff
+                                    % time diff between peak time and SS time (or presumed one for NSS)
+                                  compgssdf(1, clusnum).align.ssd.RPE(gsd, 1).nxtrial_pktiming(gsdata(1, ssdalg).trialnb(rast),2)=...
+                                      ssd_startstop(1)-compgssdf(1, clusnum).align.ssd.RPE(gsd, 1).nxtrial_pktiming(gsdata(1, ssdalg).trialnb(rast),1);
+
+                                % next trial baseline and peak amplitude
+                                cue_ontime=ssd_startstop(1)-(gsdata(nxtrial_ssdalg).alignt-...
+                                    gsdata(nxtrial_ssdalg).evttime{compgssdf(1,clusnum).align.ssd.RPE(gsd,1).(ssdtrialtype{nxtrial_ssdalg})==...
+                                    gsdata(1, ssdalg).trialnb(rast)+1}(1,1));
+                                compgssdf(1, clusnum).align.ssd.RPE(gsd, 1).nxtrial_bsline_pk(gsdata(1, ssdalg).trialnb(rast),1)=...
+                                    nanmean(nx_convrasters(1:cue_ontime));
+                                compgssdf(1, clusnum).align.ssd.RPE(gsd, 1).nxtrial_bsline_pk(gsdata(1, ssdalg).trialnb(rast),2)=...
+                                    nx_convrasters(compgssdf(1, clusnum).align.ssd.RPE(gsd, 1).nxtrial_pktiming(gsdata(1, ssdalg).trialnb(rast),1));
+                                catch
+%                                     rast
+                                    continue
+                                end
+                            end
+                        end
+                        end
+                    end
                     
                     compgssdf(1,clusnum).align.ssd.(ssdtrialtype{ssdalg})(gsd,:)=normsdf;
                 catch norast
                     compgssdf(1,clusnum).align.ssd.(ssdtrialtype{ssdalg})(gsd,:)=NaN;
                 end
             end
+%             compgssdf
         else
             %keep nans
         end
@@ -467,7 +572,7 @@ for clusnum=1:4
                     normsdf=conv_raster(rasters,conv_sigma,start,stop,clussblmean{clusnum}(gsd),clussbslresp_sd{clusnum}(gsd)); %normalize by baseline
                     
                     %normalize sdf by baseline activity
-%                     normsdf=(sdf-clussblmean{clusnum}(gsd))./clussbslresp_sd{clusnum}(gsd);
+                    %                     normsdf=(sdf-clussblmean{clusnum}(gsd))./clussbslresp_sd{clusnum}(gsd);
                     
                     %% plots (get [sdf, convrasters, convrastsem] if needed)
                     %          figure(1)
@@ -510,7 +615,7 @@ for clusnum=1:4
                     normsdf=conv_raster(rasters,conv_sigma,start,stop,clussblmean{clusnum}(gsd),clussbslresp_sd{clusnum}(gsd)); %normalize by baseline
                     
                     %normalize sdf by baseline activity
-%                     normsdf=(sdf-clussblmean{clusnum}(gsd))./clussbslresp_sd{clusnum}(gsd);
+                    %                     normsdf=(sdf-clussblmean{clusnum}(gsd))./clussbslresp_sd{clusnum}(gsd);
                     
                     %% plots (get [sdf, convrasters, convrastsem] if needed)
                     %          figure(1)
@@ -538,403 +643,400 @@ end
 %% compute and plot population activity (and ci) by cluster
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 if popplots
-trialtype_sdf={'NSStrial_popsdf','CStrial_popsdf','NCStrial_popsdf'};
-trialtype_ci={'NSStrial_popci','CStrial_popci','NCStrial_popci'};
-ssdtrialtype_sdf={'LMCS_NSStrial_popsdf','LMNCS_NSStrial_popsdf','CStrial_popsdf','NCStrial_popsdf'};
-ssdtrialtype_ci={'LMCS_NSStrial_popci','LMNCS_NSStrial_popci','CStrial_popci','NCStrial_popci'};
-
-lineStyles = linspecer(8);
-[sacfig,tgtfig,ssdfig,corsacfig,rewfig]=deal(nan(1,3)); %handles for figures
-
-for clusnum=1:4
-    if basicplots
-        %% saccade alignment plot
-        sacfig(clusnum)=figure('name',['Cluster' num2str(clusnum) ' saccade plots']);
-        hold on;
-        saccues=compgssdf(1, clusnum).align.sac.evttimes(:,1);
-        sacsst=compgssdf(1, clusnum).align.sac.evttimes(:,6);
-        for sacpop=1:3
+    trialtype_sdf={'NSStrial_popsdf','CStrial_popsdf','NCStrial_popsdf'};
+    trialtype_ci={'NSStrial_popci','CStrial_popci','NCStrial_popci'};
+    ssdtrialtype_sdf={'LMCS_NSStrial_popsdf','LMNCS_NSStrial_popsdf','CStrial_popsdf','NCStrial_popsdf'};
+    ssdtrialtype_ci={'LMCS_NSStrial_popci','LMNCS_NSStrial_popci','CStrial_popci','NCStrial_popci'};
+    
+    lineStyles = linspecer(4);
+    [sacfig,tgtfig,ssdfig,corsacfig,rewfig]=deal(nan(1,3)); %handles for figures
+    
+    for clusnum=1:4
+        if basicplots
+            %% saccade alignment plot
+            sacfig(clusnum)=figure('name',['Cluster' num2str(clusnum) ' saccade plots']);
+            hold on;
+            saccues=compgssdf(1, clusnum).align.sac.evttimes(:,1);
+            sacsst=compgssdf(1, clusnum).align.sac.evttimes(:,6);
+            for sacpop=1:3
+                try
+                    popsdf=nanmean(compgssdf(1,clusnum).align.sac.(trialtype{sacpop}));
+                    conv_popsdf=fullgauss_filtconv(popsdf,20,0);
+                    popsdf(60:end-60)=conv_popsdf(60:end-60);
+                    [popsdf, compgssdf(1,clusnum).align.sac.(trialtype_sdf{sacpop})]=deal(popsdf);
+                    %                 [popsdf, compgssdf(1,clusnum).align.sac.(trialtype_sdf{sacpop})]=deal(nanmean(compgssdf(1,clusnum).align.sac.(trialtype{sacpop})));
+                    [popci, compgssdf(1,clusnum).align.sac.(trialtype_ci{sacpop})]=deal(nanstd(compgssdf(1,clusnum).align.sac.(trialtype{sacpop}))/...
+                        sqrt(size(compgssdf(1,clusnum).align.sac.(trialtype{sacpop}),1)));
+                catch
+                    continue
+                end
+                
+                patch([1:length(popci),fliplr(1:length(popci))],...
+                    [popsdf-popci,fliplr(popsdf+popci)],...
+                    lineStyles(sacpop,:),'EdgeColor','none','FaceAlpha',0.1);
+                hold on;
+                % plot cues
+                saccues=saccues(~isnan(saccues));
+                currylim=get(gca,'ylim');
+                for ppcue=1:length(saccues)
+                    cueph=patch([saccues(ppcue)-1:saccues(ppcue)+1 fliplr(saccues(ppcue)-1:saccues(ppcue)+1)], ...
+                        reshape(repmat([currylim(1) currylim(2)],3,1),1,numel(currylim)*3), ...
+                        [0.5 0.5 0.5],'EdgeColor','none','FaceAlpha',0.5);
+                end
+                %plot stop signals
+                %         if sacpop==2 || sacpop==3
+                %             sacsst=sacsst(~isnan(sacsst));
+                %             currylim=get(gca,'ylim');
+                %             for ppsst=1:length(sacsst)
+                %                 patch([sacsst(ppsst)-1:sacsst(ppsst)+1 fliplr(sacsst(ppsst)-1:sacsst(ppsst)+1)], ...
+                %             reshape(repmat([currylim(1) currylim(2)],3,1),1,numel(currylim)*3), ...
+                %             lineStyles(sacpop,:),'EdgeColor','none','FaceAlpha',0.3);
+                %             end
+                %         end
+                lineh(sacpop)=plot(popsdf,'LineWidth',2,'color',lineStyles(sacpop,:));
+            end
+            currylim=get(gca,'ylim');
+            patch([sac_startstop(1)-2:sac_startstop(1)+2 fliplr(sac_startstop(1)-2:sac_startstop(1)+2)], ...
+                reshape(repmat([currylim(1) currylim(2)],5,1),1,numel(currylim)*5), ...
+                [0 0 0],'EdgeColor','none','FaceAlpha',1);
+            % pop n
+            text(diff(get(gca,'xlim'))/10, currylim(2)-diff(get(gca,'ylim'))/10, ['n=' num2str(sum(clusidx==100+clusnum))])
+            
+            hold off;
+            %% beautify plot
+            set(gca,'XTick',[0:100:(sac_startstop(2)+sac_startstop(1))]);
+            set(gca,'XTickLabel',[-sac_startstop(1):100:sac_startstop(2)]);
+            axis(gca,'tight'); box off;
+            set(gca,'Color','white','TickDir','out','FontName','Cambria','FontSize',10);
+            hxlabel=xlabel(gca,'Time (ms)','FontName','Cambria','FontSize',10);
+            hylabel=ylabel(gca,'Firing rate (z-score)','FontName','Cambria','FontSize',10);
+            
+            %legend
+            if basicplots
+                legh=legend([lineh(1:2:3) cueph],{'No Stop Signal', 'Stop Signal: Non Cancelled','Target onset'});
+            else
+                legh=legend([lineh(1:3) cueph],{'No Stop Signal','Stop Signal: Cancelled', 'Stop Signal: Non Cancelled','Target onset'});
+            end
+            set(legh,'Interpreter','none','Location','SouthWest','Box','off','LineWidth',1.5,'FontName','Cambria','FontSize',9); % Interpreter prevents underscores turning character into subscript
+            title(['Cluster' num2str(clusnum) ' Aligned to saccade'],'FontName','Cambria','FontSize',15);
+            
+            %% target alignment plot
+            tgtfig(clusnum)=figure('name',['Cluster' num2str(clusnum) ' target plots']);
+            hold on;
+            popssrt=compgssdf(1, clusnum).align.tgt.evttimes(:,6);
+            %     poptacho=compgssdf(1, clusnum).align.tgt.evttimes(:,7); %if we want
+            %     the curve width
+            for tgtpop=1:3
+                try
+                    %individual plots
+                    %                     foo=(compgssdf(1,clusnum).align.tgt.(trialtype{1}));
+                    %                     faa=(compgssdf(1,clusnum).align.tgt.(trialtype{2}));
+                    %                     for mkp=1:size(foo,1)
+                    %                     if ~isempty(nansum(foo(mkp,:)))
+                    %                       figure; plot(foo(mkp,:)); hold on;  plot(faa(mkp,:),'r'); hold off
+                    %                     end
+                    %                     end
+                    popsdf=nanmean(compgssdf(1,clusnum).align.tgt.(trialtype{tgtpop}));
+                    conv_popsdf=fullgauss_filtconv(popsdf,20,0);
+                    popsdf(60:end-60)=conv_popsdf(60:end-60);
+                    [popsdf, compgssdf(1,clusnum).align.tgt.(trialtype_sdf{tgtpop})]=deal(popsdf);
+                    %                 [popsdf, compgssdf(1,clusnum).align.tgt.(trialtype_sdf{tgtpop})]=deal(nanmean(compgssdf(1,clusnum).align.tgt.(trialtype{tgtpop})));
+                    [popci, compgssdf(1,clusnum).align.tgt.(trialtype_ci{tgtpop})]=deal(nanstd(compgssdf(1,clusnum).align.tgt.(trialtype{tgtpop}))/...
+                        sqrt(size(compgssdf(1,clusnum).align.tgt.(trialtype{tgtpop}),1)));
+                catch
+                    continue
+                end
+                %         conv_raster(repmat(popsdf,19,1)./1000,conv_sigma);
+                
+                % plot SEM
+                patch([1:length(popci),fliplr(1:length(popci))],...
+                    [popsdf-popci,fliplr(popsdf+popci)],...
+                    lineStyles(tgtpop,:),'EdgeColor','none','FaceAlpha',0.1);
+                hold on;
+                % plot SSD+SSRTs
+                popssrt=popssrt(~isnan(popssrt));
+                currylim=get(gca,'ylim');
+                for ppssrt=1:length(popssrt)
+                    ssrtph=patch([popssrt(ppssrt)-1:popssrt(ppssrt)+1 fliplr(popssrt(ppssrt)-1:popssrt(ppssrt)+1)], ...
+                        reshape(repmat([currylim(1) currylim(2)],3,1),1,numel(currylim)*3), ...
+                        [0.5 0.5 0.5],'EdgeColor','none','FaceAlpha',0.5);
+                end
+                lineh(tgtpop)=plot(popsdf,'LineWidth',2,'color',lineStyles(tgtpop,:));
+            end
+            currylim=get(gca,'ylim');
+            patch([tgt_startstop(1)-2:tgt_startstop(1)+2 fliplr(tgt_startstop(1)-2:tgt_startstop(1)+2)], ...
+                reshape(repmat([currylim(1) currylim(2)],5,1),1,numel(currylim)*5), ...
+                [0.2 0 0.4],'EdgeColor','none','FaceAlpha',0.5);
+            % pop n
+            text(diff(get(gca,'xlim'))/10, currylim(2)-diff(get(gca,'ylim'))/10, ['n=' num2str(sum(clusidx==100+clusnum))])
+            
+            hold off;
+            %% beautify plot
+            set(gca,'XTick',[0:100:(tgt_startstop(2)+tgt_startstop(1))]);
+            set(gca,'XTickLabel',[-tgt_startstop(1):100:tgt_startstop(2)]);
+            axis(gca,'tight'); box off;
+            set(gca,'Color','white','TickDir','out','FontName','Cambria','FontSize',10);
+            hxlabel=xlabel(gca,'Time (ms)','FontName','Cambria','FontSize',10);
+            hylabel=ylabel(gca,'Firing rate (z-score)','FontName','Cambria','FontSize',10);
+            if basicplots
+                legh=legend([lineh(1:2) ssrtph],{'No Stop Signal','Stop Signal: Cancelled','Stop Sig. Reac. Time'});
+            else
+                legh=legend([lineh(1:3) ssrtph],{'No Stop Signal','Stop Signal: Cancelled', 'Stop Signal: Non Cancelled','Stop Sig. Reac. Time'});
+            end
+            set(legh,'Interpreter','none','Location','NorthEast','Box', 'off','LineWidth',1.5,'FontName','Cambria','FontSize',9); % Interpreter prevents underscores turning character into subscript
+            title(['Cluster' num2str(clusnum) ' Aligned to target'],'FontName','Cambria','FontSize',15);
+        end
+        
+        %% ssd alignment plots
+        ssdfig(clusnum)=figure('name',['Cluster' num2str(clusnum) ' ssd plots']);
+        % 1st plots
+        subplot(1,2,1)
+        for ssdpop=1:2:3
+            % keep only files with non-null data (which had correct ssd)
+            nz_idx=nansum(compgssdf(1,clusnum).align.ssd.(ssdtrialtype{ssdpop}),2)~=0;
             try
-                popsdf=nanmean(compgssdf(1,clusnum).align.sac.(trialtype{sacpop}));
+                popsdf=nanmean(compgssdf(1,clusnum).align.ssd.(ssdtrialtype{ssdpop})(nz_idx,:));
                 conv_popsdf=fullgauss_filtconv(popsdf,20,0);
                 popsdf(60:end-60)=conv_popsdf(60:end-60);
-                [popsdf, compgssdf(1,clusnum).align.sac.(trialtype_sdf{sacpop})]=deal(popsdf);
-%                 [popsdf, compgssdf(1,clusnum).align.sac.(trialtype_sdf{sacpop})]=deal(nanmean(compgssdf(1,clusnum).align.sac.(trialtype{sacpop})));
-                [popci, compgssdf(1,clusnum).align.sac.(trialtype_ci{sacpop})]=deal(nanstd(compgssdf(1,clusnum).align.sac.(trialtype{sacpop}))/...
-                    sqrt(size(compgssdf(1,clusnum).align.sac.(trialtype{sacpop}),1)));
+                [popsdf, compgssdf(1,clusnum).align.ssd.(ssdtrialtype_sdf{ssdpop})]=deal(popsdf);
+                %             [popsdf, compgssdf(1,clusnum).align.ssd.(ssdtrialtype_sdf{ssdpop})]=deal(nanmean(compgssdf(1,clusnum).align.ssd.(ssdtrialtype{ssdpop})(nz_idx,:)));
+                [popci, compgssdf(1,clusnum).align.ssd.(ssdtrialtype_ci{ssdpop})]=deal(nanstd(compgssdf(1,clusnum).align.ssd.(ssdtrialtype{ssdpop})(nz_idx,:))/...
+                    sqrt(size(compgssdf(1,clusnum).align.ssd.(ssdtrialtype{ssdpop})(nz_idx,:),1)));
             catch
                 continue
             end
-            
-            patch([1:length(popci),fliplr(1:length(popci))],...
-                [popsdf-popci,fliplr(popsdf+popci)],...
-                lineStyles(sacpop,:),'EdgeColor','none','FaceAlpha',0.1);
             hold on;
-            % plot cues
-            saccues=saccues(~isnan(saccues));
-            currylim=get(gca,'ylim');
-            for ppcue=1:length(saccues)
-                cueph=patch([saccues(ppcue)-1:saccues(ppcue)+1 fliplr(saccues(ppcue)-1:saccues(ppcue)+1)], ...
-                    reshape(repmat([currylim(1) currylim(2)],3,1),1,numel(currylim)*3), ...
-                    [0.5 0.5 0.5],'EdgeColor','none','FaceAlpha',0.5);
+            if ssdpop==3 %use adequate color
+                patch([1:length(popci),fliplr(1:length(popci))],...
+                    [popsdf-popci,fliplr(popsdf+popci)],...
+                    lineStyles(2,:),'EdgeColor','none','FaceAlpha',0.1);
+                lineh(ssdpop)=plot(popsdf,'LineWidth',2,'color',lineStyles(2,:));
+            else
+                patch([1:length(popci),fliplr(1:length(popci))],...
+                    [popsdf-popci,fliplr(popsdf+popci)],...
+                    lineStyles(1,:),'EdgeColor','none','FaceAlpha',0.1);
+                lineh(ssdpop)=plot(popsdf,'LineWidth',2,'color',lineStyles(1,:));
             end
-            %plot stop signals
-            %         if sacpop==2 || sacpop==3
-            %             sacsst=sacsst(~isnan(sacsst));
-            %             currylim=get(gca,'ylim');
-            %             for ppsst=1:length(sacsst)
-            %                 patch([sacsst(ppsst)-1:sacsst(ppsst)+1 fliplr(sacsst(ppsst)-1:sacsst(ppsst)+1)], ...
-            %             reshape(repmat([currylim(1) currylim(2)],3,1),1,numel(currylim)*3), ...
-            %             lineStyles(sacpop,:),'EdgeColor','none','FaceAlpha',0.3);
-            %             end
-            %         end
-            lineh(sacpop)=plot(popsdf,'LineWidth',2,'color',lineStyles(sacpop,:));
         end
         currylim=get(gca,'ylim');
-        patch([sac_startstop(1)-2:sac_startstop(1)+2 fliplr(sac_startstop(1)-2:sac_startstop(1)+2)], ...
+        patch([ssd_startstop(1)-2:ssd_startstop(1)+2 fliplr(ssd_startstop(1)-2:ssd_startstop(1)+2)], ...
             reshape(repmat([currylim(1) currylim(2)],5,1),1,numel(currylim)*5), ...
-            [0 0 0],'EdgeColor','none','FaceAlpha',1);
+            [0.2 0 0.4],'EdgeColor','none','FaceAlpha',0.5);
         % pop n
         text(diff(get(gca,'xlim'))/10, currylim(2)-diff(get(gca,'ylim'))/10, ['n=' num2str(sum(clusidx==100+clusnum))])
         
         hold off;
         %% beautify plot
-        set(gca,'XTick',[0:100:(sac_startstop(2)+sac_startstop(1))]);
-        set(gca,'XTickLabel',[-sac_startstop(1):100:sac_startstop(2)]);
+        set(gca,'XTick',[0:200:(ssd_startstop(2)+ssd_startstop(1))]);
+        set(gca,'XTickLabel',[-ssd_startstop(1):200:ssd_startstop(2)]);
         axis(gca,'tight'); box off;
         set(gca,'Color','white','TickDir','out','FontName','Cambria','FontSize',10);
         hxlabel=xlabel(gca,'Time (ms)','FontName','Cambria','FontSize',10);
         hylabel=ylabel(gca,'Firing rate (z-score)','FontName','Cambria','FontSize',10);
+        legh=legend(lineh(1:2:3),{'Latency Matched No Stop Signal','Stop Signal: Cancelled'});
+        set(legh,'Interpreter','none','Location','NorthWest','Box', 'off','LineWidth',1.5,'FontName','Cambria','FontSize',9); % Interpreter prevents underscores turning character into subscript
+        title(['Cluster' num2str(clusnum) ' NSS CS Aligned to ssd'],'FontName','Cambria','FontSize',15);
         
-        %legend
-        if basicplots
-            legh=legend([lineh(1:2:3) cueph],{'No Stop Signal', 'Stop Signal: Non Cancelled','Target onset'});
-        else
-            legh=legend([lineh(1:3) cueph],{'No Stop Signal','Stop Signal: Cancelled', 'Stop Signal: Non Cancelled','Target onset'});
-        end
-        set(legh,'Interpreter','none','Location','SouthWest','Box','off','LineWidth',1.5,'FontName','Cambria','FontSize',9); % Interpreter prevents underscores turning character into subscript
-        title(['Cluster' num2str(clusnum) ' Aligned to saccade'],'FontName','Cambria','FontSize',15);
-        
-        %% target alignment plot
-        tgtfig(clusnum)=figure('name',['Cluster' num2str(clusnum) ' target plots']);
-        hold on;
-        popssrt=compgssdf(1, clusnum).align.tgt.evttimes(:,6);
-        %     poptacho=compgssdf(1, clusnum).align.tgt.evttimes(:,7); %if we want
-        %     the curve width
-        for tgtpop=1:3
+        %2nd plots
+        subplot(1,2,2)
+        poperrcd=compgssdf(1, clusnum).align.ssd.evttimes(:,5);
+        poprew=compgssdf(1, clusnum).align.ssd.evttimes(:,4);
+        for ssdpop=2:2:4
+            % keep only files with non-null data (which had correct ssd)
+            nz_idx=nansum(compgssdf(1,clusnum).align.ssd.(ssdtrialtype{ssdpop}),2)~=0;
             try
-                %individual plots
-%                     foo=(compgssdf(1,clusnum).align.tgt.(trialtype{1}));
-%                     faa=(compgssdf(1,clusnum).align.tgt.(trialtype{2}));
-%                     for mkp=1:size(foo,1)
-    %                     if ~isempty(nansum(foo(mkp,:)))
-    %                       figure; plot(foo(mkp,:)); hold on;  plot(faa(mkp,:),'r'); hold off
-    %                     end
-%                     end
-                popsdf=nanmean(compgssdf(1,clusnum).align.tgt.(trialtype{tgtpop}));
+                popsdf=nanmean(compgssdf(1,clusnum).align.ssd.(ssdtrialtype{ssdpop})(nz_idx,:));
                 conv_popsdf=fullgauss_filtconv(popsdf,20,0);
                 popsdf(60:end-60)=conv_popsdf(60:end-60);
-                [popsdf, compgssdf(1,clusnum).align.tgt.(trialtype_sdf{tgtpop})]=deal(popsdf);
-%                 [popsdf, compgssdf(1,clusnum).align.tgt.(trialtype_sdf{tgtpop})]=deal(nanmean(compgssdf(1,clusnum).align.tgt.(trialtype{tgtpop})));
-                [popci, compgssdf(1,clusnum).align.tgt.(trialtype_ci{tgtpop})]=deal(nanstd(compgssdf(1,clusnum).align.tgt.(trialtype{tgtpop}))/...
-                    sqrt(size(compgssdf(1,clusnum).align.tgt.(trialtype{tgtpop}),1)));
+                [popsdf, compgssdf(1,clusnum).align.ssd.(ssdtrialtype_sdf{ssdpop})]=deal(popsdf);
+                %             [popsdf, compgssdf(1,clusnum).align.ssd.(ssdtrialtype_sdf{ssdpop})]=deal(nanmean(compgssdf(1,clusnum).align.ssd.(ssdtrialtype{ssdpop})(nz_idx,:)));
+                [popci, compgssdf(1,clusnum).align.ssd.(ssdtrialtype_ci{ssdpop})]=deal(nanstd(compgssdf(1,clusnum).align.ssd.(ssdtrialtype{ssdpop})(nz_idx,:))/...
+                    sqrt(size(compgssdf(1,clusnum).align.ssd.(ssdtrialtype{ssdpop})(nz_idx,:),1)));
             catch
                 continue
             end
-            %         conv_raster(repmat(popsdf,19,1)./1000,conv_sigma);
-            
-            % plot SEM
-            patch([1:length(popci),fliplr(1:length(popci))],...
-                [popsdf-popci,fliplr(popsdf+popci)],...
-                lineStyles(tgtpop,:),'EdgeColor','none','FaceAlpha',0.1);
             hold on;
-            % plot SSD+SSRTs
-            popssrt=popssrt(~isnan(popssrt));
-            currylim=get(gca,'ylim');
-            for ppssrt=1:length(popssrt)
-                ssrtph=patch([popssrt(ppssrt)-1:popssrt(ppssrt)+1 fliplr(popssrt(ppssrt)-1:popssrt(ppssrt)+1)], ...
-                    reshape(repmat([currylim(1) currylim(2)],3,1),1,numel(currylim)*3), ...
-                    [0.5 0.5 0.5],'EdgeColor','none','FaceAlpha',0.5);
+            if ssdpop==2 %keep same color as first subplot
+                patch([1:length(popci),fliplr(1:length(popci))],...
+                    [popsdf-popci,fliplr(popsdf+popci)],...
+                    lineStyles(1,:),'EdgeColor','none','FaceAlpha',0.1);
+                lineh(ssdpop)=plot(popsdf,'LineWidth',2,'color',lineStyles(1,:));
+                % plot reward times
+                poprew=poprew(~isnan(poprew));
+                currylim=get(gca,'ylim');
+                for ppssrt=1:length(poprew)
+                    rewph=patch([poprew(ppssrt)-1:poprew(ppssrt)+1 fliplr(poprew(ppssrt)-1:poprew(ppssrt)+1)], ...
+                        reshape(repmat([currylim(1) currylim(2)],3,1),1,numel(currylim)*3), ...
+                        [0.5 0.5 0.5],'EdgeColor','none','FaceAlpha',0.5);
+                end
+            else
+                patch([1:length(popci),fliplr(1:length(popci))],...
+                    [popsdf-popci,fliplr(popsdf+popci)],...
+                    lineStyles(3,:),'EdgeColor','none','FaceAlpha',0.1);
+                lineh(ssdpop)=plot(popsdf,'LineWidth',2,'color',lineStyles(3,:));
             end
-            lineh(tgtpop)=plot(popsdf,'LineWidth',2,'color',lineStyles(tgtpop,:));
         end
         currylim=get(gca,'ylim');
-        patch([tgt_startstop(1)-2:tgt_startstop(1)+2 fliplr(tgt_startstop(1)-2:tgt_startstop(1)+2)], ...
+        patch([ssd_startstop(1)-2:ssd_startstop(1)+2 fliplr(ssd_startstop(1)-2:ssd_startstop(1)+2)], ...
             reshape(repmat([currylim(1) currylim(2)],5,1),1,numel(currylim)*5), ...
             [0.2 0 0.4],'EdgeColor','none','FaceAlpha',0.5);
-                % pop n
+        % pop n
         text(diff(get(gca,'xlim'))/10, currylim(2)-diff(get(gca,'ylim'))/10, ['n=' num2str(sum(clusidx==100+clusnum))])
         
         hold off;
         %% beautify plot
-        set(gca,'XTick',[0:100:(tgt_startstop(2)+tgt_startstop(1))]);
-        set(gca,'XTickLabel',[-tgt_startstop(1):100:tgt_startstop(2)]);
+        set(gca,'XTick',[0:200:(ssd_startstop(2)+ssd_startstop(1))]);
+        set(gca,'XTickLabel',[-ssd_startstop(1):200:ssd_startstop(2)]);
         axis(gca,'tight'); box off;
         set(gca,'Color','white','TickDir','out','FontName','Cambria','FontSize',10);
         hxlabel=xlabel(gca,'Time (ms)','FontName','Cambria','FontSize',10);
         hylabel=ylabel(gca,'Firing rate (z-score)','FontName','Cambria','FontSize',10);
-        if basicplots
-            legh=legend([lineh(1:2) ssrtph],{'No Stop Signal','Stop Signal: Cancelled','Stop Sig. Reac. Time'});
-        else
-            legh=legend([lineh(1:3) ssrtph],{'No Stop Signal','Stop Signal: Cancelled', 'Stop Signal: Non Cancelled','Stop Sig. Reac. Time'});
-        end
-        set(legh,'Interpreter','none','Location','NorthEast','Box', 'off','LineWidth',1.5,'FontName','Cambria','FontSize',9); % Interpreter prevents underscores turning character into subscript
-        title(['Cluster' num2str(clusnum) ' Aligned to target'],'FontName','Cambria','FontSize',15);
-    end
-    
-    %% ssd alignment plots
-    ssdfig(clusnum)=figure('name',['Cluster' num2str(clusnum) ' ssd plots']);
-    % 1st plots
-    subplot(1,2,1)
-    for ssdpop=1:2:3
-        % keep only files with non-null data (which had correct ssd)
-        nz_idx=nansum(compgssdf(1,clusnum).align.ssd.(ssdtrialtype{ssdpop}),2)~=0;
-        try
-            popsdf=nanmean(compgssdf(1,clusnum).align.ssd.(ssdtrialtype{ssdpop})(nz_idx,:));
-            conv_popsdf=fullgauss_filtconv(popsdf,20,0);
-            popsdf(60:end-60)=conv_popsdf(60:end-60);
-            [popsdf, compgssdf(1,clusnum).align.ssd.(ssdtrialtype_sdf{ssdpop})]=deal(popsdf);
-%             [popsdf, compgssdf(1,clusnum).align.ssd.(ssdtrialtype_sdf{ssdpop})]=deal(nanmean(compgssdf(1,clusnum).align.ssd.(ssdtrialtype{ssdpop})(nz_idx,:)));
-            [popci, compgssdf(1,clusnum).align.ssd.(ssdtrialtype_ci{ssdpop})]=deal(nanstd(compgssdf(1,clusnum).align.ssd.(ssdtrialtype{ssdpop})(nz_idx,:))/...
-                sqrt(size(compgssdf(1,clusnum).align.ssd.(ssdtrialtype{ssdpop})(nz_idx,:),1)));
-        catch
-            continue
-        end
-        hold on;
-        if ssdpop==3 %use adequate color
-            patch([1:length(popci),fliplr(1:length(popci))],...
-                [popsdf-popci,fliplr(popsdf+popci)],...
-                lineStyles(2,:),'EdgeColor','none','FaceAlpha',0.1);
-            lineh(ssdpop)=plot(popsdf,'LineWidth',2,'color',lineStyles(2,:));
-        else
-            patch([1:length(popci),fliplr(1:length(popci))],...
-                [popsdf-popci,fliplr(popsdf+popci)],...
-                lineStyles(1,:),'EdgeColor','none','FaceAlpha',0.1);
-            lineh(ssdpop)=plot(popsdf,'LineWidth',2,'color',lineStyles(1,:));
-        end
-    end
-    currylim=get(gca,'ylim');
-    patch([ssd_startstop(1)-2:ssd_startstop(1)+2 fliplr(ssd_startstop(1)-2:ssd_startstop(1)+2)], ...
-        reshape(repmat([currylim(1) currylim(2)],5,1),1,numel(currylim)*5), ...
-        [0.2 0 0.4],'EdgeColor','none','FaceAlpha',0.5);
-            % pop n
-        text(diff(get(gca,'xlim'))/10, currylim(2)-diff(get(gca,'ylim'))/10, ['n=' num2str(sum(clusidx==100+clusnum))])
-        
-    hold off;
-    %% beautify plot
-    set(gca,'XTick',[0:200:(ssd_startstop(2)+ssd_startstop(1))]);
-    set(gca,'XTickLabel',[-ssd_startstop(1):200:ssd_startstop(2)]);
-    axis(gca,'tight'); box off;
-    set(gca,'Color','white','TickDir','out','FontName','Cambria','FontSize',10);
-    hxlabel=xlabel(gca,'Time (ms)','FontName','Cambria','FontSize',10);
-    hylabel=ylabel(gca,'Firing rate (z-score)','FontName','Cambria','FontSize',10);
-    legh=legend(lineh(1:2:3),{'Latency Matched No Stop Signal','Stop Signal: Cancelled'});
-    set(legh,'Interpreter','none','Location','NorthWest','Box', 'off','LineWidth',1.5,'FontName','Cambria','FontSize',9); % Interpreter prevents underscores turning character into subscript
-    title(['Cluster' num2str(clusnum) ' NSS CS Aligned to ssd'],'FontName','Cambria','FontSize',15);
-    
-    %2nd plots
-    subplot(1,2,2)
-    poperrcd=compgssdf(1, clusnum).align.ssd.evttimes(:,5);
-    poprew=compgssdf(1, clusnum).align.ssd.evttimes(:,4);
-    for ssdpop=2:2:4
-        % keep only files with non-null data (which had correct ssd)
-        nz_idx=nansum(compgssdf(1,clusnum).align.ssd.(ssdtrialtype{ssdpop}),2)~=0;
-        try
-            popsdf=nanmean(compgssdf(1,clusnum).align.ssd.(ssdtrialtype{ssdpop})(nz_idx,:));
-            conv_popsdf=fullgauss_filtconv(popsdf,20,0);
-            popsdf(60:end-60)=conv_popsdf(60:end-60);
-            [popsdf, compgssdf(1,clusnum).align.ssd.(ssdtrialtype_sdf{ssdpop})]=deal(popsdf);
-%             [popsdf, compgssdf(1,clusnum).align.ssd.(ssdtrialtype_sdf{ssdpop})]=deal(nanmean(compgssdf(1,clusnum).align.ssd.(ssdtrialtype{ssdpop})(nz_idx,:)));
-            [popci, compgssdf(1,clusnum).align.ssd.(ssdtrialtype_ci{ssdpop})]=deal(nanstd(compgssdf(1,clusnum).align.ssd.(ssdtrialtype{ssdpop})(nz_idx,:))/...
-                sqrt(size(compgssdf(1,clusnum).align.ssd.(ssdtrialtype{ssdpop})(nz_idx,:),1)));
-        catch
-            continue
-        end
-        hold on;
-        if ssdpop==2 %keep same color as first subplot
-            patch([1:length(popci),fliplr(1:length(popci))],...
-                [popsdf-popci,fliplr(popsdf+popci)],...
-                lineStyles(1,:),'EdgeColor','none','FaceAlpha',0.1);
-            lineh(ssdpop)=plot(popsdf,'LineWidth',2,'color',lineStyles(1,:));
-            % plot reward times
-            poprew=poprew(~isnan(poprew));
-            currylim=get(gca,'ylim');
-            for ppssrt=1:length(poprew)
-                rewph=patch([poprew(ppssrt)-1:poprew(ppssrt)+1 fliplr(poprew(ppssrt)-1:poprew(ppssrt)+1)], ...
-                    reshape(repmat([currylim(1) currylim(2)],3,1),1,numel(currylim)*3), ...
-                    [0.5 0.5 0.5],'EdgeColor','none','FaceAlpha',0.5);
-            end
-        else
-            patch([1:length(popci),fliplr(1:length(popci))],...
-                [popsdf-popci,fliplr(popsdf+popci)],...
-                lineStyles(3,:),'EdgeColor','none','FaceAlpha',0.1);
-            lineh(ssdpop)=plot(popsdf,'LineWidth',2,'color',lineStyles(3,:));
-        end
-    end
-    currylim=get(gca,'ylim');
-    patch([ssd_startstop(1)-2:ssd_startstop(1)+2 fliplr(ssd_startstop(1)-2:ssd_startstop(1)+2)], ...
-        reshape(repmat([currylim(1) currylim(2)],5,1),1,numel(currylim)*5), ...
-        [0.2 0 0.4],'EdgeColor','none','FaceAlpha',0.5);
-            % pop n
-        text(diff(get(gca,'xlim'))/10, currylim(2)-diff(get(gca,'ylim'))/10, ['n=' num2str(sum(clusidx==100+clusnum))])
-        
-    hold off;
-    %% beautify plot
-    set(gca,'XTick',[0:200:(ssd_startstop(2)+ssd_startstop(1))]);
-    set(gca,'XTickLabel',[-ssd_startstop(1):200:ssd_startstop(2)]);
-    axis(gca,'tight'); box off;
-    set(gca,'Color','white','TickDir','out','FontName','Cambria','FontSize',10);
-    hxlabel=xlabel(gca,'Time (ms)','FontName','Cambria','FontSize',10);
-    hylabel=ylabel(gca,'Firing rate (z-score)','FontName','Cambria','FontSize',10);
-    legh=legend([lineh(2:2:4) rewph],{'Lat.Matched No Stop Signal','Stop Signal: Non Cancelled','Sac trials reward'});
-    set(legh,'Interpreter','none','Location','NorthWest','Box', 'off','LineWidth',1.5,'FontName','Cambria','FontSize',9); % Interpreter prevents underscores turning character into subscript
-    title(['Cluster' num2str(clusnum) ' NSS NCS Aligned to ssd'],'FontName','Cambria','FontSize',15);
-    
-    if controlplots
-    %% corrective saccade plots
-    
-    if clusnum==1
-        corsacfig=figure('name', 'All Clusters, NCS trials, corrective sac plots'); % ['Cluster' num2str(clusnum) ' corrective sac plots']);
-    else
-         set(0, 'currentfigure', corsacfig);
-    end
-    hold on;
-    
-    for corsacpop=3 %1:3
-        try
-            popsdf=nanmean(compgssdf(1,clusnum).align.corsac.(trialtype{corsacpop}));
-            conv_popsdf=fullgauss_filtconv(popsdf,20,0);
-            popsdf(60:end-60)=conv_popsdf(60:end-60);
-            [popsdf, compgssdf(1,clusnum).align.corsac.(trialtype_sdf{corsacpop})]=deal(popsdf);
-%             [popsdf, compgssdf(1,clusnum).align.corsac.(trialtype_sdf{corsacpop})]=deal(nanmean(compgssdf(1,clusnum).align.corsac.(trialtype{corsacpop})));
-            [popci, compgssdf(1,clusnum).align.corsac.(trialtype_ci{corsacpop})]=deal(nanstd(compgssdf(1,clusnum).align.corsac.(trialtype{corsacpop}))/...
-                sqrt(size(compgssdf(1,clusnum).align.corsac.(trialtype{corsacpop}),1)));
-        catch
-            continue
-        end
-        patch([1:length(popci),fliplr(1:length(popci))],...
-            [popsdf-popci,fliplr(popsdf+popci)],...
-            lineStyles(clusnum+4,:),'EdgeColor','none','FaceAlpha',0.1);
-        hold on;
-        lineh(clusnum)=plot(popsdf,'LineWidth',2,'color',lineStyles(clusnum+4,:));
-    end
-    currylim=get(gca,'ylim');
-    patch([corsac_startstop(1)-2:corsac_startstop(1)+2 fliplr(corsac_startstop(1)-2:corsac_startstop(1)+2)], ...
-        reshape(repmat([currylim(1) currylim(2)],5,1),1,numel(currylim)*5), ...
-        [0 0 0],'EdgeColor','none','FaceAlpha',0.5);
-            % pop n
-%         text(diff(get(gca,'xlim'))/10, currylim(2)-diff(get(gca,'ylim'))/10, ['n=' num2str(sum(clusidx==100+clusnum))])
-        
-    hold off;
-    %% beautify plot
-    set(gca,'XTick',[0:100:(corsac_startstop(2)+corsac_startstop(1))]);
-    set(gca,'XTickLabel',[-corsac_startstop(1):100:corsac_startstop(2)]);
-    axis(gca,'tight'); box off;
-    set(gca,'Color','white','TickDir','out','FontName','Cambria','FontSize',10);
-    hxlabel=xlabel(gca,'Time (ms)','FontName','Cambria','FontSize',10);
-    hylabel=ylabel(gca,'Firing rate (z-score)','FontName','Cambria','FontSize',10);
-%     legh=legend(lineh(1:3),{'No Stop Signal','Stop Signal: Cancelled', 'Stop Signal: Non Cancelled'});
-    if clusnum==4
-        legh=legend(flipud(findobj(gca,'Type','line')),{'Cluster 1','Cluster 2','Cluster 3','Cluster 4'});
+        legh=legend([lineh(2:2:4) rewph],{'Lat.Matched No Stop Signal','Stop Signal: Non Cancelled','Sac trials reward'});
         set(legh,'Interpreter','none','Location','NorthWest','Box', 'off','LineWidth',1.5,'FontName','Cambria','FontSize',9); % Interpreter prevents underscores turning character into subscript
-        title(['All Clusters, NCS trials, Aligned to corrective saccade'],'FontName','Cambria','FontSize',15);
-%     legend(lineh(1:3),{'No Stop Signal','Stop Signal: Cancelled', 'Stop Signal: Non Cancelled'});
-%     set(legh,'Interpreter','none','Location','NorthWest','Box', 'off','LineWidth',1.5,'FontName','Cambria','FontSize',9); % Interpreter prevents underscores turning character into subscript
-%     title(['Cluster' num2str(clusnum) ' Aligned to corrective saccade'],'FontName','Cambria','FontSize',15);
-    end
-    
-    %% reward alignment plots
-    
-    rewfig(clusnum)=figure('name',['Cluster' num2str(clusnum) ' reward plots']);
-    hold on;
-    if basicplots
-        rewcdtnb=2;
-    else
-        rewcdtnb=3;
-    end
-    
-    for rewpop=1:rewcdtnb
-        try
-            popsdf=nanmean(compgssdf(1,clusnum).align.rew.(trialtype{rewpop}));
-            conv_popsdf=fullgauss_filtconv(popsdf,20,0);
-            popsdf(60:end-60)=conv_popsdf(60:end-60);
-            [popsdf, compgssdf(1,clusnum).align.rew.(trialtype_sdf{rewpop})]=deal(popsdf);
-%             [popsdf, compgssdf(1,clusnum).align.rew.(trialtype_sdf{rewpop})]=deal(nanmean(compgssdf(1,clusnum).align.rew.(trialtype{rewpop})));
-            [popci, compgssdf(1,clusnum).align.rew.(trialtype_ci{rewpop})]=deal(nanstd(compgssdf(1,clusnum).align.rew.(trialtype{rewpop}))/...
-                sqrt(size(compgssdf(1,clusnum).align.rew.(trialtype{rewpop}),1)));
-        catch
-            continue
-        end
-        patch([1:length(popci),fliplr(1:length(popci))],...
-            [popsdf-popci,fliplr(popsdf+popci)],...
-            lineStyles(rewpop,:),'EdgeColor','none','FaceAlpha',0.1);
-        hold on;
-        lineh(rewpop)=plot(popsdf,'LineWidth',2,'color',lineStyles(rewpop,:));
-    end
-    currylim=get(gca,'ylim');
-    patch([rew_startstop(1)-2:rew_startstop(1)+2 fliplr(rew_startstop(1)-2:rew_startstop(1)+2)], ...
-        reshape(repmat([currylim(1) currylim(2)],5,1),1,numel(currylim)*5), ...
-        [0 0 0],'EdgeColor','none','FaceAlpha',0.5);
-            % pop n
-        text(diff(get(gca,'xlim'))/10, currylim(2)-diff(get(gca,'ylim'))/10, ['n=' num2str(sum(clusidx==100+clusnum))])
+        title(['Cluster' num2str(clusnum) ' NSS NCS Aligned to ssd'],'FontName','Cambria','FontSize',15);
         
-    hold off;
-    %% beautify plot
-    set(gca,'XTick',[0:100:(rew_startstop(2)+rew_startstop(1))]);
-    set(gca,'XTickLabel',[-rew_startstop(1):100:rew_startstop(2)]);
-    axis(gca,'tight'); box off;
-    set(gca,'Color','white','TickDir','out','FontName','Cambria','FontSize',10);
-    hxlabel=xlabel(gca,'Time (ms)','FontName','Cambria','FontSize',10);
-    hylabel=ylabel(gca,'Firing rate (z-score)','FontName','Cambria','FontSize',10);
-    legh=legend(lineh(1:rewcdtnb),{'No Stop Signal','Stop Signal: Cancelled','Non Cancelled - Rew Time Estimate'});
-    set(legh,'Interpreter','none','Location','SouthWest','Box', 'off','LineWidth',1.5,'FontName','Cambria','FontSize',9); % Interpreter prevents underscores turning character into subscript
-    title(['Cluster' num2str(clusnum) ' Aligned to reward'],'FontName','Cambria','FontSize',15);
+        if controlplots
+            %% corrective saccade plots
+            
+%             if clusnum==1
+%                 corsacfig=figure('name', 'All Clusters, NCS trials, corrective sac plots'); % ['Cluster' num2str(clusnum) ' corrective sac plots']);
+%             else
+%                 set(0, 'currentfigure', corsacfig);
+%             end
+%             hold on;
+%             
+%             for corsacpop=3 %1:3
+%                 try
+%                     popsdf=nanmean(compgssdf(1,clusnum).align.corsac.(trialtype{corsacpop}));
+%                     conv_popsdf=fullgauss_filtconv(popsdf,20,0);
+%                     popsdf(60:end-60)=conv_popsdf(60:end-60);
+%                     [popsdf, compgssdf(1,clusnum).align.corsac.(trialtype_sdf{corsacpop})]=deal(popsdf);
+%                     %             [popsdf, compgssdf(1,clusnum).align.corsac.(trialtype_sdf{corsacpop})]=deal(nanmean(compgssdf(1,clusnum).align.corsac.(trialtype{corsacpop})));
+%                     [popci, compgssdf(1,clusnum).align.corsac.(trialtype_ci{corsacpop})]=deal(nanstd(compgssdf(1,clusnum).align.corsac.(trialtype{corsacpop}))/...
+%                         sqrt(size(compgssdf(1,clusnum).align.corsac.(trialtype{corsacpop}),1)));
+%                 catch
+%                     continue
+%                 end
+%                 patch([1:length(popci),fliplr(1:length(popci))],...
+%                     [popsdf-popci,fliplr(popsdf+popci)],...
+%                     lineStyles(clusnum+4,:),'EdgeColor','none','FaceAlpha',0.1);
+%                 hold on;
+%                 lineh(clusnum)=plot(popsdf,'LineWidth',2,'color',lineStyles(clusnum+4,:));
+%             end
+%             currylim=get(gca,'ylim');
+%             patch([corsac_startstop(1)-2:corsac_startstop(1)+2 fliplr(corsac_startstop(1)-2:corsac_startstop(1)+2)], ...
+%                 reshape(repmat([currylim(1) currylim(2)],5,1),1,numel(currylim)*5), ...
+%                 [0 0 0],'EdgeColor','none','FaceAlpha',0.5);
+%             % pop n
+%             %         text(diff(get(gca,'xlim'))/10, currylim(2)-diff(get(gca,'ylim'))/10, ['n=' num2str(sum(clusidx==100+clusnum))])
+%             
+%             hold off;
+%             %% beautify plot
+%             set(gca,'XTick',[0:100:(corsac_startstop(2)+corsac_startstop(1))]);
+%             set(gca,'XTickLabel',[-corsac_startstop(1):100:corsac_startstop(2)]);
+%             axis(gca,'tight'); box off;
+%             set(gca,'Color','white','TickDir','out','FontName','Cambria','FontSize',10);
+%             hxlabel=xlabel(gca,'Time (ms)','FontName','Cambria','FontSize',10);
+%             hylabel=ylabel(gca,'Firing rate (z-score)','FontName','Cambria','FontSize',10);
+%             %     legh=legend(lineh(1:3),{'No Stop Signal','Stop Signal: Cancelled', 'Stop Signal: Non Cancelled'});
+%             if clusnum==4
+%                 legh=legend(flipud(findobj(gca,'Type','line')),{'Cluster 1','Cluster 2','Cluster 3','Cluster 4'});
+%                 set(legh,'Interpreter','none','Location','NorthWest','Box', 'off','LineWidth',1.5,'FontName','Cambria','FontSize',9); % Interpreter prevents underscores turning character into subscript
+%                 title(['All Clusters, NCS trials, Aligned to corrective saccade'],'FontName','Cambria','FontSize',15);
+%                 %     legend(lineh(1:3),{'No Stop Signal','Stop Signal: Cancelled', 'Stop Signal: Non Cancelled'});
+%                 %     set(legh,'Interpreter','none','Location','NorthWest','Box', 'off','LineWidth',1.5,'FontName','Cambria','FontSize',9); % Interpreter prevents underscores turning character into subscript
+%                 %     title(['Cluster' num2str(clusnum) ' Aligned to corrective saccade'],'FontName','Cambria','FontSize',15);
+%             end
+            
+            %% reward alignment plots
+            
+            rewfig(clusnum)=figure('name',['Cluster' num2str(clusnum) ' reward plots']);
+            hold on;
+            if basicplots
+                rewcdtnb=2;
+            else
+                rewcdtnb=3;
+            end
+            
+            for rewpop=1:rewcdtnb
+                try
+                    popsdf=nanmean(compgssdf(1,clusnum).align.rew.(trialtype{rewpop}));
+                    conv_popsdf=fullgauss_filtconv(popsdf,20,0);
+                    popsdf(60:end-60)=conv_popsdf(60:end-60);
+                    [popsdf, compgssdf(1,clusnum).align.rew.(trialtype_sdf{rewpop})]=deal(popsdf);
+                    %             [popsdf, compgssdf(1,clusnum).align.rew.(trialtype_sdf{rewpop})]=deal(nanmean(compgssdf(1,clusnum).align.rew.(trialtype{rewpop})));
+                    [popci, compgssdf(1,clusnum).align.rew.(trialtype_ci{rewpop})]=deal(nanstd(compgssdf(1,clusnum).align.rew.(trialtype{rewpop}))/...
+                        sqrt(size(compgssdf(1,clusnum).align.rew.(trialtype{rewpop}),1)));
+                catch
+                    continue
+                end
+                patch([1:length(popci),fliplr(1:length(popci))],...
+                    [popsdf-popci,fliplr(popsdf+popci)],...
+                    lineStyles(rewpop,:),'EdgeColor','none','FaceAlpha',0.1);
+                hold on;
+                lineh(rewpop)=plot(popsdf,'LineWidth',2,'color',lineStyles(rewpop,:));
+            end
+            currylim=get(gca,'ylim');
+            patch([rew_startstop(1)-2:rew_startstop(1)+2 fliplr(rew_startstop(1)-2:rew_startstop(1)+2)], ...
+                reshape(repmat([currylim(1) currylim(2)],5,1),1,numel(currylim)*5), ...
+                [0 0 0],'EdgeColor','none','FaceAlpha',0.5);
+            % pop n
+            text(diff(get(gca,'xlim'))/10, currylim(2)-diff(get(gca,'ylim'))/10, ['n=' num2str(sum(clusidx==100+clusnum))])
+            
+            hold off;
+            %% beautify plot
+            set(gca,'XTick',[0:100:(rew_startstop(2)+rew_startstop(1))]);
+            set(gca,'XTickLabel',[-rew_startstop(1):100:rew_startstop(2)]);
+            axis(gca,'tight'); box off;
+            set(gca,'Color','white','TickDir','out','FontName','Cambria','FontSize',10);
+            hxlabel=xlabel(gca,'Time (ms)','FontName','Cambria','FontSize',10);
+            hylabel=ylabel(gca,'Firing rate (z-score)','FontName','Cambria','FontSize',10);
+            legh=legend(lineh(1:rewcdtnb),{'No Stop Signal','Stop Signal: Cancelled','Non Cancelled - Rew Time Estimate'});
+            set(legh,'Interpreter','none','Location','SouthWest','Box', 'off','LineWidth',1.5,'FontName','Cambria','FontSize',9); % Interpreter prevents underscores turning character into subscript
+            title(['Cluster' num2str(clusnum) ' Aligned to reward'],'FontName','Cambria','FontSize',15);
+        end
     end
-end
 end
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% trial by trial analysis
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Make two categories (use especially cluster 1): trials that see 
-% “predicted rew time” burst (see Schultz' Reward prediction error – RPE), 
-% using a threshold estimated from PETH, vs no such burst (likely NSS or CS trials
-% – maybe compared between different trial types). Record amplitude of said burst,
-% and delay from PETH-measured peak. 
-% See if:
-% a/ presence of “RPE” leads to adjustment of SS time estimate in following 
-% trial (for CS trials: time diff between peak time and SS time; 
-%     for NSS, time diff between peak time and median SS time distribution). 
-%     Using median SS time estimate might blur learning-based adjustment. 
-%     See if one can make RT or SSRT curve over trials and calculate peak 
-%     time diff with that curve for a given trial.  
-% b/ amplitude and timing  of RPE correlate with peak timing or baseline 
-%     level in following trial. 
-
+% Make two categories (use especially cluster 2): trials that see “predicted rew time” burst
+% (see Schultz Reward prediction error – RPE), using a threshold estimated from PETH,
+% vs no such burst (likely NSS or CS trials – maybe compared between different trial types).
+% Record amplitude of said burst, and timing w/ respect to the saccade (not looking at CS trials here).
+% Can adjust to delay from PETH-measured peak later in processing. See if
+% a/ presence of “RPE” leads to adjustment of SS time estimate in following trial
+%     (for CS trials: time diff between peak time and SS time; for NSS,
+%             time diff between peak time and median SS time distribution).
+%             Using median SS time estimate might blur learning-based adjustment.
+%             See if one can make RT or SSRT curve over trials and calculate
+%             peak time diff with that curve for a given trial.
+% b/ amplitude and timing  of RPE correlate with peak timing or baseline level in following trial.
 
 
 %% use ssd alignment
-  for clusnum=1:4  
+for clusnum=1:4
     poperrcd=compgssdf(1, clusnum).align.ssd.evttimes(:,5);
     poprew=compgssdf(1, clusnum).align.ssd.evttimes(:,4);
     
     %look at NCS trials for each unit
     
-        % keep only files with non-null data (which had correct ssd)
-        nz_idx=nansum(compgssdf(1,clusnum).align.ssd.(ssdtrialtype{4}),2)~=0;
-        pop_ncs=compgssdf(1,clusnum).align.ssd.(ssdtrialtype{4})(nz_idx,:);
-        try
-            popsdf=nanmean(compgssdf(1,clusnum).align.ssd.(ssdtrialtype{4})(nz_idx,:));
-            conv_popsdf=fullgauss_filtconv(popsdf,20,0);
-            popsdf(60:end-60)=conv_popsdf(60:end-60);
-        catch
-            continue
-        end
+    % keep only files with non-null data (which had correct ssd)
+    nz_idx=nansum(compgssdf(1,clusnum).align.ssd.(ssdtrialtype{4}),2)~=0;
+    pop_ncs=compgssdf(1,clusnum).align.ssd.(ssdtrialtype{4})(nz_idx,:);
+    try
+        popsdf=nanmean(compgssdf(1,clusnum).align.ssd.(ssdtrialtype{4})(nz_idx,:));
+        conv_popsdf=fullgauss_filtconv(popsdf,20,0);
+        popsdf(60:end-60)=conv_popsdf(60:end-60);
+    catch
+        continue
+    end
     %find trials with RPE rebound above threshold
     
-  end  
-    %% beautify plot
+end
+%% beautify plot
 %     set(gca,'XTick',[0:200:(ssd_startstop(2)+ssd_startstop(1))]);
 %     set(gca,'XTickLabel',[-ssd_startstop(1):200:ssd_startstop(2)]);
 %     axis(gca,'tight'); box off;
@@ -950,25 +1052,25 @@ end
 %% print plots
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 if printplots
-fighandles=[sacfig,tgtfig,ssdfig,corsacfig,rewfig];fighandles=fighandles(~isnan(fighandles));
-cd('E:\Data\Analysis\Countermanding\popclusters');
-
-for printfig=1:length(fighandles)
-    exportfigname=get(get(get(fighandles(printfig),'CurrentAxes'),'title'),'String');
-    exportfigname=strrep(exportfigname,' ','_');
-    %print png
-    % newpos =  get(fighandles(printfig),'Position')/60;
-    % set(fighandles(printfig),'PaperUnits','inches','PaperPosition',newpos);
-    print(fighandles(printfig), '-dpng', '-noui', '-opengl','-r600', exportfigname);
-    % -noui stands for: suppress the printing of user interface (ui) controls.
+    fighandles=[sacfig,tgtfig,ssdfig,corsacfig,rewfig];fighandles=fighandles(~isnan(fighandles));
+    cd('E:\Data\Analysis\Countermanding\popclusters');
     
-    %print pdf
-    %reasonably low size / good definition pdf figure (but patch transparency not supported by ghostscript to generate pdf):
-    %print(fighandles(printfig), '-dpdf', '-noui', '-painters','-r600', exportfigname);
-    
-    %print svg
-    plot2svg([exportfigname,'.svg'],fighandles(printfig), 'png'); %only vector graphic export function that preserves alpha transparency
-end
+    for printfig=1:length(fighandles)
+        exportfigname=get(get(get(fighandles(printfig),'CurrentAxes'),'title'),'String');
+        exportfigname=strrep(exportfigname,' ','_');
+        %print png
+        % newpos =  get(fighandles(printfig),'Position')/60;
+        % set(fighandles(printfig),'PaperUnits','inches','PaperPosition',newpos);
+        print(fighandles(printfig), '-dpng', '-noui', '-opengl','-r600', exportfigname);
+        % -noui stands for: suppress the printing of user interface (ui) controls.
+        
+        %print pdf
+        %reasonably low size / good definition pdf figure (but patch transparency not supported by ghostscript to generate pdf):
+        %print(fighandles(printfig), '-dpdf', '-noui', '-painters','-r600', exportfigname);
+        
+        %print svg
+        plot2svg([exportfigname,'.svg'],fighandles(printfig), 'png'); %only vector graphic export function that preserves alpha transparency
+    end
 end
 end
 
