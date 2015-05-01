@@ -46,12 +46,6 @@ data.allgsprefdir=data.allgsprefdir(~badapl,:);
 %allgstrialidx=allgstrialidx(~badapl,:); %not needed
 data.alldb=data.alldb(~badapl,:);
 
-%plot population
-% figure;
-% imagesc(sacresps);
-% colormap gray
-% colorbar;
-
 % 2/ standardize response
 % z-score normalization by baseline - based on pre-target activity
 bslresp_mean=nanmean(bslresps');
@@ -76,6 +70,47 @@ fr_sd=cellfun(@(x) nanstd(x),fullresps);
 % colormap gray
 % colorbar;
 
+%% look at "best" cells 
+midrange=size(bnorm_sacresps,2)/2;
+% Make seed that represent midrange drop / midrange burst / ramp to end / ramp down
+midrangedropseeds=cellfun(@(x) mean(x(1,midrange-150:midrange-50))-mean(x(1,midrange+50:midrange+150)), mat2cell(bnorm_sacresps,ones(size(bnorm_sacresps,1),1)));
+% ramp to end
+outerrangerampseeds=cellfun(@(x) mean(x(1,length(x)-150:length(x)-1))-mean(x(1,1:150)), mat2cell(bnorm_sacresps,ones(size(bnorm_sacresps,1),1)));
+% for ramps all the way down, keep only non-bursting / falling response (~monotonic)
+leastdiff_bnorm_sacresps=bnorm_sacresps(max(abs(diff(bnorm_sacresps)),[],2)<5,:);
+outerrangerampdownseeds=cellfun(@(x) mean(x(1,length(x)-150:length(x)-1))-mean(x(1,1:150)), mat2cell(leastdiff_bnorm_sacresps,ones(size(leastdiff_bnorm_sacresps,1),1)));
+% diff sort works for peaks as well, by opposition, and could be used
+% to separate sharp bursts from smoth bursts (and template 2 from 3 apparently):
+% [~,pkseeds_vals_idx]=sort(max(abs(diff(bnorm_sacresps)),[],2),'descend');
+midrangepeakseeds=cellfun(@(x) (mean(x(1,midrange+50:midrange+100))-mean(x(1,midrange-150:midrange-50)))+...
+    (mean(x(1,midrange+50:midrange+100))-mean(x(1,midrange+100:midrange+200))), mat2cell(bnorm_sacresps,ones(size(bnorm_sacresps,1),1)));
+
+% keep 10 highest seed values
+[~,mrdropseeds_vals_idx]=sort(midrangedropseeds);
+[~,mrpkseeds_vals_idx]=sort(midrangepeakseeds);
+[~,orruseeds_vals_idx]=sort(outerrangerampseeds);
+[~,orrdseeds_vals_idx]=sort(outerrangerampdownseeds);
+top_drop=mrdropseeds_vals_idx(end-10:end);
+top_burst=mrpkseeds_vals_idx(end-10:end);
+top_rampatw=orruseeds_vals_idx(end-10:end);
+top_rampdown=orrdseeds_vals_idx(1:11);
+
+for topfig=1:size(top_drop,1)
+    figure;
+    try
+    align=data.allgsndata{top_drop(topfig), 3}(3).alignt;
+    rasters=((data.allgsndata{top_drop(topfig), 3}(3).rast(:,align-800:align+800)));
+    subplot(2,1,2)
+    plot(conv_raster(rasters))
+    subplot(2,1,1)
+    [indy, indx] = ind2sub(size(rasters),find(rasters));
+    plot([indx';indx'],[indy';indy'+1],'color','k','LineStyle','-'); % plot rasters
+    catch 
+        continue
+    end
+end
+
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Cluster population
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -83,7 +118,7 @@ unit_ids=cellfun(@(x) x.unit_id,data.alldb);
 if recluster
     method='hclus';
     [clusidx,clustypes,clusavwf]=clus_pop(sacresps,bnorm_sacresps,rnorm_sacresps,method);
-    [~,sortidx]=sort(clusidx)
+    [~,sortidx]=sort(clusidx);
     clusid=unique(clusidx);
     
     %population raster

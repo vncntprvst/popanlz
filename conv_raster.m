@@ -6,9 +6,13 @@ switch nargin
         fsigma=10;
         start=1;
         stop=size(rasters,2);
+        meanFR=0;
+        stdFR=1;
     case 2
         start=1;
         stop=size(rasters,2);
+        meanFR=0;
+        stdFR=1;
     case 4
         meanFR=0;
         stdFR=1;
