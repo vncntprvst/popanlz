@@ -23,11 +23,26 @@ switch nargin
     stdFR=std(nanmean(bsl_bins,2)); % better std estimate, as std(normepochFR) just overestimates std
 end
 
+% need to remove NaN-containing trials
+rasters=rasters(~isnan(mean(rasters(:,fsigma*3+start:stop-3*fsigma),2)),:);
+% allocating
 convrasters=NaN(size(rasters,1),stop-start-fsigma*6+1);
-
+% figure;
+% hold on
 for trial=1:size(rasters,1)
+% 	trialnans=isnan(rasters(trial,fsigma*3+start:stop-3*fsigma));
     convrasters(trial,:)=fullgauss_filtconv(rasters(trial,start:stop),fsigma,0).*1000;
-%     figure; plot(convrasters(rast,:));
+%     convrasters(trial,trialnans)=NaN;
+%     plot(convrasters(trial,:));
+end
+
+% some trials might still fall short
+if find(isnan(convrasters))
+    stillnantrials=find(isnan(mean(convrasters,2)));
+    for nant=1:length(stillnantrials)
+        convrasters(stillnantrials(nant),isnan(convrasters(stillnantrials(nant),:)))=...
+            nanmean(convrasters(stillnantrials(nant),:));
+    end      
 end
 
 % convrasters=convrasters(:,fsigma*3+1:end-3*fsigma); %6 sigma ksize

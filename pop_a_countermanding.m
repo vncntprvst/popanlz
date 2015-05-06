@@ -295,8 +295,6 @@ end
 %% calculate sdf for each outcome in each condition in each cluster (yes, that's nested loops)
 % look at clusters 2,3 and 10
 
-
-
 for clusnum=1:4
     for gsd=1:size(clusgsndata{clusnum},1) %compile data across all files for each condition
         
@@ -505,9 +503,10 @@ for clusnum=1:4
                     compgssdf(1,clusnum).align.ssd.(ssdtrialtype{ssdalg})(gsd,:)=normsdf;
                     
                             %% individual cell plots
-                            if clusnum==3 && ssdalg==4
+                            if clusnum==1 && ssdalg==4
                                 try
                                     cut_rasters=rasters(:,alignmtt-ssd_startstop(1):alignmtt+ssd_startstop(2));
+                                    cut_rasters(isnan(cut_rasters))=0;
                                     figure;
                                     subplot(2,1,1)
                                     [indy, indx] = ind2sub(size(cut_rasters),find(cut_rasters));
@@ -521,10 +520,10 @@ for clusnum=1:4
                                         [0 0 0],'EdgeColor','none','FaceAlpha',0.5);
                                     
                                     axis(gca,'tight'); box off;
-                                    text(diff(get(gca,'xlim'))/10, ylim(2)-diff(get(gca,'ylim'))/10, ['cell ' num2str(gsd)])
+                                    text(diff(get(gca,'xlim'))/10, ylim(2)-diff(get(gca,'ylim'))/10, ['cell ' num2str(max(find(clusidx==(100+3),gsd)))])
                                     title(['Cluster 1 - NCS - Aligned to SSD'],'FontName','Cambria','FontSize',12);
-                                    exportfigname=['Clus1_NCS_SSDal_cell ' num2str(gsd)]
-                                    print(gcf, '-dpng', '-noui', '-opengl','-r600', exportfigname);
+%                                     exportfigname=['Clus1_NCS_SSDal_cell ' num2str(gsd)]
+%                                     print(gcf, '-dpng', '-noui', '-opengl','-r600', exportfigname);
                                 catch
                                     gsd
                                 end
