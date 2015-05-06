@@ -7,9 +7,10 @@ if singlessd
     prefdironly=0; %otherwise we don't keep anything
 end
 popplots=1;
-printplots=1;
+printplots=0;
+defaultplot=1;
 basicplots=1;
-controlplots=1;
+controlplots=0;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% normalize data
@@ -19,10 +20,10 @@ controlplots=1;
 %time window. Add kernel * 6 ms (see fullgauss_filtconv), e.g. 60 ms at both
 % ends, which will be cut.
 % data.allgsndata has 3 column for 3 aligntype. Each cell has 3 or 4 for different conditions
-
-sacresps=cellfun(@(x) conv_raster(x(1,1).rast,10,x(1,1).alignt-260,x(1,1).alignt+259), data.allgsndata(:,1), 'UniformOutput',false); %400ms period
-bslresps=cellfun(@(x) conv_raster(x(1,1).rast,10,x(1,1).alignt-620,x(1,1).alignt-1), data.allgsndata(:,2), 'UniformOutput',false); %500ms period
-fullresps=cellfun(@(x) conv_raster(x(1,1).rast,10,1,size(x(1,1).rast,2)), data.allgsndata(:,2), 'UniformOutput',false); %full response
+sigma=10;
+sacresps=cellfun(@(x) conv_raster(x(1,1).rast,sigma,x(1,1).alignt-(200+sigma*3),x(1,1).alignt+(199+sigma*3)), data.allgsndata(:,1), 'UniformOutput',false); %400ms period
+bslresps=cellfun(@(x) conv_raster(x(1,1).rast,sigma,x(1,1).alignt-(500+sigma*3),x(1,1).alignt+(sigma*3-1)), data.allgsndata(:,2), 'UniformOutput',false); %500ms period
+fullresps=cellfun(@(x) conv_raster(x(1,1).rast,sigma,1,size(x(1,1).rast,2)), data.allgsndata(:,2), 'UniformOutput',false); %full response
 
 %% remove bad apples
 badapl=cellfun(@(x) size(x,2)==1, sacresps);
@@ -71,44 +72,45 @@ fr_sd=cellfun(@(x) nanstd(x),fullresps);
 % colorbar;
 
 %% look at "best" cells 
-midrange=size(bnorm_sacresps,2)/2;
-% Make seed that represent midrange drop / midrange burst / ramp to end / ramp down
-midrangedropseeds=cellfun(@(x) mean(x(1,midrange-150:midrange-50))-mean(x(1,midrange+50:midrange+150)), mat2cell(bnorm_sacresps,ones(size(bnorm_sacresps,1),1)));
-% ramp to end
-outerrangerampseeds=cellfun(@(x) mean(x(1,length(x)-150:length(x)-1))-mean(x(1,1:150)), mat2cell(bnorm_sacresps,ones(size(bnorm_sacresps,1),1)));
-% for ramps all the way down, keep only non-bursting / falling response (~monotonic)
-leastdiff_bnorm_sacresps=bnorm_sacresps(max(abs(diff(bnorm_sacresps)),[],2)<5,:);
-outerrangerampdownseeds=cellfun(@(x) mean(x(1,length(x)-150:length(x)-1))-mean(x(1,1:150)), mat2cell(leastdiff_bnorm_sacresps,ones(size(leastdiff_bnorm_sacresps,1),1)));
-% diff sort works for peaks as well, by opposition, and could be used
-% to separate sharp bursts from smoth bursts (and template 2 from 3 apparently):
-% [~,pkseeds_vals_idx]=sort(max(abs(diff(bnorm_sacresps)),[],2),'descend');
-midrangepeakseeds=cellfun(@(x) (mean(x(1,midrange+50:midrange+100))-mean(x(1,midrange-150:midrange-50)))+...
-    (mean(x(1,midrange+50:midrange+100))-mean(x(1,midrange+100:midrange+200))), mat2cell(bnorm_sacresps,ones(size(bnorm_sacresps,1),1)));
-
-% keep 10 highest seed values
-[~,mrdropseeds_vals_idx]=sort(midrangedropseeds);
-[~,mrpkseeds_vals_idx]=sort(midrangepeakseeds);
-[~,orruseeds_vals_idx]=sort(outerrangerampseeds);
-[~,orrdseeds_vals_idx]=sort(outerrangerampdownseeds);
-top_drop=mrdropseeds_vals_idx(end-10:end);
-top_burst=mrpkseeds_vals_idx(end-10:end);
-top_rampatw=orruseeds_vals_idx(end-10:end);
-top_rampdown=orrdseeds_vals_idx(1:11);
-
-for topfig=1:size(top_drop,1)
-    figure;
-    try
-    align=data.allgsndata{top_drop(topfig), 3}(3).alignt;
-    rasters=((data.allgsndata{top_drop(topfig), 3}(3).rast(:,align-800:align+800)));
-    subplot(2,1,2)
-    plot(conv_raster(rasters))
-    subplot(2,1,1)
-    [indy, indx] = ind2sub(size(rasters),find(rasters));
-    plot([indx';indx'],[indy';indy'+1],'color','k','LineStyle','-'); % plot rasters
-    catch 
-        continue
-    end
-end
+% midrange=size(bnorm_sacresps,2)/2;
+% % Make seed that represent midrange drop / midrange burst / ramp to end / ramp down
+% midrangedropseeds=cellfun(@(x) mean(x(1,midrange-150:midrange-50))-mean(x(1,midrange+50:midrange+150)), mat2cell(bnorm_sacresps,ones(size(bnorm_sacresps,1),1)));
+% % ramp to end
+% outerrangerampseeds=cellfun(@(x) mean(x(1,length(x)-150:length(x)-1))-mean(x(1,1:150)), mat2cell(bnorm_sacresps,ones(size(bnorm_sacresps,1),1)));
+% % for ramps all the way down, keep only non-bursting / falling response (~monotonic)
+% leastdiff_bnorm_sacresps=bnorm_sacresps(max(abs(diff(bnorm_sacresps)),[],2)<5,:);
+% outerrangerampdownseeds=cellfun(@(x) mean(x(1,length(x)-150:length(x)-1))-mean(x(1,1:150)), mat2cell(leastdiff_bnorm_sacresps,ones(size(leastdiff_bnorm_sacresps,1),1)));
+% % diff sort works for peaks as well, by opposition, and could be used
+% % to separate sharp bursts from smoth bursts (and template 2 from 3 apparently):
+% % [~,pkseeds_vals_idx]=sort(max(abs(diff(bnorm_sacresps)),[],2),'descend');
+% midrangepeakseeds=cellfun(@(x) (mean(x(1,midrange+50:midrange+100))-mean(x(1,midrange-150:midrange-50)))+...
+%     (mean(x(1,midrange+50:midrange+100))-mean(x(1,midrange+100:midrange+200))), mat2cell(bnorm_sacresps,ones(size(bnorm_sacresps,1),1)));
+% 
+% % keep 10 highest seed values
+% [~,mrdropseeds_vals_idx]=sort(midrangedropseeds);
+% [~,mrpkseeds_vals_idx]=sort(midrangepeakseeds);
+% [~,orruseeds_vals_idx]=sort(outerrangerampseeds);
+% [~,orrdseeds_vals_idx]=sort(outerrangerampdownseeds);
+% top_drop=mrdropseeds_vals_idx(end-10:end);
+% top_burst=mrpkseeds_vals_idx(end-10:end);
+% top_rampatw=orruseeds_vals_idx(end-10:end);
+% top_rampdown=orrdseeds_vals_idx(1:11);
+% 
+% figure;
+% for topfig=1:size(top_drop,1)
+%     try
+%     align=data.allgsndata{top_drop(topfig), 3}(4).alignt;
+%     rasters=((data.allgsndata{top_drop(topfig), 3}(4).rast(:,align-800:align+800)));
+%     subplot(2,1,2)
+%     hold on 
+%     plot(conv_raster(rasters))
+%     subplot(2,1,1)
+%     [indy, indx] = ind2sub(size(rasters),find(rasters));
+%     plot([indx';indx'],[indy';indy'+1],'LineStyle','-'); % plot rasters
+%     catch 
+%         continue
+%     end
+% end
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -172,6 +174,45 @@ else
     clustypes={profiles{sunitid_revidx,1}};
 end
 
+
+%% Instead, classify according to when peak occurs with respect to stop signal
+% data span
+ssd_startstop=[800 700];
+
+% kernel
+conv_sigma=50;
+half_sixsig=conv_sigma*3; %half kernel window
+
+for gsd=1:size(data.allgsndata,1)
+    if clusidx(gsd)~=-1
+        try
+        rasters=data.allgsndata{gsd,3}(3).rast;
+        alignmtt=data.allgsndata{gsd,3}(3).alignt;
+        start=alignmtt-ssd_startstop(1)-half_sixsig; stop=alignmtt+ssd_startstop(2)+half_sixsig;
+        normsdf=conv_raster(rasters,conv_sigma,start,stop,bslresps(gsd,:)); %normalize by baseline
+        % find peak and drough
+        peak_drough=find(abs(round(diff(fullgauss_filtconv(normsdf,5,0,'same')),4).*1000)<=3);
+        % segment sequence in pre, peri , post, late
+        pre_ssd=normsdf(peak_drough(peak_drough>ssd_startstop(1)-600 & peak_drough<ssd_startstop(1)-200)); if isempty(pre_ssd); pre_ssd=0; end
+        peri_ssd=normsdf(peak_drough(peak_drough>ssd_startstop(1)-200 & peak_drough<ssd_startstop(1)+100)); if isempty(peri_ssd); peri_ssd=0; end
+        post_ssd=normsdf(peak_drough(peak_drough>ssd_startstop(1)+100 & peak_drough<ssd_startstop(1)+400)); if isempty(post_ssd); post_ssd=0; end
+        late_trial=normsdf(peak_drough(peak_drough>ssd_startstop(1)+400 & peak_drough<max(normsdf))); if isempty(late_trial); late_trial=0; end
+        
+        if max(peri_ssd) > max([pre_ssd post_ssd]) % Clus 1
+            clusidx(gsd)=101;
+        elseif max(post_ssd) > max([pre_ssd peri_ssd late_trial]) % Clus 2
+            clusidx(gsd)=102;
+        elseif max(late_trial) > max([pre_ssd peri_ssd post_ssd]) % Clus 3
+            clusidx(gsd)=103;
+        elseif max(pre_ssd) > max([peri_ssd post_ssd late_trial]) % Clus 4
+            clusidx(gsd)=104;
+        end
+        catch
+            continue
+        end
+    end
+end
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Separate data by cluster
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -202,7 +243,8 @@ for clusixdnum=1:length(unique(clusidx))-1
     % raster data
     clusgsndata{clusixdnum}=data.allgsndata(clusidx==(100+clusixdnum),:);
     % baseline
-    clussblmean{clusixdnum}=bslresp_mean(clusidx==(100+clusixdnum));
+%     clussblmean{clusixdnum}=bslresp_mean(clusidx==(100+clusixdnum));
+    clussblresp{clusixdnum}=bslresps(clusidx==(100+clusixdnum),:); 
     % baseline sd
     clussbslresp_sd{clusixdnum}=bslresp_sd(clusidx==(100+clusixdnum));
     % full mean
@@ -253,8 +295,7 @@ end
 %% calculate sdf for each outcome in each condition in each cluster (yes, that's nested loops)
 % look at clusters 2,3 and 10
 
-conv_sigma=50;
-half_sixsig=conv_sigma*3; %half kernel window
+
 
 for clusnum=1:4
     for gsd=1:size(clusgsndata{clusnum},1) %compile data across all files for each condition
@@ -280,6 +321,7 @@ for clusnum=1:4
             if size(clussacRT{clusnum}{gsd,1}{:},2)~=size(gsdata(1, 1).rast,1)
                 gsdata=[]; %issue should be fixed now
             else
+                try
                 %most prevalent SSD
                 [ssdbin,ssdbinval]=hist([clusssds{clusnum}{gsd,1}{1, 1};clusssds{clusnum}{gsd,1}{1, 2}]);
                 ssdspread=abs(clusprevssd{clusnum}{gsd,1}{:}-max(ssdbinval(ssdbin==max(ssdbin))));
@@ -295,6 +337,9 @@ for clusnum=1:4
                 %NCS trials
                 gsdata(1, 3).rast=gsdata(1, 3).rast(logical(arrayfun(@(x) sum(prevssd<=x+3 & prevssd>=x-3),...
                     clusssds{clusnum}{gsd,1}{1, 2})),:);
+                catch
+                   gsdata=[];
+                end
             end
         else
             gsdata=[];
@@ -302,7 +347,7 @@ for clusnum=1:4
         
         if ~isempty(gsdata) && clussbslresp_sd{clusnum}(gsd)~=0
             for sacalg=1:3
-                if basicplots && sacalg==2
+                if defaultplot && sacalg==2
                     continue
                 end
                 try
@@ -312,7 +357,7 @@ for clusnum=1:4
                     end
                     alignmtt=gsdata(sacalg).alignt;
                     start=alignmtt-sac_startstop(1)-half_sixsig; stop=alignmtt+sac_startstop(2)+half_sixsig;
-                    normsdf=conv_raster(rasters,conv_sigma,start,stop,clussblmean{clusnum}(gsd),clussbslresp_sd{clusnum}(gsd)); %normalize by baseline
+                    normsdf=conv_raster(rasters,conv_sigma,start,stop,clussblresp{clusnum}(gsd,:)); %normalize by baseline ,clussbslresp_sd{clusnum}(gsd)
                     
                     %normalize sdf by baseline activity
                     %                     normsdf=(sdf-clussfrmean{clusnum}(gsd))./clussfr_sd{clusnum}(gsd);
@@ -378,7 +423,7 @@ for clusnum=1:4
         
         if ~isempty(gsdata) && clussbslresp_sd{clusnum}(gsd)~=0
             for tgtalg=1:3
-                if basicplots && tgtalg==3
+                if defaultplot && tgtalg==3
                     continue
                 end
                 try
@@ -388,7 +433,7 @@ for clusnum=1:4
                     end
                     alignmtt=gsdata(tgtalg).alignt;
                     start=alignmtt-tgt_startstop(1)-half_sixsig; stop=alignmtt+tgt_startstop(2)+half_sixsig;
-                    normsdf=conv_raster(rasters,conv_sigma,start,stop,clussblmean{clusnum}(gsd),clussbslresp_sd{clusnum}(gsd)); %normalize by baseline
+                    normsdf=conv_raster(rasters,conv_sigma,start,stop,clussblresp{clusnum}(gsd,:)); %normalize by baseline ,clussbslresp_sd{clusnum}(gsd)
                     
                     %normalize sdf by baseline activity
                     %                     normsdf=(sdf-clussfrmean{clusnum}(gsd))./clussfr_sd{clusnum}(gsd);
@@ -437,7 +482,7 @@ for clusnum=1:4
                     end
                     alignmtt=gsdata(ssdalg).alignt;
                     start=alignmtt-ssd_startstop(1)-half_sixsig; stop=alignmtt+ssd_startstop(2)+half_sixsig;
-                    normsdf=conv_raster(rasters,conv_sigma,start,stop,clussblmean{clusnum}(gsd),clussbslresp_sd{clusnum}(gsd)); %normalize by baseline
+                    normsdf=conv_raster(rasters,conv_sigma,start,stop,clussblresp{clusnum}(gsd,:)); %normalize by baseline ,clussbslresp_sd{clusnum}(gsd)
                     
                     %normalize sdf by baseline activity
                     %                     normsdf=(sdf-clussfrmean{clusnum}(gsd))./clussfr_sd{clusnum}(gsd);
@@ -457,13 +502,41 @@ for clusnum=1:4
                     %                     end
                     
                     %% store
+                    compgssdf(1,clusnum).align.ssd.(ssdtrialtype{ssdalg})(gsd,:)=normsdf;
+                    
+                            %% individual cell plots
+                            if clusnum==3 && ssdalg==4
+                                try
+                                    cut_rasters=rasters(:,alignmtt-ssd_startstop(1):alignmtt+ssd_startstop(2));
+                                    figure;
+                                    subplot(2,1,1)
+                                    [indy, indx] = ind2sub(size(cut_rasters),find(cut_rasters));
+                                    plot([indx';indx'],[indy';indy'+1],'LineStyle','-'); % plot rasters
+                                    axis(gca,'tight'); box off;
+                                    subplot(2,1,2)
+                                    plot((normsdf))
+                                    ylim=get(gca,'ylim');
+                                    patch([ssd_startstop(1)-2:ssd_startstop(1)+2 fliplr(ssd_startstop(1)-2:ssd_startstop(1)+2)], ...
+                                        reshape(repmat([ylim(1) ylim(2)],5,1),1,numel(ylim)*5), ...
+                                        [0 0 0],'EdgeColor','none','FaceAlpha',0.5);
+                                    
+                                    axis(gca,'tight'); box off;
+                                    text(diff(get(gca,'xlim'))/10, ylim(2)-diff(get(gca,'ylim'))/10, ['cell ' num2str(gsd)])
+                                    title(['Cluster 1 - NCS - Aligned to SSD'],'FontName','Cambria','FontSize',12);
+                                    exportfigname=['Clus1_NCS_SSDal_cell ' num2str(gsd)]
+                                    print(gcf, '-dpng', '-noui', '-opengl','-r600', exportfigname);
+                                catch
+                                    gsd
+                                end
+                            end
+                    
                     %keep error time for NCS
                     if ssdalg==2 %keep reward time from latency-matched NSS trials
                         compgssdf(1,clusnum).align.ssd.evttimes(gsd,4)=round(median(cellfun(@(x) x(4,2), gsdata(ssdalg).evttime))-(alignmtt-ssd_startstop(1))); %median rew signal time
                     elseif ssdalg==4 %keep error / cue off time
                         compgssdf(1,clusnum).align.ssd.evttimes(gsd,5)=round(median(cellfun(@(x) x(5,2), gsdata(ssdalg).evttime))-(alignmtt-ssd_startstop(1))); %median error signal time
                     end
-                    %keep RPE info
+                    %% keep "RPE" (late burst) info
                     % number trials by trial type (some NSS trials can be in
                     % both NSS trial type)
                     if ssdalg==1 % no need to do it every time
@@ -476,7 +549,7 @@ for clusnum=1:4
                     if ssdalg==2 | ssdalg==4
                         %                     'RPE',struct('trialtype',{},'burst',[],'timing',[],'amplitude',[],'nxtrial_type',{},'nxtrial_pktiming',[],'nxtrial_pktimediff',[],'nxtrial_bsline',[])
                         %                   % check if PETH RPE burst
-                        normsdf_peaks=normsdf(ssd_startstop(1)+200:end)>std(normsdf) & [roundn(diff(normsdf(ssd_startstop(1)+200:end)), -2) 0]==0;
+                        normsdf_peaks=normsdf(ssd_startstop(1)+200:end)>std(normsdf) & [round(diff(normsdf(ssd_startstop(1)+200:end)), 2) 0]==0;
                         if sum(normsdf_peaks) %else, keep values as NaN
                             compgssdf(1,clusnum).align.ssd.RPE(gsd,1).PETH_REPburst_time(ssdalg)=...
                                 find(normsdf(ssd_startstop(1)+200:end)==max(normsdf(find(normsdf_peaks)+ssd_startstop(1)+200)),1)+ssd_startstop(1)+149;
@@ -495,8 +568,13 @@ for clusnum=1:4
 %                             close all
                             
                             convrasters=fullgauss_filtconv(rasters(rast,start:stop),conv_sigma,0).*1000;
-                            convrasters=(convrasters-clussblmean{clusnum}(gsd))./clussbslresp_sd{clusnum}(gsd);
-                            convrasters=convrasters(conv_sigma*3+1:end-3*conv_sigma);
+                            %bin-sized calculation of mean and std
+                            bsl_bins=reshape(clussblresp{clusnum}(gsd,:),conv_sigma,length(clussblresp{clusnum}(gsd,:))/conv_sigma);
+                            meanFR=mean(nanmean(bsl_bins,2)); % should be the same as nanmean(normepochFR)
+                            stdFR=std(nanmean(bsl_bins,2)); % better std estimate, as std(normepochFR) just overestimates std
+
+                            convrasters=(convrasters-meanFR)./stdFR;
+%                             convrasters=convrasters(conv_sigma*3+1:end-3*conv_sigma);
                             
 %                             figure; plot(convrasters);
                             
@@ -506,7 +584,7 @@ for clusnum=1:4
                             convrasters_burst=convrasters(ssd_startstop(1)+150:end)>std(normsdf)+...
                                 ... %median(convrasters(ssd_startstop(1)-(gsdata(1, ssdalg).alignt-gsdata(1, ssdalg).evttime{rast}(1,1)):end)) &...
                                 min(convrasters(ssd_startstop(1)-(gsdata(1, ssdalg).alignt-gsdata(1, ssdalg).evttime{rast}(1,1)):end)) &...
-                                [roundn(diff(convrasters(ssd_startstop(1)+150:end)), -2) 0.1]==0;
+                                [round(diff(convrasters(ssd_startstop(1)+150:end)), 2) 0.1]==0;
                             %                        compgssdf(1,clusnum).align.ssd.RPE(gsd,1).
                             if logical(sum(convrasters_burst))
                                 try
@@ -544,15 +622,15 @@ for clusnum=1:4
                                 nx_convrasters=gsdata(nxtrial_ssdalg).rast(compgssdf(1,clusnum).align.ssd.RPE(gsd,1).(ssdtrialtype{nxtrial_ssdalg})==...
                                     gsdata(1, ssdalg).trialnb(rast)+1,:); 
                                 nx_convrasters=fullgauss_filtconv(nx_convrasters(start:stop),conv_sigma,0).*1000;
-                                nx_convrasters=(nx_convrasters-clussblmean{clusnum}(gsd))./clussbslresp_sd{clusnum}(gsd);
-                                nx_convrasters=nx_convrasters(conv_sigma*3+1:end-3*conv_sigma);
+                                nx_convrasters=(nx_convrasters-meanFR)./stdFR;
+%                                 nx_convrasters=nx_convrasters(conv_sigma*3+1:end-3*conv_sigma);
                                 
 %                                 figure; plot(nx_convrasters)
                                 nx_convrasters_pk=nx_convrasters(nx_convrasters(1:ssd_startstop(1)+150)>std(normsdf)+min(convrasters) &...
-                                    [roundn(diff(nx_convrasters(1:ssd_startstop(1)+150)), -2) 0.1]==0);
+                                    [round(diff(nx_convrasters(1:ssd_startstop(1)+150)), 2) 0.1]==0);
                                 compgssdf(1, clusnum).align.ssd.RPE(gsd, 1).nxtrial_pktiming(gsdata(1, ssdalg).trialnb(rast),1)=...
                                     find((nx_convrasters(1:ssd_startstop(1)+150)>std(normsdf)+min(convrasters) &...
-                                    [roundn(diff(nx_convrasters(1:ssd_startstop(1)+150)), -2) 0.1]==0),1)+find(nx_convrasters_pk==max(nx_convrasters_pk),1);
+                                    [round(diff(nx_convrasters(1:ssd_startstop(1)+150)), 2) 0.1]==0),1)+find(nx_convrasters_pk==max(nx_convrasters_pk),1);
 
                                     % peak time diff
                                     % time diff between peak time and SS time (or presumed one for NSS)
@@ -576,7 +654,6 @@ for clusnum=1:4
                         end
                     end
                     
-                    compgssdf(1,clusnum).align.ssd.(ssdtrialtype{ssdalg})(gsd,:)=normsdf;
                 catch norast
                     compgssdf(1,clusnum).align.ssd.(ssdtrialtype{ssdalg})(gsd,:)=NaN;
                 end
@@ -604,7 +681,7 @@ for clusnum=1:4
                     end
                     alignmtt=gsdata(csacalg).alignt;
                     start=alignmtt-corsac_startstop(1)-half_sixsig; stop=alignmtt+corsac_startstop(2)+half_sixsig;
-                    normsdf=conv_raster(rasters,conv_sigma,start,stop,clussblmean{clusnum}(gsd),clussbslresp_sd{clusnum}(gsd)); %normalize by baseline
+                    normsdf=conv_raster(rasters,conv_sigma,start,stop,clussblresp{clusnum}(gsd,:)); %normalize by baseline ,clussbslresp_sd{clusnum}(gsd)
                     
                     %normalize sdf by baseline activity
                     %                     normsdf=(sdf-clussblmean{clusnum}(gsd))./clussbslresp_sd{clusnum}(gsd);
@@ -647,7 +724,7 @@ for clusnum=1:4
                     end
                     alignmtt=gsdata(rewalg).alignt;
                     start=alignmtt-rew_startstop(1)-half_sixsig; stop=alignmtt+rew_startstop(2)+half_sixsig;
-                    normsdf=conv_raster(rasters,conv_sigma,start,stop,clussblmean{clusnum}(gsd),clussbslresp_sd{clusnum}(gsd)); %normalize by baseline
+                    normsdf=conv_raster(rasters,conv_sigma,start,stop,clussblresp{clusnum}(gsd,:)); %normalize by baseline ,clussbslresp_sd{clusnum}(gsd)
                     
                     %normalize sdf by baseline activity
                     %                     normsdf=(sdf-clussblmean{clusnum}(gsd))./clussbslresp_sd{clusnum}(gsd);
@@ -697,7 +774,7 @@ if popplots
                 try
                     popsdf=nanmean(compgssdf(1,clusnum).align.sac.(trialtype{sacpop}));
                     conv_popsdf=fullgauss_filtconv(popsdf,20,0);
-                    popsdf(60:end-60)=conv_popsdf(60:end-60);
+%                     popsdf(60:end-60)=conv_popsdf(60:end-60);
                     [popsdf, compgssdf(1,clusnum).align.sac.(trialtype_sdf{sacpop})]=deal(popsdf);
                     %                 [popsdf, compgssdf(1,clusnum).align.sac.(trialtype_sdf{sacpop})]=deal(nanmean(compgssdf(1,clusnum).align.sac.(trialtype{sacpop})));
                     [popci, compgssdf(1,clusnum).align.sac.(trialtype_ci{sacpop})]=deal(nanstd(compgssdf(1,clusnum).align.sac.(trialtype{sacpop}))/...
@@ -747,7 +824,7 @@ if popplots
             hylabel=ylabel(gca,'Firing rate (z-score)','FontName','Cambria','FontSize',10);
             
             %legend
-            if basicplots
+            if defaultplot
                 legh=legend([lineh(1:2:3) cueph],{'No Stop Signal', 'Stop Signal: Non Cancelled','Target onset'});
             else
                 legh=legend([lineh(1:3) cueph],{'No Stop Signal','Stop Signal: Cancelled', 'Stop Signal: Non Cancelled','Target onset'});
@@ -773,7 +850,7 @@ if popplots
                     %                     end
                     popsdf=nanmean(compgssdf(1,clusnum).align.tgt.(trialtype{tgtpop}));
                     conv_popsdf=fullgauss_filtconv(popsdf,20,0);
-                    popsdf(60:end-60)=conv_popsdf(60:end-60);
+%                     popsdf(60:end-60)=conv_popsdf(60:end-60);
                     [popsdf, compgssdf(1,clusnum).align.tgt.(trialtype_sdf{tgtpop})]=deal(popsdf);
                     %                 [popsdf, compgssdf(1,clusnum).align.tgt.(trialtype_sdf{tgtpop})]=deal(nanmean(compgssdf(1,clusnum).align.tgt.(trialtype{tgtpop})));
                     [popci, compgssdf(1,clusnum).align.tgt.(trialtype_ci{tgtpop})]=deal(nanstd(compgssdf(1,clusnum).align.tgt.(trialtype{tgtpop}))/...
@@ -813,7 +890,7 @@ if popplots
             set(gca,'Color','white','TickDir','out','FontName','Cambria','FontSize',10);
             hxlabel=xlabel(gca,'Time (ms)','FontName','Cambria','FontSize',10);
             hylabel=ylabel(gca,'Firing rate (z-score)','FontName','Cambria','FontSize',10);
-            if basicplots
+            if defaultplot
                 legh=legend([lineh(1:2) ssrtph],{'No Stop Signal','Stop Signal: Cancelled','Stop Sig. Reac. Time'});
             else
                 legh=legend([lineh(1:3) ssrtph],{'No Stop Signal','Stop Signal: Cancelled', 'Stop Signal: Non Cancelled','Stop Sig. Reac. Time'});
@@ -832,7 +909,7 @@ if popplots
             try
                 popsdf=nanmean(compgssdf(1,clusnum).align.ssd.(ssdtrialtype{ssdpop})(nz_idx,:));
                 conv_popsdf=fullgauss_filtconv(popsdf,20,0);
-                popsdf(60:end-60)=conv_popsdf(60:end-60);
+%                 popsdf(60:end-60)=conv_popsdf(60:end-60);
                 [popsdf, compgssdf(1,clusnum).align.ssd.(ssdtrialtype_sdf{ssdpop})]=deal(popsdf);
                 %             [popsdf, compgssdf(1,clusnum).align.ssd.(ssdtrialtype_sdf{ssdpop})]=deal(nanmean(compgssdf(1,clusnum).align.ssd.(ssdtrialtype{ssdpop})(nz_idx,:)));
                 [popci, compgssdf(1,clusnum).align.ssd.(ssdtrialtype_ci{ssdpop})]=deal(nanstd(compgssdf(1,clusnum).align.ssd.(ssdtrialtype{ssdpop})(nz_idx,:))/...
@@ -882,7 +959,7 @@ if popplots
             try
                 popsdf=nanmean(compgssdf(1,clusnum).align.ssd.(ssdtrialtype{ssdpop})(nz_idx,:));
                 conv_popsdf=fullgauss_filtconv(popsdf,20,0);
-                popsdf(60:end-60)=conv_popsdf(60:end-60);
+%                 popsdf(60:end-60)=conv_popsdf(60:end-60);
                 [popsdf, compgssdf(1,clusnum).align.ssd.(ssdtrialtype_sdf{ssdpop})]=deal(popsdf);
                 %             [popsdf, compgssdf(1,clusnum).align.ssd.(ssdtrialtype_sdf{ssdpop})]=deal(nanmean(compgssdf(1,clusnum).align.ssd.(ssdtrialtype{ssdpop})(nz_idx,:)));
                 [popci, compgssdf(1,clusnum).align.ssd.(ssdtrialtype_ci{ssdpop})]=deal(nanstd(compgssdf(1,clusnum).align.ssd.(ssdtrialtype{ssdpop})(nz_idx,:))/...
@@ -929,7 +1006,7 @@ if popplots
         legh=legend([lineh(2:2:4) rewph],{'Lat.Matched No Stop Signal','Stop Signal: Non Cancelled','Sac trials reward'});
         set(legh,'Interpreter','none','Location','NorthWest','Box', 'off','LineWidth',1.5,'FontName','Cambria','FontSize',9); % Interpreter prevents underscores turning character into subscript
         title(['Cluster' num2str(clusnum) ' NSS NCS Aligned to ssd'],'FontName','Cambria','FontSize',15);
-        
+
         if controlplots
             %% corrective saccade plots
             
@@ -987,7 +1064,7 @@ if popplots
             
             rewfig(clusnum)=figure('name',['Cluster' num2str(clusnum) ' reward plots']);
             hold on;
-            if basicplots
+            if defaultplot
                 rewcdtnb=2;
             else
                 rewcdtnb=3;
@@ -997,7 +1074,7 @@ if popplots
                 try
                     popsdf=nanmean(compgssdf(1,clusnum).align.rew.(trialtype{rewpop}));
                     conv_popsdf=fullgauss_filtconv(popsdf,20,0);
-                    popsdf(60:end-60)=conv_popsdf(60:end-60);
+%                     popsdf(60:end-60)=conv_popsdf(60:end-60);
                     [popsdf, compgssdf(1,clusnum).align.rew.(trialtype_sdf{rewpop})]=deal(popsdf);
                     %             [popsdf, compgssdf(1,clusnum).align.rew.(trialtype_sdf{rewpop})]=deal(nanmean(compgssdf(1,clusnum).align.rew.(trialtype{rewpop})));
                     [popci, compgssdf(1,clusnum).align.rew.(trialtype_ci{rewpop})]=deal(nanstd(compgssdf(1,clusnum).align.rew.(trialtype{rewpop}))/...
@@ -1064,7 +1141,7 @@ for clusnum=1:4
     try
         popsdf=nanmean(compgssdf(1,clusnum).align.ssd.(ssdtrialtype{4})(nz_idx,:));
         conv_popsdf=fullgauss_filtconv(popsdf,20,0);
-        popsdf(60:end-60)=conv_popsdf(60:end-60);
+%         popsdf(60:end-60)=conv_popsdf(60:end-60);
     catch
         continue
     end

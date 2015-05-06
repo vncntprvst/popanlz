@@ -185,10 +185,16 @@ for flbn=1:length(dentatefiles)
                 % get psychometric values
                 [mssrt,inhibfun,ccssd,nccssd,ssdvalues,tachomc,tachowidth,...
                     sacdelay,rewtimes,prevssd,trialidx]=findssrt(loadfile{:}, 0);
-                if ~isnan(mssrt)
+                if ~isnan(mssrt) && ~isempty(ccssd) && ~isempty(nccssd)
                     mssrt=max([mssrt (mean(tachomc)+tachowidth/2)]); %replace by: if mssrt < tachomc+tachowidth/2, mssrt=tachomc+tachowidth/2, end; ?
                     if mssrt> 130 && mean(tachomc)>50
                         mssrt=mean(tachomc)+tachowidth;
+                    end
+                elseif isnan(mssrt) && ~isempty(ccssd) && ~isempty(nccssd)
+                    mssrt=80;
+                    if isnan(tachomc)
+                    tachomc=60;
+                    tachowidth=30;
                     end
                 else
                     alldata(flbn,1).allmssrt_tacho=NaN;
@@ -497,6 +503,8 @@ for flbn=1:length(dentatefiles)
     end
     
 end
+
+clearvars -except alldata CCNdb
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% analyze gapstop data

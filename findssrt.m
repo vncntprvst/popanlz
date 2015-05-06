@@ -323,22 +323,25 @@ mssrt=overallMeanSSRT; %,meanIntSSRT,meanSSRT];
 
 
 if isnan(mssrt) || ~(mssrt>50 & mssrt<150) %get tachomc and lookup SSRT/tachomc fit. If fit missing, run SSRT_TachoMP
-    try
-        load([recname(1),'_tachoSSRTfit'],'fit');
-    catch
-        %SSRT_TachoMP
-    end
+%     try
+%         load([recname(1),'_tachoSSRTfit'],'fit');
+%     catch
+%         %SSRT_TachoMP
+%     end
 
     % find reciprocal SSRT value
     try
         %get tacho curve midpoint
         tachomc=mean(tachomc);
         %estimate mssrt
-        mssrt=round(tachomc*fit.coeff(1)+fit.coeff(2));
-    catch
-        if (tachomc>50 & tachomc<90)
-            mssrt=tachomc+20;
+%         mssrt=round(tachomc*fit.coeff(1)+fit.coeff(2));
+        if (tachomc>45 && tachomc<75)
+             mssrt=round(tachomc+tachowidth);
+        elseif (tachomc>75 && tachomc<110)
+             mssrt=round(tachomc+tachowidth/2);
         end
+    catch
+
     end
 end
 

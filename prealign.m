@@ -217,7 +217,7 @@ if strcmp(tasktype,'optiloc')
 %     ol_instruct=ol_instructs{get(findobj('Tag','optiloc_popup'),'Value')};
 end
 
-%% aligning data 
+%% declarations 
 
 % default nonecodes. Potential conflict resolved in rdd_rasters
 nonecodes=[17385 16386];
@@ -295,7 +295,7 @@ if strcmp(tasktype,'optiloc')
     end
 end
 
-% align trials
+%% align trials
 for cnc=1:numcodes
     aligntype=datalign(cnc).alignlabel;
     adjconditions=conditions;
