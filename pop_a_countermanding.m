@@ -2,7 +2,7 @@ function pop_a_countermanding(data,recluster,conn)
 
 %% processing options
 prefdironly=0;
-singlessd=1;
+singlessd=0;
 if singlessd
     prefdironly=0; %otherwise we don't keep anything
 end
@@ -307,11 +307,11 @@ for clusnum=1:4
         %             gspk=0;
         %         end
         
-        % We want to compute only single SSD data -- only if there's a
+        % Here we want to compute only single SSD data -- only if there's a
         % SSRT available. Also take the opportunity to skip this alignment
         % if there aren't enough trials
-        if singlessd && iscell(clusmssrt{clusnum}{gsd,1}) && size(gsdata(1, 2).rast,1) > 5 && size(gsdata(1, 3).rast,1) > 5
-            % keep NC trials with  NSS trials in which a saccade would have been
+        if singlessd && iscell(clusmssrt{clusnum}{gsd,1}) && size(gsdata(1, 3).rast,1) > 5 && size(gsdata(1, 2).rast,1) > 1 
+            % keep NC trials with NSS trials in which a saccade would have been
             % initiated even if a stop signal had occurred, but with saccade latencies
             % greater than the stop-signal delay plus a visual-response latency.
             % We take tachomc-tachowidth/2 rather than the arbitrary 50ms
@@ -340,7 +340,13 @@ for clusnum=1:4
                 end
             end
         else
-            gsdata=[];
+           %still calculate most prevalent SSD
+           if iscell(clusprevssd{clusnum}{gsd,1}) && ~isempty(clusprevssd{clusnum}{gsd,1}{:})
+                [ssdbin,ssdbinval]=hist([clusssds{clusnum}{gsd,1}{1, 1};clusssds{clusnum}{gsd,1}{1, 2}]);
+                ssdspread=abs(clusprevssd{clusnum}{gsd,1}{:}-max(ssdbinval(ssdbin==max(ssdbin))));
+                prevssd=clusprevssd{clusnum}{gsd,1}{:}(ssdspread==min(ssdspread));
+           else %discard? 
+           end
         end
         
         if ~isempty(gsdata) && clussbslresp_sd{clusnum}(gsd)~=0
@@ -381,6 +387,34 @@ for clusnum=1:4
                     %% store
                     compgssdf(1,clusnum).align.sac.(trialtype{sacalg})(gsd,:)=normsdf;
                     
+                    %% individual cell plots
+                            if clusnum==2 && sacalg==3
+                                try
+                                    cut_rasters=rasters(:,alignmtt-ssd_startstop(1):alignmtt+ssd_startstop(2));
+                                    cut_rasters(isnan(cut_rasters))=0;
+                                    figure;
+                                    subplot(2,1,1)
+                                    [indy, indx] = ind2sub(size(cut_rasters),find(cut_rasters));
+                                    plot([indx';indx'],[indy';indy'+1],'LineStyle','-'); % plot rasters
+                                    axis(gca,'tight'); box off;
+                                    subplot(2,1,2)
+                                    plot((normsdf))
+                                    ylim=get(gca,'ylim');
+                                    patch([ssd_startstop(1)-2:ssd_startstop(1)+2 fliplr(ssd_startstop(1)-2:ssd_startstop(1)+2)], ...
+                                        reshape(repmat([ylim(1) ylim(2)],5,1),1,numel(ylim)*5), ...
+                                        [0 0 0],'EdgeColor','none','FaceAlpha',0.5);
+                                    
+                                    axis(gca,'tight'); box off;
+                                    text(diff(get(gca,'xlim'))/10, ylim(2)-diff(get(gca,'ylim'))/10, ['cell ' num2str(max(find(clusidx==(100+3),gsd)))])
+                                    title(['Cluster 1 - NCS - Aligned to SSD'],'FontName','Cambria','FontSize',12);
+%                                     exportfigname=['Clus1_NCS_SSDal_cell ' num2str(gsd)]
+%                                     print(gcf, '-dpng', '-noui', '-opengl','-r600', exportfigname);
+                                catch
+                                    gsd
+                                end
+                            end
+                    
+                    
                 catch norast
                     compgssdf(1,clusnum).align.sac.(trialtype{sacalg})(gsd,:)=NaN;
                 end
@@ -397,7 +431,7 @@ for clusnum=1:4
         %         catch nopeak
         %             gspk=0;
         %         end
-        if singlessd && iscell(clusmssrt{clusnum}{gsd,1}) && size(gsdata(1, 2).rast,1) > 5 && size(gsdata(1, 3).rast,1) > 5
+        if singlessd && iscell(clusmssrt{clusnum}{gsd,1}) && size(gsdata(1, 2).rast,1) > 5 && size(gsdata(1, 3).rast,1) > 1
             % Keeping NSS trials with sac latencies long enough
             % that they would have occured after a stop-signal
             
@@ -415,8 +449,8 @@ for clusnum=1:4
             %NCS trials
             gsdata(1, 3).rast=gsdata(1, 3).rast(logical(arrayfun(@(x) sum(prevssd<=x+3 & prevssd>=x-3),...
                 clusssds{clusnum}{gsd,1}{1, 2})),:);
-        else
-            gsdata=[];
+%         else
+%             gsdata=[];
         end
         
         if ~isempty(gsdata) && clussbslresp_sd{clusnum}(gsd)~=0
@@ -504,29 +538,29 @@ for clusnum=1:4
                     
                             %% individual cell plots
                             if clusnum==1 && ssdalg==4
-                                try
-                                    cut_rasters=rasters(:,alignmtt-ssd_startstop(1):alignmtt+ssd_startstop(2));
-                                    cut_rasters(isnan(cut_rasters))=0;
-                                    figure;
-                                    subplot(2,1,1)
-                                    [indy, indx] = ind2sub(size(cut_rasters),find(cut_rasters));
-                                    plot([indx';indx'],[indy';indy'+1],'LineStyle','-'); % plot rasters
-                                    axis(gca,'tight'); box off;
-                                    subplot(2,1,2)
-                                    plot((normsdf))
-                                    ylim=get(gca,'ylim');
-                                    patch([ssd_startstop(1)-2:ssd_startstop(1)+2 fliplr(ssd_startstop(1)-2:ssd_startstop(1)+2)], ...
-                                        reshape(repmat([ylim(1) ylim(2)],5,1),1,numel(ylim)*5), ...
-                                        [0 0 0],'EdgeColor','none','FaceAlpha',0.5);
-                                    
-                                    axis(gca,'tight'); box off;
-                                    text(diff(get(gca,'xlim'))/10, ylim(2)-diff(get(gca,'ylim'))/10, ['cell ' num2str(max(find(clusidx==(100+3),gsd)))])
-                                    title(['Cluster 1 - NCS - Aligned to SSD'],'FontName','Cambria','FontSize',12);
-%                                     exportfigname=['Clus1_NCS_SSDal_cell ' num2str(gsd)]
-%                                     print(gcf, '-dpng', '-noui', '-opengl','-r600', exportfigname);
-                                catch
-                                    gsd
-                                end
+%                                 try
+%                                     cut_rasters=rasters(:,alignmtt-ssd_startstop(1):alignmtt+ssd_startstop(2));
+%                                     cut_rasters(isnan(cut_rasters))=0;
+%                                     figure;
+%                                     subplot(2,1,1)
+%                                     [indy, indx] = ind2sub(size(cut_rasters),find(cut_rasters));
+%                                     plot([indx';indx'],[indy';indy'+1],'LineStyle','-'); % plot rasters
+%                                     axis(gca,'tight'); box off;
+%                                     subplot(2,1,2)
+%                                     plot((normsdf))
+%                                     ylim=get(gca,'ylim');
+%                                     patch([ssd_startstop(1)-2:ssd_startstop(1)+2 fliplr(ssd_startstop(1)-2:ssd_startstop(1)+2)], ...
+%                                         reshape(repmat([ylim(1) ylim(2)],5,1),1,numel(ylim)*5), ...
+%                                         [0 0 0],'EdgeColor','none','FaceAlpha',0.5);
+%                                     
+%                                     axis(gca,'tight'); box off;
+%                                     text(diff(get(gca,'xlim'))/10, ylim(2)-diff(get(gca,'ylim'))/10, ['cell ' num2str(max(find(clusidx==(100+3),gsd)))])
+%                                     title(['Cluster 1 - NCS - Aligned to SSD'],'FontName','Cambria','FontSize',12);
+% %                                     exportfigname=['Clus1_NCS_SSDal_cell ' num2str(gsd)]
+% %                                     print(gcf, '-dpng', '-noui', '-opengl','-r600', exportfigname);
+%                                 catch
+%                                     gsd
+%                                 end
                             end
                     
                     %keep error time for NCS

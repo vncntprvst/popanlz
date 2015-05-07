@@ -186,11 +186,16 @@ for flbn=1:length(dentatefiles)
                 [mssrt,inhibfun,ccssd,nccssd,ssdvalues,tachomc,tachowidth,...
                     sacdelay,rewtimes,prevssd,trialidx]=findssrt(loadfile{:}, 0);
                 if ~isnan(mssrt) && ~isempty(ccssd) && ~isempty(nccssd)
+ %              By default we take tachomc-tachowidth/2 rather than the arbitrary 50ms
+%               from Hanes et al 98  
                     mssrt=max([mssrt (mean(tachomc)+tachowidth/2)]); %replace by: if mssrt < tachomc+tachowidth/2, mssrt=tachomc+tachowidth/2, end; ?
                     if mssrt> 130 && mean(tachomc)>50
                         mssrt=mean(tachomc)+tachowidth;
                     end
-                elseif isnan(mssrt) && ~isempty(ccssd) && ~isempty(nccssd)
+                elseif isnan(mssrt) && ~isempty(ccssd) && ~isempty(nccssd)    
+% This is just in order keep NC trials with  NSS trials in which a saccade would have been
+% initiated even if a stop signal had occurred, but with saccade latencies
+% greater than the stop-signal delay plus a visual-response latency.
                     mssrt=80;
                     if isnan(tachomc)
                     tachomc=60;
