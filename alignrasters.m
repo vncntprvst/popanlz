@@ -276,11 +276,11 @@ while ~islast
                             else
                                 alignmentfound = 0;
                             end
-                         elseif firstalign==4
+                         elseif firstalign==4 
                              %align to time of error code
 %                              aligntime=etimeout(find(ecodeout==17385 | ecodeout==16386,1)) * (arate / 1000); 
                              % or
-                             % align to estimated time of reward delivery
+                             % align to expected reward time, based on Lm-NSS trials rew times
                              if ecodeout(ncecode)==17385 || ecodeout(ncecode)==16386
                                 nwsacstart=[curtrialsacInfo.starttime];
                                 sacofint=nwsacstart>etimeout(7); %sacs that occur after event
@@ -375,6 +375,9 @@ while ~islast
                     if logical(goodsacnum)
                         onoffcodetime(i,1)=getfield(curtrialsacInfo, {goodsacnum}, 'starttime');
                         onoffcodetime(i,1+codepairnb)=getfield(curtrialsacInfo, {goodsacnum}, 'endtime');
+                    end
+                    if i==4 && onoffcodetime(4,1)-onoffcodetime(1,1)>900 %Hilda's recordings
+%                         onoffcodetime 
                     end
                 end
                 

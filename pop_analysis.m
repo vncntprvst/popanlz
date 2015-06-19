@@ -43,7 +43,9 @@ for flbn=1:length(dentatefiles)
     if strcmp('A',dfile(end))
         dfile=dfile(1:end-1);
     end
-    
+%                 if ~strcmp('H',dfile(1))
+%                 continue
+%             end
     %% subject and procdir
     if strcmp('R',dfile(1))
         subject='Rigel';
@@ -137,7 +139,6 @@ for flbn=1:length(dentatefiles)
     if strcmp(task,'st_saccades')
         %test peak shift on prefered dir vs anti-dir
     elseif strcmp(task,'gapstop')
-        
         %% align rasters
         % common presets
         [~, trialdirs] = data_info(loadfile{:}, 1, 1); %reload file: yes (shouldn't happen, though), skip unprocessed files: yes
@@ -210,14 +211,14 @@ for flbn=1:length(dentatefiles)
                 alldata(flbn,1).sacdelay={sacdelay};
                 alldata(flbn,1).trialidx=trialidx;
                 
-                if size(trialidx.goodsac,1)~=size(alldata(flbn, 1).ndata(1, 1).rast ,1)
-                    if size(trialidx.goodsac,1)>size(alldata(flbn, 1).ndata(1, 1).rast,1)
-                        alldata(flbn,1).sacdelay={alldata(flbn,1).sacdelay{:}(ismember(trialidx.goodsac,alldata(flbn,1).ndata(1,1).trialnb))};
-                    elseif size(trialidx.goodsac,1)<size(alldata(flbn, 1).ndata(1, 1).rast,1) %that may be an issue later
-                        %let's see if it happens, first
-                        size(trialidx.goodsac,1)
-                    end
-                end
+%                 if size(trialidx.goodsac,1)~=size(alldata(flbn, 1).ndata(1, 1).rast ,1)
+%                     if size(trialidx.goodsac,1)>size(alldata(flbn, 1).ndata(1, 1).rast,1)
+%                         alldata(flbn,1).sacdelay={alldata(flbn,1).sacdelay{:}(ismember(trialidx.goodsac,alldata(flbn,1).ndata(1,1).trialnb))};
+%                     elseif size(trialidx.goodsac,1)<size(alldata(flbn, 1).ndata(1, 1).rast,1) %that may be an issue later
+%                         %let's see if it happens, first
+%                         size(trialidx.goodsac,1)
+%                     end
+%                 end
                 
                 %allssds=unique([ccssd;nccssd]);
                 
@@ -267,7 +268,8 @@ for flbn=1:length(dentatefiles)
                 plotstart=1000;
                 plotstop=500;
                 option=NaN;
-            elseif algn==5 % align to reward time for NSS and CS trials
+            elseif algn==5 % align to reward time for NSS and CS trials, 
+%                 and to expected reward time for NCS trials
                 firstalign=4;
                 % will find reward time in cancelled saccade
                 % for failed cancellation, two possibility:
@@ -278,7 +280,7 @@ for flbn=1:length(dentatefiles)
                 plottype = 0;
                 plotstart=1000;
                 plotstop=200;
-                option=NaN;
+                option=logical(nctmatchlatidx);
             end
             
             alldata(flbn,algn).aligntype=alignments{algn};
@@ -289,10 +291,16 @@ for flbn=1:length(dentatefiles)
             
             %use GUI-independent prealign
             getaligndata={}; %re-init structure
+
             try
                 getaligndata = prealign(loadfile{:}(1:end-4), trialdirs, task, firstalign,...
                     secondalign,  includebad, spikechannel, keepdir,...
                     togrey, singlerastplot, option); % align data, don't plot rasters
+%                 if algn==3
+%                     for datasz=1:size(getaligndata,2)
+%                         meanrew_time(flbn,datasz)=mean(cellfun(@(x) x(4,1)-x(1,1), getaligndata(datasz).allgreyareas));
+%                     end
+%                 end
             catch prealign_fail
                 fails={fails; [loadfile{:}(1:end-4), prealign_fail.message]}; %prealign_fail
                 continue
@@ -538,4 +546,11 @@ gsdata.alldb=reshape({alldata(gsdlist,:).db},size(alldata(gsdlist,:))); gsdata.a
 % load('E:\BoxSync\Box Sync\Home Folder vp35\Sync\SommerLab\projects\countermanding\popclusters\countermanding_cDn_gsdata.mat')
 
 pop_a_countermanding(gsdata,recluster,CCNdb);
+
+%make separate calls for different conditions
+% single ssd
+% all ssd / basic plots / default
+% all ssd / basic plots / tri conditions
+% all ssd / control plots
+
 

@@ -305,7 +305,11 @@ for cnc=1:numcodes
             d_increment=size([aligncodes alignseccodes],1);%make room for additional "non-cancel" data
             numplots=numcodes+d_increment;
             if ~isempty(extras)
-                optiondat=extras;
+                try
+                    optiondat=extras(option);
+                catch
+                    optiondat=extras;
+                end
             elseif~isempty(option)
                 optiondat=option;
             end
@@ -316,7 +320,7 @@ for cnc=1:numcodes
         elseif strcmp(aligntype,'tgt') && strcmp(secalignlabel,'ssd')
                 optiondat=option(:,cnc);
         elseif strcmp(aligntype,'rew')
-            allaligncodes=flipud(allaligncodes); %the 1030 reward code should come first. It is not here for legacy reasons 
+            allaligncodes=flipud(allaligncodes); %the 1030 reward code should come first. It is not the case here for legacy reasons 
         end            
     elseif strcmp(tasktype,'base2rem50')
         adjconditions=[conditions(cnc,:);conditions(cnc+numcodes,:);conditions(cnc+2*numcodes,:)];
