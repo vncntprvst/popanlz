@@ -41,7 +41,8 @@ if find(isnan(convrasters))
     stillnantrials=find(isnan(mean(convrasters,2)));
     for nant=1:length(stillnantrials)
         convrasters(stillnantrials(nant),isnan(convrasters(stillnantrials(nant),:)))=...
-            nanmean(convrasters(stillnantrials(nant),:));
+            nanmean(convrasters(stillnantrials(nant),...
+            find(isnan(convrasters(stillnantrials(nant),:)),1)-10:find(isnan(convrasters(stillnantrials(nant),:)),1)));
     end      
 end
 

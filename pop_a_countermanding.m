@@ -1,16 +1,13 @@
-function pop_a_countermanding(data,recluster,conn)
-
-%% processing options
-prefdironly=0;
-singlessd=0;
-if singlessd
-    prefdironly=0; %otherwise we don't keep anything
+function pop_a_countermanding(data,proc_option,conn)
+global directory slash;
+if isempty(directory)
+    [directory,slash]=SetUserDir;
 end
-popplots=1;
-printplots=0;
-defaultplot=0;
-basicplots=0;
-controlplots=1;
+
+% processing options
+if proc_option.singlessd
+    proc_option.prefdironly=0; %otherwise we don't keep anything
+end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% normalize data
@@ -114,10 +111,11 @@ fr_sd=cellfun(@(x) nanstd(x),fullresps);
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 %% Cluster population
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 unit_ids=cellfun(@(x) x.unit_id,data.alldb);
-if recluster
+if proc_option.recluster
     method='hclus';
     [clusidx,clustypes,clusavwf]=clus_pop(sacresps,bnorm_sacresps,rnorm_sacresps,method);
     [~,sortidx]=sort(clusidx);
@@ -162,7 +160,7 @@ if recluster
     end
     
     % add / change unit's profile
-    success = addProfile(clustypes, clusidx, unit_ids, conn )
+    success = addProfile(clustypes, clusidx, unit_ids, conn );
     
 else
     % access unit profiles
@@ -173,7 +171,6 @@ else
     clusidx=[profiles{sunitid_revidx,2}];
     clustypes={profiles{sunitid_revidx,1}};
 end
-
 
 %% Instead, classify according to when peak occurs with respect to stop signal
 % data span
@@ -214,6 +211,7 @@ for gsd=1:size(data.allgsndata,1)
 end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 %% Separate data by cluster
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -261,6 +259,8 @@ for clusixdnum=1:length(unique(clusidx))-1
     clusprevssd{clusixdnum}=data.allgsprevssd(clusidx==(100+clusixdnum));
     % ssrts
     clusmssrt{clusixdnum}=data.allgsmssrt_tacho(clusidx==(100+clusixdnum));
+    % database info 
+    clusdbinfo{clusixdnum}=data.alldb(clusidx==(100+clusixdnum));
 end
 
 %% prealloc compile data
@@ -284,7 +284,7 @@ ssd_startstop=[800 700];
 corsac_startstop=[800 200];
 rew_startstop=[800 200];
 
-%% colors for population plots
+% colors for population plots
 %     figure(1);
 % close all
 cc=lines(size(data.allgsalignmnt,1)); % one color per file
@@ -293,6 +293,7 @@ if size(cc,1)==8
 end
 
 %% calculate sdf for each outcome in each condition in each cluster (yes, that's nested loops)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % look at clusters 2,3 and 10
 
 for clusnum=1:4
@@ -310,7 +311,7 @@ for clusnum=1:4
         % Here we want to compute only single SSD data -- only if there's a
         % SSRT available. Also take the opportunity to skip this alignment
         % if there aren't enough trials
-        if singlessd && iscell(clusmssrt{clusnum}{gsd,1}) && size(gsdata(1, 3).rast,1) > 5 && size(gsdata(1, 2).rast,1) > 1 
+        if proc_option.singlessd && iscell(clusmssrt{clusnum}{gsd,1}) && size(gsdata(1, 3).rast,1) > 5 && size(gsdata(1, 2).rast,1) > 1 
             % keep NC trials with NSS trials in which a saccade would have been
             % initiated even if a stop signal had occurred, but with saccade latencies
             % greater than the stop-signal delay plus a visual-response latency.
@@ -351,12 +352,13 @@ for clusnum=1:4
         
         if ~isempty(gsdata) && clussbslresp_sd{clusnum}(gsd)~=0
             for sacalg=1:3
-                if defaultplot && sacalg==2
+                trialtype={'NSS','CSS','NCSS'};
+                if proc_option.defaultplot && sacalg==2
                     continue
                 end
                 try
                     rasters=gsdata(sacalg).rast;
-                    if prefdironly
+                    if proc_option.prefdironly
                         rasters=rasters(clusprefdir{clusnum}{gsd,1}{sacalg},:); % sorted by 3 structures containing logical indices
                     end
                     alignmtt=gsdata(sacalg).alignt;
@@ -375,17 +377,24 @@ for clusnum=1:4
                     end
                     
                     %% plots (get [sdf, convrasters, convrastsem] if needed)
-                    %                              figure
-                    %                              hold off
-                    %                              patch([1:length(sdf),fliplr(1:length(sdf))],[sdf-convrastsem,fliplr(sdf+convrastsem)],'k','EdgeColor','none','FaceAlpha',0.1);
-                    %                              hold on
-                    %                              %plot sdf
-                    %                              plot(sdf,'Color','b','LineWidth',1.8);
-                    %                              set(gca,'xtick',[1:100:1301],'xticklabel',[-800:100:500])
-                    %                              close(gcf)
-                    %
+%                     event_times=gsdata(sacalg).evttime;
+%                     conditions.evtsort=0; %default 0 for chronological display order
+%                     query = ['SELECT a_file FROM sorts s INNER JOIN recordings r on s.recording_id_fk = r.recording_id WHERE sort_id = ' ...
+%                         num2str(clusdbinfo{clusnum}{gsd, 1}.sort_id) ];
+%                     conditions.recname=fetch(conn,query); conditions.recname=conditions.recname{1}(1:end-1);
+%                     conditions.clus=num2str(clusnum);
+%                     conditions.alignment='sac';
+%                     conditions.trialtype=trialtype{sacalg};
+%                     conditions.save=1;
+%                     colorrasth=Raster_sdf_colorevents(rasters,event_times,start,stop,alignmtt,conv_sigma,conditions);
+%                     drawnow;
+%                     uiwait(colorrasth,1); %1 seconde timeout
+%                     close(colorrasth);
+                    
                     %% store
                     compgssdf(1,clusnum).align.sac.(trialtype{sacalg})(gsd,:)=normsdf;
+                    
+                    
                     
                     %% individual cell plots
                             if clusnum==2 && sacalg==3
@@ -431,7 +440,7 @@ for clusnum=1:4
         %         catch nopeak
         %             gspk=0;
         %         end
-        if singlessd && iscell(clusmssrt{clusnum}{gsd,1}) && size(gsdata(1, 2).rast,1) > 5 && size(gsdata(1, 3).rast,1) > 1
+        if proc_option.singlessd && iscell(clusmssrt{clusnum}{gsd,1}) && size(gsdata(1, 2).rast,1) > 5 && size(gsdata(1, 3).rast,1) > 1
             % Keeping NSS trials with sac latencies long enough
             % that they would have occured after a stop-signal
             
@@ -455,12 +464,12 @@ for clusnum=1:4
         
         if ~isempty(gsdata) && clussbslresp_sd{clusnum}(gsd)~=0
             for tgtalg=1:3
-                if defaultplot && tgtalg==3
+                if proc_option.defaultplot && tgtalg==3
                     continue
                 end
                 try
                     rasters=gsdata(tgtalg).rast;
-                    if prefdironly
+                    if proc_option.prefdironly
                         rasters=rasters(clusprefdir{clusnum}{gsd,1}{tgtalg},:); % sorted by 3 structures containing logical indices
                     end
                     alignmtt=gsdata(tgtalg).alignt;
@@ -509,7 +518,7 @@ for clusnum=1:4
             for ssdalg=1:4
                 try
                     rasters=gsdata(ssdalg).rast;
-                    if prefdironly
+                    if proc_option.prefdironly
                         rasters=rasters(clusprefdir{clusnum}{gsd,1}{ssdalg},:); % sorted by 3 structures containing logical indices
                     end
                     alignmtt=gsdata(ssdalg).alignt;
@@ -522,15 +531,18 @@ for clusnum=1:4
                     
                     %% plots (get [sdf, convrasters, convrastsem] if needed)
                     %                     if clusnum==1 && ssdalg==4
-                    %                              figure%(1)
-                    %                              hold off
-                    %                              patch([1:length(sdf),fliplr(1:length(sdf))],[sdf-convrastsem,fliplr(sdf+convrastsem)],'k','EdgeColor','none','FaceAlpha',0.1);
-                    %                              hold on
-                    %plot sdf
-                    %                              plot(sdf,'Color','b','LineWidth',1.8);
-                    %                              set(gca,'xtick',[1:100:1501],'xticklabel',[-800:100:700])
-                    %                              axis(gca,'tight'); box off;
-                    %                              close(gcf)
+%                     event_times=gsdata(sacalg).evttime;
+%                     conditions.evtsort=0; %default 0 for chronological display order
+%                     query = ['SELECT a_file FROM sorts s INNER JOIN recordings r on s.recording_id_fk = r.recording_id WHERE sort_id = ' ...
+%                         num2str(clusdbinfo{clusnum}{gsd, 1}.sort_id) ];
+%                     conditions.recname=fetch(conn,query); conditions.recname=conditions.recname{1}(1:end-1);
+%                     conditions.clus=num2str(clusnum);
+%                     conditions.alignment='sac';
+%                     conditions.save=1;
+%                     colorrasth=Raster_sdf_colorevents(rasters,event_times,start,stop,alignmtt,conv_sigma,conditions);
+%                     drawnow;
+%                     uiwait(colorrasth);
+%                     close(colorrasth);
                     %                     end
                     
                     %% store
@@ -709,7 +721,7 @@ for clusnum=1:4
             for csacalg=1:3
                 try
                     rasters=gsdata(csacalg).rast;
-                    if prefdironly
+                    if proc_option.prefdironly
                         rasters=rasters(clusprefdir{clusnum}{gsd,1}{csacalg},:); % sorted by 3 structures containing logical indices
                     end
                     alignmtt=gsdata(csacalg).alignt;
@@ -752,13 +764,15 @@ for clusnum=1:4
             for rewalg=1:3
                 try
                     rasters=gsdata(rewalg).rast;
-                    if prefdironly
+                    if proc_option.prefdironly
                         rasters=rasters(clusprefdir{clusnum}{gsd,1}{rewalg},:); % sorted by 3 structures containing logical indices
                     end
                     alignmtt=gsdata(rewalg).alignt;
                     start=alignmtt-rew_startstop(1)-half_sixsig; stop=alignmtt+rew_startstop(2)+half_sixsig;
                     normsdf=conv_raster(rasters,conv_sigma,start,stop,clussblresp{clusnum}(gsd,:)); %normalize by baseline ,clussbslresp_sd{clusnum}(gsd)
-                    
+                    if max(diff(normsdf))>1
+                        figure; plot(normsdf);
+                    end
                     %normalize sdf by baseline activity
                     %                     normsdf=(sdf-clussblmean{clusnum}(gsd))./clussbslresp_sd{clusnum}(gsd);
                     
@@ -785,9 +799,10 @@ for clusnum=1:4
 end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 %% compute and plot population activity (and ci) by cluster
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-if popplots
+if proc_option.popplots
     trialtype_sdf={'NSStrial_popsdf','CStrial_popsdf','NCStrial_popsdf'};
     trialtype_ci={'NSStrial_popci','CStrial_popci','NCStrial_popci'};
     ssdtrialtype_sdf={'LMCS_NSStrial_popsdf','LMNCS_NSStrial_popsdf','CStrial_popsdf','NCStrial_popsdf'};
@@ -798,7 +813,8 @@ if popplots
     [sacfig,tgtfig,ssdfig,corsacfig,rewfig]=deal(nan(1,3)); %handles for figures
     
     for clusnum=1:4
-        if basicplots
+        %% basic plots
+        if proc_option.basicplots
             %% saccade alignment plot
             sacfig(clusnum)=figure('name',['Cluster' num2str(clusnum) ' saccade plots']);
             hold on;
@@ -858,7 +874,7 @@ if popplots
             hylabel=ylabel(gca,'Firing rate (z-score)','FontName','Cambria','FontSize',10);
             
             %legend
-            if defaultplot
+            if proc_option.defaultplot
                 legh=legend([lineh(1:2:3) cueph],{'No Stop Signal', 'Stop Signal: Non Cancelled','Target onset'});
             else
                 legh=legend([lineh(1:3) cueph],{'No Stop Signal','Stop Signal: Cancelled', 'Stop Signal: Non Cancelled','Target onset'});
@@ -924,7 +940,7 @@ if popplots
             set(gca,'Color','white','TickDir','out','FontName','Cambria','FontSize',10);
             hxlabel=xlabel(gca,'Time (ms)','FontName','Cambria','FontSize',10);
             hylabel=ylabel(gca,'Firing rate (z-score)','FontName','Cambria','FontSize',10);
-            if defaultplot
+            if proc_option.defaultplot
                 legh=legend([lineh(1:2) ssrtph],{'No Stop Signal','Stop Signal: Cancelled','Stop Sig. Reac. Time'});
             else
                 legh=legend([lineh(1:3) ssrtph],{'No Stop Signal','Stop Signal: Cancelled', 'Stop Signal: Non Cancelled','Stop Sig. Reac. Time'});
@@ -1041,7 +1057,8 @@ if popplots
         set(legh,'Interpreter','none','Location','NorthWest','Box', 'off','LineWidth',1.5,'FontName','Cambria','FontSize',9); % Interpreter prevents underscores turning character into subscript
         title(['Cluster' num2str(clusnum) ' NSS NCS Aligned to ssd'],'FontName','Cambria','FontSize',15);
         
-        if controlplots
+        %% control plots
+        if proc_option.controlplots
             %% corrective saccade plots
             
             if clusnum==1
@@ -1098,7 +1115,7 @@ if popplots
             
             rewfig(clusnum)=figure('name',['Cluster' num2str(clusnum) ' reward plots']);
             hold on;
-            if defaultplot
+            if proc_option.defaultplot
                 rewcdtnb=2;
             else
                 rewcdtnb=3;
@@ -1146,6 +1163,7 @@ end
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 %% trial by trial analysis
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Make two categories (use especially cluster 2): trials that see “predicted rew time” burst
@@ -1160,9 +1178,7 @@ end
 %             See if one can make RT or SSRT curve over trials and calculate
 %             peak time diff with that curve for a given trial.
 % b/ amplitude and timing  of RPE correlate with peak timing or baseline level in following trial.
-
-
-%% use ssd alignment
+    %% use ssd alignment
 for clusnum=1:4
     poperrcd=compgssdf(1, clusnum).align.ssd.evttimes(:,5);
     poprew=compgssdf(1, clusnum).align.ssd.evttimes(:,4);
@@ -1182,7 +1198,7 @@ for clusnum=1:4
     %find trials with RPE rebound above threshold
     
 end
-%% beautify plot
+    %% beautify plot
 %     set(gca,'XTick',[0:200:(ssd_startstop(2)+ssd_startstop(1))]);
 %     set(gca,'XTickLabel',[-ssd_startstop(1):200:ssd_startstop(2)]);
 %     axis(gca,'tight'); box off;
@@ -1197,7 +1213,7 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% print plots
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-if printplots
+if proc_option.printplots
     fighandles=[sacfig,tgtfig,ssdfig,corsacfig,rewfig];fighandles=fighandles(~isnan(fighandles));
     cd('E:\Data\Analysis\Countermanding\popclusters');
     

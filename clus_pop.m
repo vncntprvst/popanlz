@@ -328,7 +328,7 @@ elseif strcmp(method,'hclus')
     % inc_coef_th=1.15;
     % hc_clus = cluster(hc_links,'cutoff',inc_coef_th);
     % or define number of cluster wanted
-    hc_clus = cluster(hc_links,'maxclust',opti_clusnm*2); %simply using opti_clusnm doesn't a good sense of family tree
+    hc_clus = cluster(hc_links,'maxclust',opti_clusnm*2); %simply using opti_clusnm doesn't give a good sense of family tree
     
     % plot HC clusters
 %     for hclus=1:opti_clusnm*2
@@ -385,7 +385,7 @@ for clus=1:max(clusidx)
     %     rampatw_seeds_vals=gauss_filtconv(mean(bnorm_sacresps(orseeds_vals_idx(end-10:end),:)), 50);
     %
     
-    if size(clusresps,1)==1 %skip other niceties
+    if size(clusresps,1)<=2 %skip other niceties
         varminshift=nan(size(clusresps,1),5);
         varminshift(:,1)=var(clusresps,0,2);
         for respsnm=1:size(clusresps,1)
@@ -395,11 +395,9 @@ for clus=1:max(clusidx)
             [~,varminshift(respsnm,5)] = fminsearch(@(shift) template_curve_match(shift,xfit_vals,clusresps(respsnm,:),rampdown_seed_polyf), 250);
         end
         [~,besttempl]=min(varminshift(:,2:4),[],2);
-        if varminshift(1)>0.5 & varminshift(besttempl)<0.5 %save it
-            clusidx(subclusidx)=besttempl+100;
-        else
-            clusidx(subclusidx)=-1;
-        end
+        tokeep=varminshift(:,1)>0.45 & varminshift(sub2ind(size(varminshift),[1,2]',besttempl+1))<0.5; %save it
+            clusidx(subclusidx(tokeep))=besttempl(tokeep)+100;
+            clusidx(subclusidx(~tokeep))=deal(-1);
         continue
     end
     
@@ -484,7 +482,7 @@ for clus=1:max(clusidx)
         if ~isempty(matchtp) %not low variance cluster
             matchnb=arrayfun(@(x) besttempl(varminshift(:,1)>1)==x, matchtp,'UniformOutput',false);
             bestmtresp_var=min(varminshift(:,matchtp(cellfun(@(x)sum(x),matchnb)==max(cellfun(@(x)sum(x),matchnb)))+1));
-            bestmtresp=varminshift(:,matchtp(cellfun(@(x)sum(x),matchnb)==max(cellfun(@(x)sum(x),matchnb)))+1)==bestmtresp_var;
+            bestmtresp=logical(sum(varminshift(:,matchtp(cellfun(@(x)sum(x),matchnb)==max(cellfun(@(x)sum(x),matchnb)))+1)==min(bestmtresp_var),2)); %logical(sum(...,2)) is just there in case there are two minima
             try
                 clus_std = sqrt(diag(gmm_fit_clusters.Sigma(:,:,PCAclusidx(bestmtresp))));
             catch
@@ -546,7 +544,7 @@ for clus=1:max(clusidx)
                 nlvarclus=find(varminshift(:,1)>0.1);
                 matchnb=arrayfun(@(x) besttempl(gdfit_jk)==x, matchtp,'UniformOutput',false);
                 bestmtresp_var=min(varminshift(nlvarclus,matchtp(cellfun(@(x)sum(x),matchnb)==max(cellfun(@(x)sum(x),matchnb)))+1));
-                bestmtresp=varminshift(nlvarclus,matchtp(cellfun(@(x)sum(x),matchnb)==max(cellfun(@(x)sum(x),matchnb)))+1)==bestmtresp_var;
+                bestmtresp=logical(sum(varminshift(nlvarclus,matchtp(cellfun(@(x)sum(x),matchnb)==max(cellfun(@(x)sum(x),matchnb)))+1)==min(bestmtresp_var),2));
                 try
                     clus_std = sqrt(diag(gmm_fit_clusters.Sigma(:,:,PCAclusidx(nlvarclus(bestmtresp)))));
                 catch

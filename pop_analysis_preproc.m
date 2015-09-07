@@ -543,14 +543,7 @@ gsdata.alldb=reshape({alldata(gsdlist,:).db},size(alldata(gsdlist,:))); gsdata.a
 % allgstrialidx=reshape({alldata(gsdlist,:).trialidx},size(alldata(gsdlist,:)));
 % allgsfname=reshape({alldata(gsdlist,:).fname},size(alldata(gsdlist,:)));
 
-% load('E:\BoxSync\Box Sync\Home Folder vp35\Sync\SommerLab\projects\countermanding\popclusters\countermanding_cDn_gsdata.mat')
-
-pop_a_countermanding(gsdata,recluster,CCNdb);
-
-%make separate calls for different conditions
-% single ssd
-% all ssd / basic plots / default
-% all ssd / basic plots / tri conditions
-% all ssd / control plots
-
+%Save processed file
+cd('E:\BoxSync\Box Sync\Home Folder vp35\Sync\SommerLab\projects\countermanding\popclusters\')
+save countermanding_cDn_gsdata gsdata -v7.3
 
