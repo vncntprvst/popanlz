@@ -95,6 +95,11 @@ for flbn=1:length(dentatefiles)
         end
         [alldata(flbn,1).task,task]=deal(task_rec_id{1});
         alldata(flbn,1).db.rec_id=task_rec_id{2};
+%         if task_rec_id{2}==339
+%             task_rec_id
+%         else
+%             continue
+%         end
         %check valid task
         fcodes =load([dfile,'_REX.mat'], 'allcodes');
         if ~strcmp(task,taskdetect(fcodes.allcodes))
@@ -186,6 +191,15 @@ for flbn=1:length(dentatefiles)
                 % get psychometric values
                 [mssrt,inhibfun,ccssd,nccssd,ssdvalues,tachomc,tachowidth,...
                     sacdelay,rewtimes,prevssd,trialidx]=findssrt(loadfile{:}, 0);
+                %check that num trials match between recordings and
+                %behavior
+                if ~isempty(alldata(flbn).ndata) && size(sacdelay,2)~=size(alldata(flbn).ndata(1).rast,1)
+                    sacdelay=sacdelay(ismember(trialidx.goodsac,alldata(flbn, 1).ndata(1).trialnb));
+                end
+                if ~isempty(alldata(flbn).ndata) && size(rewtimes,1)~=size(alldata(flbn).ndata(1).rast,1)
+                    rewtimes=rewtimes(ismember(trialidx.goodsac,alldata(flbn, 1).ndata(1).trialnb));
+                end
+                
                 if ~isnan(mssrt) && ~isempty(ccssd) && ~isempty(nccssd)
  %              By default we take tachomc-tachowidth/2 rather than the arbitrary 50ms
 %               from Hanes et al 98  
@@ -293,14 +307,24 @@ for flbn=1:length(dentatefiles)
             getaligndata={}; %re-init structure
 
             try
+%                 if flbn==51 || flbn==52
                 getaligndata = prealign(loadfile{:}(1:end-4), trialdirs, task, firstalign,...
                     secondalign,  includebad, spikechannel, keepdir,...
                     togrey, singlerastplot, option); % align data, don't plot rasters
+%                 else
+%                     continue
+%                 end
 %                 if algn==3
-%                     for datasz=1:size(getaligndata,2)
-%                         meanrew_time(flbn,datasz)=mean(cellfun(@(x) x(4,1)-x(1,1), getaligndata(datasz).allgreyareas));
+% %                     for datasz=1:size(getaligndata,2)
+% %                         meanrew_time(flbn,datasz)=mean(cellfun(@(x) x(4,1)-x(1,1), getaligndata(datasz).allgreyareas));
+% %                     end
+%                     if size(sacdelay,2)~=size(alldata(flbn).ndata(1).rast,1)
+%                         %investigate again that issue
+%                         getaligndata
 %                     end
 %                 end
+% 
+%             continue
             catch prealign_fail
                 fails={fails; [loadfile{:}(1:end-4), prealign_fail.message]}; %prealign_fail
                 continue
@@ -520,7 +544,7 @@ end
 clearvars -except alldata CCNdb
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% analyze gapstop data
+%% save gapstop data
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 gsdlist=cellfun(@(x) strcmp(x,'gapstop'),{alldata(:,1).task}) & ~cellfun('isempty',{alldata(:,1).ndata});
@@ -544,6 +568,6 @@ gsdata.alldb=reshape({alldata(gsdlist,:).db},size(alldata(gsdlist,:))); gsdata.a
 % allgsfname=reshape({alldata(gsdlist,:).fname},size(alldata(gsdlist,:)));
 
 %Save processed file
-cd('E:\BoxSync\Box Sync\Home Folder vp35\Sync\SommerLab\projects\countermanding\popclusters\')
-save countermanding_cDn_gsdata gsdata -v7.3
+% cd('E:\BoxSync\Box Sync\Home Folder vp35\Sync\SommerLab\projects\countermanding\popclusters\')
+% save countermanding_cDn_gsdata gsdata -v7.3
 

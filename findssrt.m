@@ -42,7 +42,8 @@ allgoodsacs=~cellfun('isempty',reshape({saccadeInfo.latency},size(saccadeInfo)))
 %weeding out bad trials that are not stop trials
 allgoodsacs(logical(allbad)'&trialtypes~=407,:)=0;
 %also removing those weird trial with 2222 code
-allgoodsacs(allcodes(:,ceil(find(allcodes==1030,1)/size(allcodes,1))-1)==2222,:)=0;
+[~,badcol]=ind2sub(size(allcodes),find(allcodes==2222,1));
+allgoodsacs(allcodes(:,badcol)==2222,:)=0;
 %keeping sac info of non-canceled SS trials
 allncsacs=allgoodsacs;
 allncsacs(floor(allcodes(:,2)./1000)==6,:)=0; % nullifying NSS trials

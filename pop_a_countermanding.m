@@ -267,7 +267,7 @@ end
 arraysz=max([sum(clusidx==101), sum(clusidx==102), sum(clusidx==103), sum(clusidx==104)]);
 compgssdf=struct('clus',{'rampfallclus','sacburstclus','rampatw','fallatw'},...
     'align',struct('sac',struct('NSStrial',nan(arraysz,1301),'CStrial',nan(arraysz,1301),'NCStrial',nan(arraysz,1301),'evttimes',nan(arraysz,7)),...
-    'tgt',struct('NSStrial',nan(arraysz,901),'CStrial',nan(arraysz,901),'NCStrial',nan(arraysz,901),'evttimes',nan(arraysz,7)),...
+    'tgt',struct('NSStrial',nan(arraysz,901),'CStrial',nan(arraysz,901),'NCStrial',nan(arraysz,901),'evttimes',nan(arraysz,7),'nnorm_nss_sdf',nan(arraysz,1301)),...
     'ssd',struct('LMCS_NSStrial',nan(arraysz,1501),'LMNCS_NSStrial',nan(arraysz,1501),'CStrial',nan(arraysz,1501),'NCStrial',nan(arraysz,1501),...
     'evttimes',nan(arraysz,7),'RPE',struct('LMCS_NSStrial',[],'LMNCS_NSStrial',[],'CStrial',[],'NCStrial',[],'PETH_REPburst_time',[],'timing',{},'amplitude',{},...
     'nxtrial_type',{},'nxtrial_pktiming',{},'nxtrial_bsline_pk',{})),...
@@ -311,7 +311,7 @@ for clusnum=1:4
         % Here we want to compute only single SSD data -- only if there's a
         % SSRT available. Also take the opportunity to skip this alignment
         % if there aren't enough trials
-        if proc_option.singlessd && iscell(clusmssrt{clusnum}{gsd,1}) && size(gsdata(1, 3).rast,1) > 5 && size(gsdata(1, 2).rast,1) > 1 
+        if proc_option.singlessd && iscell(clusmssrt{clusnum}{gsd,1}) && size(gsdata(1, 2).rast,1) > 1 && size(gsdata(1, 3).rast,1) > 5
             % keep NC trials with NSS trials in which a saccade would have been
             % initiated even if a stop signal had occurred, but with saccade latencies
             % greater than the stop-signal delay plus a visual-response latency.
@@ -440,11 +440,20 @@ for clusnum=1:4
         %         catch nopeak
         %             gspk=0;
         %         end
-        if proc_option.singlessd && iscell(clusmssrt{clusnum}{gsd,1}) && size(gsdata(1, 2).rast,1) > 5 && size(gsdata(1, 3).rast,1) > 1
+        if proc_option.singlessd && iscell(clusmssrt{clusnum}{gsd,1}) &&...
+                size(gsdata(1, 2).rast,1) > 5 && size(gsdata(1, 3).rast,1) > 1 &&...
+                ~isempty(clusprevssd{clusnum}{gsd,1}{:})
             % Keeping NSS trials with sac latencies long enough
             % that they would have occured after a stop-signal
-            
+            if size(clussacRT{clusnum}{gsd,1}{:},2)~=size(gsdata(1, 1).rast,1)
+                bugf{clusnum}(gsd,1)=clusdbinfo{clusnum}{gsd,1}.rec_id;
+%                 gsdata=[]
+%                 continue
+            else
             %most prevalent SSD
+            % turns out there are more empty prevssd than meet the eye:
+%                         cellfun(@(x) isempty(x{:}),clusprevssd{1, 1}(~cellfun('isempty',clusprevssd{1, 1})))
+
             [ssdbin,ssdbinval]=hist([clusssds{clusnum}{gsd,1}{1, 1};clusssds{clusnum}{gsd,1}{1, 2}]);
             ssdspread=abs(clusprevssd{clusnum}{gsd,1}{:}-max(ssdbinval(ssdbin==max(ssdbin))));
             prevssd=clusprevssd{clusnum}{gsd,1}{:}(ssdspread==min(ssdspread));
@@ -458,10 +467,10 @@ for clusnum=1:4
             %NCS trials
             gsdata(1, 3).rast=gsdata(1, 3).rast(logical(arrayfun(@(x) sum(prevssd<=x+3 & prevssd>=x-3),...
                 clusssds{clusnum}{gsd,1}{1, 2})),:);
+            end
 %         else
 %             gsdata=[];
         end
-        
         if ~isempty(gsdata) && clussbslresp_sd{clusnum}(gsd)~=0
             for tgtalg=1:3
                 if proc_option.defaultplot && tgtalg==3
@@ -483,7 +492,10 @@ for clusnum=1:4
                     %keep ssd+ssrt time
                     compgssdf(1,clusnum).align.tgt.evttimes(gsd,6:7)=round([tgt_startstop(1)+prevssd+clusmssrt{1, clusnum}{gsd, 1}{1, 1}...
                         clusmssrt{1, clusnum}{gsd, 1}{1, 3}]); %first number is ssd+ssrt, second number is tachowidth
-                    
+                    %keep first alignment's sdf, not normalized!
+                    if tgtalg==1
+                         compgssdf(1,clusnum).align.tgt.nnorm_nss_sdf(gsd,:)=conv_raster(rasters,conv_sigma,start-(600-tgt_startstop(1)),stop);
+                    end
                     %% plots (get [sdf, convrasters, convrastsem] if needed)
                     %                                                  figure(1)
                     %                                                  hold off
@@ -496,6 +508,71 @@ for clusnum=1:4
                     
                     %% store
                     compgssdf(1,clusnum).align.tgt.(trialtype{tgtalg})(gsd,:)=normsdf;
+                    
+                    %% find how early curves might diverge
+                    if proc_option.singlessd && tgtalg==2
+                       NSStrialSDF=compgssdf(1,clusnum).align.tgt.nnorm_nss_sdf(gsd,:);
+                       CStrialSDF=conv_raster(rasters,conv_sigma,start-(600-tgt_startstop(1)),stop); 
+                       %threshold will be 2SD above mean of differential
+                       %SDF in 500ms interval before target presentation 
+                       BslDiff=abs(NSStrialSDF(1:600)-CStrialSDF(1:600));
+                       DivThd=mean(BslDiff)+2*(std(BslDiff));
+                       Diffsdfs=abs(NSStrialSDF(600-tgt_startstop(1):end)-CStrialSDF(600-tgt_startstop(1):end));
+                       [DivTime,init_DivTime]=deal(tgt_startstop(1)+compgssdf(1,clusnum).align.tgt.evttimes(gsd,6)); 
+                       if compgssdf(1,clusnum).align.tgt.evttimes(gsd,6)<tgt_startstop(2) & ... % if SSRT within range
+                               logical(sum(Diffsdfs(tgt_startstop(1):end)>DivThd))    %Differential sf above threshold
+                           % find max divergence
+                           maxDiv=max(Diffsdfs(tgt_startstop(1):end));maxDiv_t=tgt_startstop(1)+find(Diffsdfs(tgt_startstop(1):end)==maxDiv,1);
+                           [DivTime,compgssdf(1,clusnum).align.tgt.evttimes(gsd,5)]=...
+                               deal(find(Diffsdfs(maxDiv_t:end)<DivThd,1,'first')-DivTime+maxDiv_t-1); %time from SSRT: end significant divergence  
+                           DivTime=DivTime+init_DivTime;
+                           while Diffsdfs(DivTime-1)>DivThd & DivTime>1
+                               DivTime=DivTime-1;
+                           end
+                           compgssdf(1,clusnum).align.tgt.evttimes(gsd,4)=DivTime-init_DivTime; %time from SSRT: begin significant divergence                         
+                           % plot cluster one figures
+                           if clusnum==1 & proc_option.printplots==1
+                                query = ['SELECT a_file FROM sorts s INNER JOIN recordings r on s.recording_id_fk = r.recording_id WHERE sort_id = ' ...
+                                        num2str(clusdbinfo{clusnum}{gsd, 1}.sort_id) ];
+                                recname=fetch(conn,query); recname=recname{1}(1:end-1);
+                                figure('Name',[recname ' rec_id ' num2str(clusdbinfo{1}{gsd}.rec_id) ' Tgt align Single SSD'],'NumberTitle','off',...
+                                    'position',[2100 500 560 420]); 
+                                plot(NSStrialSDF(600-tgt_startstop(1):end)); hold on; plot(CStrialSDF(600-tgt_startstop(1):end));
+                                axis(gca,'tight'); box off;
+                                plot(DivThd*ones(1,max(get(gca,'xlim'))),'--'); plot(Diffsdfs,'-.');
+                                patch([init_DivTime-2:init_DivTime+2 fliplr(init_DivTime-2:init_DivTime+2)], ...
+                                        reshape(repmat(get(gca,'ylim'),5,1),1,numel(get(gca,'ylim'))*5), ...
+                                        [0 0 0],'EdgeColor','none','FaceAlpha',0.5,'marker','d');
+                                patch([tgt_startstop(1)-2:tgt_startstop(1)+2 fliplr(tgt_startstop(1)-2:tgt_startstop(1)+2)], ...
+                                        reshape(repmat(get(gca,'ylim'),5,1),1,numel(get(gca,'ylim'))*5), ...
+                                        [0 1 0],'EdgeColor','none','FaceAlpha',0.5);
+                                patch([tgt_startstop(1)+prevssd-2:tgt_startstop(1)+prevssd+2 fliplr(tgt_startstop(1)+prevssd-2:tgt_startstop(1)+prevssd+2)], ...
+                                        reshape(repmat(get(gca,'ylim'),5,1),1,numel(get(gca,'ylim'))*5), ...
+                                        [1 0 0],'EdgeColor','none','FaceAlpha',0.5);    
+                                plot(DivTime,Diffsdfs(DivTime)+1,'*');%start
+                                plot(compgssdf(1,clusnum).align.tgt.evttimes(gsd,5)+init_DivTime,Diffsdfs(compgssdf(1,clusnum).align.tgt.evttimes(gsd,5)+init_DivTime)+1,'*');%end
+                                set(gca,'xtick',[1:100:1301],'xticklabel',{'-200' '-100' 'target' '100' '200' '300' '400' '500' '600' '700'});
+                                title([recname ' rec_id ' num2str(clusdbinfo{1}{gsd}.rec_id) ' Tgt align Single SSD'],'Interpreter','none')
+                                legend('NSS trials','CS trials','2SD > mean bsl','Differential act.')
+                                % print
+                                choice = questdlg('Print this one?','Print figure','Yes','No','No');
+                                switch choice
+                                    case 'No'
+                                        close(gcf);
+                                    case 'Yes'
+                                        exportfigname=get(gcf,'Name');
+                                        exportfigname=strrep(exportfigname,' ','_');
+                                        savefig([exportfigname '.fig']);
+                                        %print png
+                                        print(gcf, '-dpng', '-noui', '-opengl','-r300', exportfigname);
+                                        %print svg
+                                        plot2svg([exportfigname,'.svg'],gcf, 'png');
+                                        close(gcf)
+                                end
+                           end
+                       end                             
+                    end
+                    
                 catch norast
                     compgssdf(1,clusnum).align.tgt.(trialtype{tgtalg})(gsd,:)=NaN;
                 end
@@ -771,7 +848,7 @@ for clusnum=1:4
                     start=alignmtt-rew_startstop(1)-half_sixsig; stop=alignmtt+rew_startstop(2)+half_sixsig;
                     normsdf=conv_raster(rasters,conv_sigma,start,stop,clussblresp{clusnum}(gsd,:)); %normalize by baseline ,clussbslresp_sd{clusnum}(gsd)
                     if max(diff(normsdf))>1
-                        figure; plot(normsdf);
+%                         figure; plot(normsdf);
                     end
                     %normalize sdf by baseline activity
                     %                     normsdf=(sdf-clussblmean{clusnum}(gsd))./clussbslresp_sd{clusnum}(gsd);
@@ -798,8 +875,8 @@ for clusnum=1:4
     end
 end
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% compute and plot population activity (and ci) by cluster
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 if proc_option.popplots
@@ -1232,6 +1309,26 @@ if proc_option.printplots
         
         %print svg
         plot2svg([exportfigname,'.svg'],fighandles(printfig), 'png'); %only vector graphic export function that preserves alpha transparency
+    end
+    
+    %% Histograms on time of activity difference
+    if proc_option.singlessd
+        diffstart=compgssdf(1).align.tgt.evttimes(:,4);
+        figure('Name','Timing of activity difference'); 
+        subplot(2,1,1)
+        histogram(diffstart(~isnan(diffstart)),-600:100:100); title('Start of activity difference');
+        diffend=compgssdf(1).align.tgt.evttimes(:,5);
+        subplot(2,1,2)
+        histogram(diffend(~isnan(diffstart)),-600:100:200); title('End of activity difference');
+        
+        exportfigname=get(gcf,'Name');
+        exportfigname=strrep(exportfigname,' ','_');
+        savefig([exportfigname '.fig']);
+        %print png
+        print(gcf, '-dpng', '-noui', '-opengl','-r300', exportfigname);
+        %print svg
+        plot2svg([exportfigname,'.svg'],gcf, 'png');
+        close(gcf)
     end
 end
 end
