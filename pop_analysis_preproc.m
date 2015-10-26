@@ -7,7 +7,7 @@ try
     CCNdb = connect2DB('vp_sldata');
     %     query = 'SELECT FileName FROM b_dentate';
     %     results = fetch(CCNdb,query);
-    dentatefiles =fetch(CCNdb,'select r.a_file FROM recordings r WHERE r.task=''gapstop'' AND r.recloc=''dentate'''); %dentate %top_cortex
+    dentatefiles =fetch(CCNdb,'select r.a_file FROM recordings r WHERE r.task=''st_saccades'' AND r.recloc=''dentate'''); %dentate %top_cortex %gapstop %st_saccades
 catch db_fail
     results = [];
 end
@@ -43,9 +43,9 @@ for flbn=1:length(dentatefiles)
     if strcmp('A',dfile(end))
         dfile=dfile(1:end-1);
     end
-%                 if ~strcmp('H',dfile(1))
-%                 continue
-%             end
+    %                 if ~strcmp('H',dfile(1))
+    %                 continue
+    %             end
     %% subject and procdir
     if strcmp('R',dfile(1))
         subject='Rigel';
@@ -95,11 +95,11 @@ for flbn=1:length(dentatefiles)
         end
         [alldata(flbn,1).task,task]=deal(task_rec_id{1});
         alldata(flbn,1).db.rec_id=task_rec_id{2};
-%         if task_rec_id{2}==339
-%             task_rec_id
-%         else
-%             continue
-%         end
+        %         if task_rec_id{2}==339
+        %             task_rec_id
+        %         else
+        %             continue
+        %         end
         %check valid task
         fcodes =load([dfile,'_REX.mat'], 'allcodes');
         if ~strcmp(task,taskdetect(fcodes.allcodes))
@@ -125,7 +125,7 @@ for flbn=1:length(dentatefiles)
             if isempty(unit_id)
                 % create one, e basta
                 [~, alldata(flbn,1).db.unit_id] = addCluster(sort_id{usesort}, 1,CCNdb);
-%                 noclusfiles=[noclusfiles; dfile];
+                %                 noclusfiles=[noclusfiles; dfile];
                 continue
             elseif length(unit_id)==1
                 useunit=1;
@@ -140,10 +140,11 @@ for flbn=1:length(dentatefiles)
         task='gapstop';
         r_id=[];
     end
-    %% sort ou
+    
+    %% Self_time saccade files
     if strcmp(task,'st_saccades')
         %test peak shift on prefered dir vs anti-dir
-    elseif strcmp(task,'gapstop')
+        
         %% align rasters
         % common presets
         [~, trialdirs] = data_info(loadfile{:}, 1, 1); %reload file: yes (shouldn't happen, though), skip unprocessed files: yes
@@ -156,6 +157,210 @@ for flbn=1:length(dentatefiles)
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         %% prealloc
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        fails=[];
+        alignments={'sac_errsac','tgt_errtrial'};
+        for algn=1:2
+            %% set parameter values
+            if algn==1 % sac in good vs err trials
+                firstalign=6;
+                secondalign=5; %errorcode2 (16386)
+                %                 plottype = 0;
+                plotstart=1100;
+                plotstop=600;
+                option=NaN;
+            elseif algn==2 % tgt in good vs err trials
+                firstalign=7;
+                secondalign=5;
+                %                 plottype = 0; % 3 for splitting data in three groups: short SSD, med SSD and long SSD
+                plotstart=500;
+                plotstop=1000;
+            end
+            
+            alldata(flbn,algn).aligntype=alignments{algn};
+            
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            %% align rasters to conditions
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            
+            %use GUI-independent prealign
+            getaligndata={}; %re-init structure
+            
+            try
+                getaligndata = prealign(loadfile{:}(1:end-4), trialdirs, task, firstalign,...
+                    secondalign,  includebad, spikechannel, keepdir,...
+                    togrey, singlerastplot, option); % align data, don't plot rasters
+                if isempty([getaligndata.rasters])
+                    getaligndata(1).rasters(1,1)
+                end
+            catch prealign_fail
+                fails={fails; [loadfile{:}(1:end-4), prealign_fail.message]}; %prealign_fail
+                continue
+            end
+            
+            %%% keep sac delays %%%
+            alldata(flbn,1).sacdelay={[getaligndata(cell2mat(arrayfun(@(x) ~isempty(x.sacspecs),...
+                getaligndata, 'UniformOutput', false))).sacspecs.latency]};
+            
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            %% get peak firing rate for future normalization. Find prefered dir.
+            if find(strcmp({getaligndata.alignlabel},'sac'))
+                numrastrow=arrayfun(@(x) size(x.rasters,1), getaligndata, 'UniformOutput', false);
+                colrast=nan(sum([numrastrow{:}]),601);
+                colrastidx=[0 numrastrow{:}];
+                prefdir=nan(2,3);
+                for alignd=1:2:size(getaligndata,2) %align on trials where saccades occured
+                    if colrastidx(alignd+1)==0
+                        continue
+                    end
+                    sacalgrasters=getaligndata(1,alignd).rasters;
+                    alignmtt=getaligndata(1,alignd).alignidx;
+                    start=alignmtt-300; stop=alignmtt+300; % -300 to 300 time window around sac (at 0).
+                    colrast(colrastidx(alignd)+sum(colrastidx(1:alignd-1))+1:colrastidx(alignd+1)+sum(colrastidx(1:alignd)),:)=...
+                        sacalgrasters(:,start:stop);
+                    % prefered dir
+                    [unikdir,~,unikidx]=unique(getaligndata(1,alignd).dir);
+                    convpkdir=nan(length(unikdir),1);
+                    for convdirs=1:length(unikdir)
+                        convpkdir(convdirs,:)=max(conv_raster(sacalgrasters(unikidx==convdirs,start:stop),20));
+                    end
+                    if ~isempty(convpkdir)
+                        if length(unikdir(round(convpkdir)==max(round(convpkdir))))>2
+                            prefdir(1:2,alignd)=unikdir((convpkdir)==max((convpkdir)));
+                        else
+                            prefdir(1:2,alignd)=unikdir(round(convpkdir)==max(round(convpkdir))); %if no prefered dir, will be decided just below
+                        end
+                    else
+                        prefdir(alignd)=NaN;
+                    end
+                end
+                %get most found pref dir
+                [~,~,prefdir]=mode(prefdir(~isnan(prefdir)));
+                if length(prefdir{:})>1 %then keep dir with most trials
+                    prefdirnbtrial=([sum([getaligndata.dir]==prefdir{:}(1)) sum([getaligndata.dir]==prefdir{:}(2))]);
+                    prefdir={prefdir{:}(find(prefdirnbtrial==max(prefdirnbtrial),1))};
+                end
+                alldata(flbn,algn).prefdiridx=arrayfun(@(x) x.dir==prefdir{:},getaligndata,'UniformOutput',false);
+                convrasters=conv_raster(colrast,10,1,size(colrast,2));
+                alldata(flbn,algn).pk.sac=max(convrasters);
+                pk_or_tro_time=find(convrasters==max(convrasters) | convrasters==min(convrasters),1);
+                %% make some stats on sac alignment
+                %                 try
+                %                     sacalgrasters=getaligndata(1,1).rasters;
+                %                     alignmtt=getaligndata(1,1).alignidx;
+                %                     start=alignmtt-600+pk_or_tro_time; stop=alignmtt+pk_or_tro_time;
+                %                     % test statcond pre/post peak_or_trough, and direction of change.
+                %                     [alldata(flbn,algn).stats.hval, alldata(flbn,algn).stats.pval,...
+                %                         alldata(flbn,algn).stats.sign]=rastplotstat(sacalgrasters,10,...
+                %                         [alignmtt-600+pk_or_tro_time alignmtt-(300-pk_or_tro_time)+30],...
+                %                         [alignmtt-(300-pk_or_tro_time)+30 alignmtt+pk_or_tro_time],0);
+                %                 catch
+                %                     [alldata(flbn,algn).stats.hval, alldata(flbn,algn).stats.pval,...
+                %                         alldata(flbn,algn).stats.sign]=deal(NaN);
+                %                 end
+            elseif find(strcmp({getaligndata.alignlabel},'tgt'))
+                numrastrow=arrayfun(@(x) size(x.rasters,1), getaligndata, 'UniformOutput', false);
+                colrast=nan(sum([numrastrow{:}]),251);
+                colrastidx=[0 numrastrow{:}];
+                prefdir=nan(2,size(getaligndata,2));
+                for alignd=1:size(getaligndata,2)
+                    if colrastidx(alignd+1)==0
+                        continue
+                    end
+                    sacalgrasters=getaligndata(1,alignd).rasters;
+                    alignmtt=getaligndata(1,alignd).alignidx;
+                    start=alignmtt; stop=alignmtt+250; % -300 to 300 time window around sac (at 0).
+                    colrast(colrastidx(alignd)+sum(colrastidx(1:alignd-1))+1:colrastidx(alignd+1)+sum(colrastidx(1:alignd)),:)=...
+                        sacalgrasters(:,start:stop);
+                    % prefered dir
+                    [unikdir,~,unikidx]=unique(getaligndata(1,alignd).dir);
+                    convpkdir=nan(length(unikdir),1);
+                    for convdirs=1:length(unikdir)
+                        convpkdir(convdirs,:)=max(conv_raster(sacalgrasters(unikidx==convdirs,start:stop),20));
+                    end
+                    if ~isempty(convpkdir)
+                        if length(unikdir(round(convpkdir)==max(round(convpkdir))))>2
+                            prefdir(1:2,alignd)=unikdir((convpkdir)==max((convpkdir)));
+                        else
+                            prefdir(1:2,alignd)=unikdir(round(convpkdir)==max(round(convpkdir))); %if no prefered dir, will be decided just below
+                        end
+                    else
+                        prefdir(alignd)=NaN;
+                    end
+                end
+            elseif find(strcmp({getaligndata.alignlabel},'rew'))
+                numrastrow=arrayfun(@(x) size(x.rasters,1), getaligndata, 'UniformOutput', false);
+                colrast=nan(sum([numrastrow{:}]),501);
+                colrastidx=[0 numrastrow{:}];
+                prefdir=nan(2,2);
+                for alignd=1:2
+                    if colrastidx(alignd+1)==0
+                        continue
+                    end
+                    sacalgrasters=getaligndata(1,alignd).rasters;
+                    alignmtt=getaligndata(1,alignd).alignidx;
+                    start=alignmtt-300; stop=alignmtt+200; % -300 to 300 time window around sac (at 0).
+                    colrast(colrastidx(alignd)+sum(colrastidx(1:alignd-1))+1:colrastidx(alignd+1)+sum(colrastidx(1:alignd)),:)=...
+                        sacalgrasters(:,start:stop);
+                    % prefered dir
+                    [unikdir,~,unikidx]=unique(getaligndata(1,alignd).dir);
+                    convpkdir=nan(length(unikdir),1);
+                    for convdirs=1:length(unikdir)
+                        convpkdir(convdirs,:)=max(conv_raster(sacalgrasters(unikidx==convdirs,start:stop),20));
+                    end
+                    if ~isempty(convpkdir)
+                        if length(unikdir(round(convpkdir)==max(round(convpkdir))))>2
+                            prefdir(1:2,alignd)=unikdir((convpkdir)==max((convpkdir)));
+                        else
+                            prefdir(1:2,alignd)=unikdir(round(convpkdir)==max(round(convpkdir))); %if no prefered dir, will be decided just below
+                        end
+                    else
+                        prefdir(alignd)=NaN;
+                    end
+                end
+                %get most found pref dir
+                [~,~,prefdir]=mode(prefdir(~isnan(prefdir)));
+                if length(prefdir{:})>1 %then keep dir with most trials
+                    prefdirnbtrial=([sum([getaligndata.dir]==prefdir{:}(1)) sum([getaligndata.dir]==prefdir{:}(2))]);
+                    prefdir={prefdir{:}(find(prefdirnbtrial==max(prefdirnbtrial),1))};
+                end
+                alldata(flbn,algn).prefdiridx=arrayfun(@(x) x.dir==prefdir{:},getaligndata,'UniformOutput',false);
+                convrasters=conv_raster(colrast,10,11,size(colrast,2)-10);
+                alldata(flbn,algn).pk.rew=max(convrasters);
+            end
+            
+            %%%%%%%%%%%%%%%%%%%%%%%%
+            %% store rasters, alignment index, trial index, "grey" event times
+            [alldata(flbn,algn).ndata(1:size({getaligndata.rasters},2)).rast]=deal(getaligndata.rasters);
+            [alldata(flbn,algn).ndata(1:size({getaligndata.rasters},2)).alignt]=deal(getaligndata.alignidx);
+            [alldata(flbn,algn).ndata(1:size({getaligndata.rasters},2)).trialnb]=deal(getaligndata.trials);
+            [alldata(flbn,algn).ndata(1:size({getaligndata.rasters},2)).evttime]=deal(getaligndata.allgreyareas);
+            
+            % [t df pvals] = statcond({convrasters closeconvrasters}, 'method', 'perm', 'naccu', 20000,'verbose','off');
+            
+            %% store data for population plotting
+            
+            
+        end
+        
+        % classification: ramp/burst vs pause rebound
+        % Normalization by peak firing
+        
+        
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %% gapstop files
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%    
+    elseif strcmp(task,'gapstop')
+        %% align rasters
+        % common presets
+        [~, trialdirs] = data_info(loadfile{:}, 1, 1); %reload file: yes (shouldn't happen, though), skip unprocessed files: yes
+        includebad=0;
+        spikechannel=1; %select appropriate cluster
+        keepdir='compall'; %alldir %which sac directions
+        togrey=[];
+        singlerastplot=0;
+        
+        %% prealloc
+        
         fails=[];
         alignments={'failed_fast','correct_slow','ssd','corrsacfailed','rewcorrect_rewslow'};
         for algn=1:5
@@ -193,28 +398,28 @@ for flbn=1:length(dentatefiles)
                     sacdelay,rewtimes,prevssd,trialidx]=findssrt(loadfile{:}, 0);
                 %check that num trials match between recordings and
                 %behavior
-                if ~isempty(alldata(flbn).ndata) && size(sacdelay,2)~=size(alldata(flbn).ndata(1).rast,1)
-                    sacdelay=sacdelay(ismember(trialidx.goodsac,alldata(flbn, 1).ndata(1).trialnb));
+                if ~isempty(alldata(flbn).ndata) && size(sacdelay.nsst,2)~=size(alldata(flbn).ndata(1).rast,1)
+                    sacdelay.nsst=sacdelay.nsst(ismember(trialidx.goodsac,alldata(flbn, 1).ndata(1).trialnb));
                 end
                 if ~isempty(alldata(flbn).ndata) && size(rewtimes,1)~=size(alldata(flbn).ndata(1).rast,1)
                     rewtimes=rewtimes(ismember(trialidx.goodsac,alldata(flbn, 1).ndata(1).trialnb));
                 end
                 
                 if ~isnan(mssrt) && ~isempty(ccssd) && ~isempty(nccssd)
- %              By default we take tachomc-tachowidth/2 rather than the arbitrary 50ms
-%               from Hanes et al 98  
+                    %              By default we take tachomc-tachowidth/2 rather than the arbitrary 50ms
+                    %               from Hanes et al 98
                     mssrt=max([mssrt (mean(tachomc)+tachowidth/2)]); %replace by: if mssrt < tachomc+tachowidth/2, mssrt=tachomc+tachowidth/2, end; ?
                     if mssrt> 130 && mean(tachomc)>50
                         mssrt=mean(tachomc)+tachowidth;
                     end
-                elseif isnan(mssrt) && ~isempty(ccssd) && ~isempty(nccssd)    
-% This is just in order keep NC trials with  NSS trials in which a saccade would have been
-% initiated even if a stop signal had occurred, but with saccade latencies
-% greater than the stop-signal delay plus a visual-response latency.
+                elseif isnan(mssrt) && ~isempty(ccssd) && ~isempty(nccssd)
+                    % This is just in order keep NC trials with  NSS trials in which a saccade would have been
+                    % initiated even if a stop signal had occurred, but with saccade latencies
+                    % greater than the stop-signal delay plus a visual-response latency.
                     mssrt=80;
                     if isnan(tachomc)
-                    tachomc=60;
-                    tachowidth=30;
+                        tachomc=60;
+                        tachowidth=30;
                     end
                 else
                     alldata(flbn,1).allmssrt_tacho=NaN;
@@ -222,27 +427,27 @@ for flbn=1:length(dentatefiles)
                 end
                 alldata(flbn,1).allmssrt_tacho={mssrt mean(tachomc) tachowidth};
                 alldata(flbn,1).prevssd={prevssd};
-                alldata(flbn,1).sacdelay={sacdelay};
+                alldata(flbn,1).sacdelay=sacdelay;
                 alldata(flbn,1).trialidx=trialidx;
                 
-%                 if size(trialidx.goodsac,1)~=size(alldata(flbn, 1).ndata(1, 1).rast ,1)
-%                     if size(trialidx.goodsac,1)>size(alldata(flbn, 1).ndata(1, 1).rast,1)
-%                         alldata(flbn,1).sacdelay={alldata(flbn,1).sacdelay{:}(ismember(trialidx.goodsac,alldata(flbn,1).ndata(1,1).trialnb))};
-%                     elseif size(trialidx.goodsac,1)<size(alldata(flbn, 1).ndata(1, 1).rast,1) %that may be an issue later
-%                         %let's see if it happens, first
-%                         size(trialidx.goodsac,1)
-%                     end
-%                 end
+                %                 if size(trialidx.goodsac,1)~=size(alldata(flbn, 1).ndata(1, 1).rast ,1)
+                %                     if size(trialidx.goodsac,1)>size(alldata(flbn, 1).ndata(1, 1).rast,1)
+                %                         alldata(flbn,1).sacdelay={alldata(flbn,1).sacdelay{:}(ismember(trialidx.goodsac,alldata(flbn,1).ndata(1,1).trialnb))};
+                %                     elseif size(trialidx.goodsac,1)<size(alldata(flbn, 1).ndata(1, 1).rast,1) %that may be an issue later
+                %                         %let's see if it happens, first
+                %                         size(trialidx.goodsac,1)
+                %                     end
+                %                 end
                 
                 %allssds=unique([ccssd;nccssd]);
                 
                 % canceled trials
                 ccssdval=unique(ccssd);
-                ctmatchlatidx=zeros(length(sacdelay),length(ccssdval));
+                ctmatchlatidx=zeros(length(sacdelay.nsst),length(ccssdval));
                 for ssdval=1:length(ccssdval)
                     % Keeping NSS trials with sac latencies long enough
                     % that they would have occured after a stop-signal
-                    ctmatchlatidx(:,ssdval)=sacdelay>ccssdval(ssdval)+round(mssrt);
+                    ctmatchlatidx(:,ssdval)=sacdelay.nsst>ccssdval(ssdval)+round(mssrt);
                 end
                 nullidx=sum(ctmatchlatidx,2)==0;
                 ctmatchlatidx(nullidx,1)=1;
@@ -252,7 +457,7 @@ for flbn=1:length(dentatefiles)
                 
                 % non-canceled trials
                 nccssdval=sort(unique(nccssd));
-                nctallmatchlatidx=zeros(length(sacdelay),length(nccssdval));
+                nctallmatchlatidx=zeros(length(sacdelay.nsst),length(nccssdval));
                 for ssdval=1:length(nccssdval) % keeping NSS trials in which
                     % a saccade would have been
                     % initiated even if a stop
@@ -264,7 +469,7 @@ for flbn=1:length(dentatefiles)
                     % We take tachomc-tachowidth/2
                     % rather than the arbitrary
                     % 50ms from Hanes et al 98
-                    nctallmatchlatidx(:,ssdval)=sacdelay>nccssdval(ssdval)+(mean(tachomc)-tachowidth/2) & sacdelay<nccssdval(ssdval)+round(mssrt);
+                    nctallmatchlatidx(:,ssdval)=sacdelay.nsst>nccssdval(ssdval)+(mean(tachomc)-tachowidth/2) & sacdelay.nsst<nccssdval(ssdval)+round(mssrt);
                 end
                 % getting ssds for each NNS trial, taking the lowest ssd.
                 nctmatchlatidx=zeros(size(nctallmatchlatidx,1),1);
@@ -282,8 +487,8 @@ for flbn=1:length(dentatefiles)
                 plotstart=1000;
                 plotstop=500;
                 option=NaN;
-            elseif algn==5 % align to reward time for NSS and CS trials, 
-%                 and to expected reward time for NCS trials
+            elseif algn==5 % align to reward time for NSS and CS trials,
+                %                 and to expected reward time for NCS trials
                 firstalign=4;
                 % will find reward time in cancelled saccade
                 % for failed cancellation, two possibility:
@@ -305,26 +510,26 @@ for flbn=1:length(dentatefiles)
             
             %use GUI-independent prealign
             getaligndata={}; %re-init structure
-
+            
             try
-%                 if flbn==51 || flbn==52
+                %                 if flbn==51 || flbn==52
                 getaligndata = prealign(loadfile{:}(1:end-4), trialdirs, task, firstalign,...
                     secondalign,  includebad, spikechannel, keepdir,...
                     togrey, singlerastplot, option); % align data, don't plot rasters
-%                 else
-%                     continue
-%                 end
-%                 if algn==3
-% %                     for datasz=1:size(getaligndata,2)
-% %                         meanrew_time(flbn,datasz)=mean(cellfun(@(x) x(4,1)-x(1,1), getaligndata(datasz).allgreyareas));
-% %                     end
-%                     if size(sacdelay,2)~=size(alldata(flbn).ndata(1).rast,1)
-%                         %investigate again that issue
-%                         getaligndata
-%                     end
-%                 end
-% 
-%             continue
+                %                 else
+                %                     continue
+                %                 end
+                %                 if algn==3
+                % %                     for datasz=1:size(getaligndata,2)
+                % %                         meanrew_time(flbn,datasz)=mean(cellfun(@(x) x(4,1)-x(1,1), getaligndata(datasz).allgreyareas));
+                % %                     end
+                %                     if size(sacdelay.nsst,2)~=size(alldata(flbn).ndata(1).rast,1)
+                %                         %investigate again that issue
+                %                         getaligndata
+                %                     end
+                %                 end
+                %
+                %             continue
             catch prealign_fail
                 fails={fails; [loadfile{:}(1:end-4), prealign_fail.message]}; %prealign_fail
                 continue
@@ -550,14 +755,14 @@ clearvars -except alldata CCNdb
 gsdlist=cellfun(@(x) strcmp(x,'gapstop'),{alldata(:,1).task}) & ~cellfun('isempty',{alldata(:,1).ndata});
 recluster=0;
 
-%% reshape data
-gsdata.allgsalignmnt=reshape({alldata(gsdlist,:).aligntype},size(alldata(gsdlist,:)));
-gsdata.allgsprevssd=reshape({alldata(gsdlist,:).prevssd},size(alldata(gsdlist,:)));gsdata.allgsprevssd=gsdata.allgsprevssd(:,1);
-gsdata.allgsssds=reshape({alldata(gsdlist,:).ssds},size(alldata(gsdlist,:)));gsdata.allgsssds=gsdata.allgsssds(:,1);
-gsdata.allgssacdelay=reshape({alldata(gsdlist,:).sacdelay},size(alldata(gsdlist,:)));gsdata.allgssacdelay=gsdata.allgssacdelay(:,1);
-gsdata.allgsprefdir=reshape({alldata(gsdlist,:).prefdiridx},size(alldata(gsdlist,:)));
-gsdata.allgsndata=reshape({alldata(gsdlist,:).ndata},size(alldata(gsdlist,:)));
-gsdata.allgsmssrt_tacho=reshape({alldata(gsdlist,:).allmssrt_tacho},size(alldata(gsdlist,:))); gsdata.allgsmssrt_tacho=gsdata.allgsmssrt_tacho(:,1);
+% reshape data
+gsdata.allalignmnt=reshape({alldata(gsdlist,:).aligntype},size(alldata(gsdlist,:)));
+gsdata.allprevssd=reshape({alldata(gsdlist,:).prevssd},size(alldata(gsdlist,:)));gsdata.allprevssd=gsdata.allprevssd(:,1);
+gsdata.allssds=reshape({alldata(gsdlist,:).ssds},size(alldata(gsdlist,:)));gsdata.allssds=gsdata.allssds(:,1);
+gsdata.allsacdelay=reshape({alldata(gsdlist,:).sacdelay},size(alldata(gsdlist,:)));gsdata.allsacdelay=gsdata.allsacdelay(:,1);
+gsdata.allprefdir=reshape({alldata(gsdlist,:).prefdiridx},size(alldata(gsdlist,:)));
+gsdata.allndata=reshape({alldata(gsdlist,:).ndata},size(alldata(gsdlist,:)));
+gsdata.allmssrt_tacho=reshape({alldata(gsdlist,:).allmssrt_tacho},size(alldata(gsdlist,:))); gsdata.allmssrt_tacho=gsdata.allmssrt_tacho(:,1);
 gsdata.alldb=reshape({alldata(gsdlist,:).db},size(alldata(gsdlist,:))); gsdata.alldb=gsdata.alldb(:,1);
 
 % allgstasks=reshape({alldata(gsdlist,:).task},size(alldata(gsdlist,:))); allgstasks=allgstasks(:,1);
@@ -567,7 +772,26 @@ gsdata.alldb=reshape({alldata(gsdlist,:).db},size(alldata(gsdlist,:))); gsdata.a
 % allgstrialidx=reshape({alldata(gsdlist,:).trialidx},size(alldata(gsdlist,:)));
 % allgsfname=reshape({alldata(gsdlist,:).fname},size(alldata(gsdlist,:)));
 
-%Save processed file
-% cd('E:\BoxSync\Box Sync\Home Folder vp35\Sync\SommerLab\projects\countermanding\popclusters\')
-% save countermanding_cDn_gsdata gsdata -v7.3
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% save st_sac data
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+gsdlist=cellfun(@(x) strcmp(x,'st_saccades'),{alldata(:,1).task}) & ~cellfun('isempty',{alldata(:,1).ndata});
+recluster=0;
+
+% reshape data
+stdata.allalignmnt=reshape({alldata(gsdlist,:).aligntype},size(alldata(gsdlist,:)));
+stdata.allsacdelay=reshape({alldata(gsdlist,:).sacdelay},size(alldata(gsdlist,:)));stdata.allsacdelay=stdata.allsacdelay(:,1);
+stdata.allprefdir=reshape({alldata(gsdlist,:).prefdiridx},size(alldata(gsdlist,:)));
+stdata.allndata=reshape({alldata(gsdlist,:).ndata},size(alldata(gsdlist,:)));
+stdata.alldb=reshape({alldata(gsdlist,:).db},size(alldata(gsdlist,:))); stdata.alldb=stdata.alldb(:,1);
+
+
+%% Save processed file
+cd('E:\BoxSync\Box Sync\Home Folder vp35\Sync\CbTimingPredict\data')
+if size(gsdata.alldb,1)~=0
+%       save cDn_gsdata gsdata -v7.3
+elseif size(stdata.alldb,1)~=0
+    save cDn_stdata stdata -v7.3
+end
 

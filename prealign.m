@@ -225,7 +225,7 @@ nonecodes=[17385 16386];
 % variable to save aligned data
 datalign=struct('dir',{},'rasters',{},'trials',{},'trigtosac',{},'sactotrig',{},...
     'trigtovis',{},'vistotrig',{},'alignidx',{},'eyeh',{},'eyev',{},'eyevel',{},...
-    'amplitudes',{},'peakvels',{},'peakaccs',{},'allgreyareas',{},'stats',{},...
+    'sacspecs',{},'allgreyareas',{},'stats',{},...
     'alignlabel',{},'savealignname',{},'bad',{},'extras',{});
 
 if  singlerastplot || aligncodes(1)==1030 || aligncodes(1)== 17385
@@ -333,7 +333,7 @@ for cnc=1:numcodes
     end 
     % Should simplify to structures rasters, indices, eyevalues, extras ...
     [rasters,aidx, trialidx, trigtosacs, sactotrigs, trigtovis, vistotrigs, eyeh,eyev,eyevel,...
-        amplitudes,peakvels,peakaccs,allgreyareas,badidx,ssd,dirs,extras] = alignrasters( filename, tasktype, spikechannel, ...
+        sacspecs,allgreyareas,badidx,ssd,dirs,extras] = alignrasters( filename, tasktype, spikechannel, ...
         allaligncodes(cnc,:), nonecodes, includebad, alignsacnum, aligntype, collapsecode, adjconditions, firstalign,...
         optiondat);
     
@@ -355,9 +355,7 @@ for cnc=1:numcodes
         datalign(cnc).eyev=eyev(canceledtrials,:);
         datalign(cnc).eyevel=eyevel(canceledtrials,:);
         datalign(cnc).allgreyareas=allgreyareas(:,canceledtrials);
-        datalign(cnc).amplitudes=amplitudes(canceledtrials);
-        datalign(cnc).peakvels=peakvels(canceledtrials);
-        datalign(cnc).peakaccs=peakaccs(canceledtrials);
+        datalign(cnc).sacspecs=sacspecs(canceledtrials);
         datalign(cnc).bad=badidx(canceledtrials);
         datalign(cnc).ssd=ssd(canceledtrials);
         
@@ -375,9 +373,7 @@ for cnc=1:numcodes
         datalign(cnc+d_increment).eyev=eyev(canceledtrials,:);
         datalign(cnc+d_increment).eyevel=eyevel(canceledtrials,:);
         datalign(cnc+d_increment).allgreyareas=allgreyareas(:,canceledtrials);
-        datalign(cnc+d_increment).amplitudes=amplitudes(canceledtrials);
-        datalign(cnc+d_increment).peakvels=peakvels(canceledtrials);
-        datalign(cnc+d_increment).peakaccs=peakaccs(canceledtrials);
+        datalign(cnc+d_increment).sacspecs=sacspecs(canceledtrials);
         datalign(cnc+d_increment).bad=badidx(canceledtrials);
         datalign(cnc+d_increment).ssd=ssd(canceledtrials);
         %             datalign(cnc+d_increment).condtimes=condtimes(canceledtrials);
@@ -407,9 +403,7 @@ for cnc=1:numcodes
         datalign(cnc).eyev=eyev(shortamps,:);
         datalign(cnc).eyevel=eyevel(shortamps,:);
         datalign(cnc).allgreyareas=allgreyareas(:,shortamps);
-        datalign(cnc).amplitudes=amplitudes(shortamps);
-        datalign(cnc).peakvels=peakvels(shortamps);
-        datalign(cnc).peakaccs=peakaccs(shortamps);
+        datalign(cnc).sacspecs=sacspecs(shortamps);
         datalign(cnc).bad=badidx(shortamps);
         
         medamps=abs(amplitudes)<medampslim;
@@ -425,9 +419,7 @@ for cnc=1:numcodes
         datalign(cnc+numcodes).eyev=eyev(medamps,:);
         datalign(cnc+numcodes).eyevel=eyevel(medamps,:);
         datalign(cnc+numcodes).allgreyareas=allgreyareas(:,medamps);
-        datalign(cnc+numcodes).amplitudes=amplitudes(medamps);
-        datalign(cnc+numcodes).peakvels=peakvels(medamps);
-        datalign(cnc+numcodes).peakaccs=peakaccs(medamps);
+        datalign(cnc+numcodes).sacspecs=sacspecs(medamps);
         datalign(cnc+numcodes).bad=badidx(medamps);
 
         longamps=abs(amplitudes)<longampslim;
@@ -443,9 +435,7 @@ for cnc=1:numcodes
         datalign(cnc+2*numcodes).eyev=eyev(longamps,:);
         datalign(cnc+2*numcodes).eyevel=eyevel(longamps,:);
         datalign(cnc+2*numcodes).allgreyareas=allgreyareas(:,longamps);
-        datalign(cnc+2*numcodes).amplitudes=amplitudes(longamps);
-        datalign(cnc+2*numcodes).peakvels=peakvels(longamps);
-        datalign(cnc+2*numcodes).peakaccs=peakaccs(longamps);
+        datalign(cnc+2*numcodes).sacspecs=sacspecs(longamps);
         datalign(cnc+2*numcodes).bad=badidx(longamps);
         
     else
@@ -461,9 +451,7 @@ for cnc=1:numcodes
         datalign(cnc).eyev=eyev;
         datalign(cnc).eyevel=eyevel;
         datalign(cnc).allgreyareas=allgreyareas;
-        datalign(cnc).amplitudes=amplitudes;
-        datalign(cnc).peakvels=peakvels;
-        datalign(cnc).peakaccs=peakaccs;
+        datalign(cnc).sacspecs=sacspecs;
         datalign(cnc).bad=badidx;
         %             datalign(cnc).condtimes=condtimes;
     end

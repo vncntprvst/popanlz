@@ -1,7 +1,6 @@
 function [alignedrasters, alignindex, trialindex, alltrigtosac, ...
     allsactotrig, alltrigtovis, allvistotrig,eyehoriz, eyevert, ....
-    eyevelocity, amplitudes, peakvels,...
-    peakaccs, allonoffcodetime,badidx,allssd,alldir,extras] = ...
+    eyevelocity, sacspecs, allonoffcodetime,badidx,allssd,alldir,extras] = ...
     alignrasters( name, tasktype, selclus, aligntocode, noneofcodes,...
     allowbadtrials, alignsacnum, aligntype, collapse, conditions,...
     firstalign, option)
@@ -32,6 +31,7 @@ if strcmp(aligntype,'stop') % get ssrt
     end
 end
 
+%% variables init
 bla=[];
 [~, ~, tgtcode, tgtoffcode] = taskfindecode(tasktype);
 alignedrasters=[];
@@ -47,9 +47,7 @@ eyevert=[];
 eyevelocity=[];
 trialnumbers=[];
 %oldallonoffcodetime=[];
-amplitudes=[];
-peakvels=[];
-peakaccs=[];
+
 alignto = aligntocode;
 sacamp = NaN;
 sacpeakpeakvel = NaN;
@@ -84,6 +82,8 @@ badidx=[];
 allssd=[];
 alldir=[];
 % allcondtime = [];
+sacspecs=struct('amplitudes',[],'peakvels',[],'peakaccs',[],'latency',[]);
+
 cutcond=0;
 
 %% Which Cluster?
@@ -180,6 +180,12 @@ while ~islast
                 alignmentfound = ecodeout( falign(1) );
                 aligntime = etimeout( falign( 1 ) ) * (arate / 1000);
                 
+               if strcmp(aligntype,'error2') && ~(firstalign==4 || firstalign==5) %then purpose is not to align to error code
+                   errortrial_align='yes'; 
+               else
+                   errortrial_align=[]; 
+               end
+                
                 %% Adjust aligntime according to alignment type.
                 %If it's a saccade align code, replace aligntime with the actual sac start (with new sac detection method:
                 
@@ -203,10 +209,15 @@ while ~islast
                         %preceding the saccade ecode, which is often erroneous
                     end
                     if strcmp(tasktype,'st_saccades')
+                        if errortrial_align & firstalign==7
+                            errortrial_align='tgt';
+                        end
                         if nwsacstart(find(sacofint,1))-etimeout(7)<600 %there was a saccade during the delay period that went unnoticed by Rex saccade detection
-                            disp('check that code line in popanlz/alignraters:204')
-                            pause
-                            if abs(curtrialsacInfo(find(sacofint,1)).amplitude)>2 % keeping trials with saccades under 2 degrees, which happens pretty frequently with Sixx.
+%                             disp('check that code line in popanlz/alignraters:207')
+%                             pause
+                            if strcmp(aligntype,'error2') %that's fine, early saccade is supposed to happen 
+                            elseif abs(curtrialsacInfo(find(sacofint,1)).amplitude)>2 % saving trials only if that delay-period 
+                                                            %saccade was under 2 degrees, which happens pretty frequently with Sixx.
                                 sacofint=0;
                                 alignmentfound = 0;
                             end
@@ -222,7 +233,11 @@ while ~islast
                         alignmentfound = 0;
                     elseif logical(sum(ampsacofint>2.5))
                         if strcmp(aligntype,'sac') || strcmp(aligntype,'error2')
-                            aligntime=getfield(curtrialsacInfo, {find(ampsacofint>2.5,1)}, 'starttime');
+                            if strcmp(errortrial_align,'tgt')
+                                aligntime = etimeout(ismember(floor(ecodeout./10),tgtcode));
+                            else
+                                aligntime=getfield(curtrialsacInfo, {find(ampsacofint>2.5,1)}, 'starttime');
+                            end
                             sacamp=getfield(curtrialsacInfo, {find(ampsacofint>2.5,1)}, 'amplitude');
                             sacpeakpeakvel=getfield(curtrialsacInfo, {find(ampsacofint>2.5,1)}, 'peakVelocity');
                             sacpeakacc=getfield(curtrialsacInfo, {find(ampsacofint>2.5,1)}, 'peakAcceleration');
@@ -417,7 +432,7 @@ while ~islast
                 %                if alignsacnum == 0
                 
                 % if there's a shift, may add it now
-                if addshift && strcmp(tasktype,'gapstop') && strcmp(aligntype,'tgt') && ~failedsac
+                if strcmp(tasktype,'gapstop') && strcmp(aligntype,'tgt') && addshift && ~failedsac
                     if ~shift(nummatch + 1)
                         bla=[bla; d];
                         alignmentfound = 0;
@@ -540,9 +555,17 @@ while ~islast
                 
                 if alignmentfound
                     trialnumbers(nummatch)=d;
-                    amplitudes(nummatch)=sacamp;
-                    peakvels(nummatch)=sacpeakpeakvel;
-                    peakaccs(nummatch)=sacpeakacc;
+                    sacspecs(nummatch).amplitudes=sacamp;
+                    sacspecs(nummatch).peakvels=sacpeakpeakvel;
+                    sacspecs(nummatch).peakaccs=sacpeakacc;
+                    % store latency as well 
+                    if isempty([curtrialsacInfo.latency])
+                        sacspecs(nummatch).latency=NaN; % likely CS trial
+                    elseif ~exist('ampsacofint') 
+                        sacspecs(nummatch).latency=[getfield(curtrialsacInfo, {find(arrayfun(@(x) ~isempty(x.latency), curtrialsacInfo) ,1)}, 'latency')];
+                    else
+                        sacspecs(nummatch).latency=[getfield(curtrialsacInfo, {find(ampsacofint>2.5,1)}, 'latency')];
+                    end
                     train = [0];
                     if ~isempty( spk )
                         [train, last] = rex_spk2raster( spk, 1, max([aligntime+300, length(h)]) );

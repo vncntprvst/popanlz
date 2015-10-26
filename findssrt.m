@@ -11,7 +11,8 @@ end
 %recname='H53L5A5_20901'; % S148cnttrain
 load(recname,'allcodes','alltimes','allbad','saccadeInfo');
 if ~isfield(saccadeInfo,'latency')
-    [mssrt,inhibfun,ccssd,nccssd,ssds,tachomc,tachowidth,sacdelay,rewtimes,prevssds,trialidx]=deal(NaN);
+    [mssrt,inhibfun,ccssd,nccssd,ssds,tachomc,tachowidth,rewtimes,prevssds,trialidx,...
+        sacdelay.nsst,sacdelay.ncst,sacdelay.encst]=deal(NaN);
     return;
 end
 %% find stop trials
@@ -65,7 +66,7 @@ if max(sum(allgoodsacs,2))>1
         allgoodsacs(twogoods(dblsac),find(allgoodsacs(twogoods(dblsac),:),1))=0;
     end
 end
-sacdelay=(cell2mat(alllats(allgoodsacs')))';
+sacdelay.nsst=(cell2mat(alllats(allgoodsacs')))';
 %get reward time for NSS trials
 goodsactimes=alltimes(logical(sum(allgoodsacs,2)),:);
 trialidx.goodsac=find(sum(allgoodsacs,2));
@@ -89,8 +90,13 @@ earlyncsac=aborsstrials(ismember(aborsstrials,find(sum(allncsacs,2))));
 % end
 
 %Instead, adjust allncsacs
+sacdelay.encst=([alllats{:,earlyncsac}]);
+if length(sacdelay.encst)~=length(earlyncsac)
+    dbstack
+    return
+end
 allncsacs(earlyncsac,:)=0;
-ncsacdelay=cell2mat(alllats(allncsacs'));
+sacdelay.ncst=cell2mat(alllats(allncsacs'));
 
 %% keep track of trial number
 goodstoptrials=trialidx.stoptrials(~abortedstoptrials);
@@ -223,8 +229,8 @@ ccssd(ismember(ccssd,unique(ccssd-1)))=ccssd(ismember(ccssd,unique(ccssd-1)))+1;
 SSDRTs(trialidx.cancel,1)=ccssd;
 nccssd(ismember(nccssd,unique(nccssd-1)))=nccssd(ismember(nccssd,unique(nccssd-1)))+1;
 SSDRTs(logical(sum(allncsacs,2)),1)=nccssd(ismember(goodstoptrials(noncancel),find(sum(allncsacs,2)))); %got to remove some ssd when sacs are not available
-SSDRTs(logical(sum(allgoodsacs,2)),2)=sacdelay;
-SSDRTs(logical(sum(allncsacs,2)),2)=ncsacdelay;
+SSDRTs(logical(sum(allgoodsacs,2)),2)=sacdelay.nsst;
+SSDRTs(logical(sum(allncsacs,2)),2)=sacdelay.ncst;
 SSDRTs(logical(sum(allncsacs,2)),3)=0;
 SSDRTs(logical(allbad),3)=0;
 SSDRTs([find(sum(allgoodsacs,2));trialidx.cancel],3)=1;
@@ -267,8 +273,8 @@ if plots
     %             legend('rPTc','rPTe');
     
     subplot(3,2,3:6)
-    delaydistribedges=min(sacdelay)-1:10:max(sacdelay)+1;
-    delaydistribhhist=histc(sort(sacdelay),delaydistribedges);
+    delaydistribedges=min(sacdelay.nsst)-1:10:max(sacdelay.nsst)+1;
+    delaydistribhhist=histc(sort(sacdelay.nsst),delaydistribedges);
     delayfreq=delaydistribhhist./sum(delaydistribhhist);
     delayfreq=fullgauss_filtconv(delayfreq,2,0);
     plot(delaydistribedges,delayfreq,'-k','LineWidth',2);
@@ -311,7 +317,7 @@ if ~(isempty(prevssds) || length(prevssds)==1)
     % calculate SSRT with Boucher et al's method
     try
         overallMeanSSRT= ...
-            ssrt_bestfit(sacdelay', inhibfun', ssds', (mean(tachomc)+tachowidth));
+            ssrt_bestfit(sacdelay.nsst', inhibfun', ssds', (mean(tachomc)+tachowidth));
     catch
         [overallMeanSSRT]=deal(NaN);
     end
