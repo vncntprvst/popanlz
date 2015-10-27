@@ -1,29 +1,42 @@
-function [behav, neur]=trialbytrial(gsdata,conn);
+function [behav, neur]=trialbytrial(gsdata,conn)
 
 % global directory slash;
 % if isempty(directory)
 %     [directory,slash]=SetUserDir;
 % end
 
-[behav, neur]=deal(cell(1,1));
+% get cluster indices
+[sorted_unit_ids,sunitid_idx]=sort(cellfun(@(x) x.unit_id, gsdata.alldb));
+query = ['SELECT c.profile, c.profile_type, c.cluster_id FROM clusters c WHERE cluster_id IN (' sprintf('%.0f,' ,sorted_unit_ids(1:end-1)') num2str(sorted_unit_ids(end)) ')'];
+profiles = fetch(conn,query);
+sunitid_revidx(sunitid_idx)=1:length(cellfun(@(x) x.unit_id, gsdata.alldb));
+neur=mat2cell(([profiles{sunitid_revidx,2}])',ones(110,1));
+% clustypes={profiles{sunitid_revidx,1}};
+% foo=[profiles{sunitid_revidx,3}];
 
 %% old code
-% [peakcct, peaksdf,tbtdircor,tbtdirmsact,tbtdirmsdur]=crosscorel(filename,dataaligned,'all',0); 
+% [peakcct, peaksdf,tbtdircor,tbtdirmsact,tbtdirmsdur]=crosscorel(filename,dataaligned,'all',0);
 % tbtcor=nanmedian(abs(tbtdircor))
 % tbtcorstd=nanstd(abs(tbtdircor))
 % corrcoef([tbtdirmsact tbtdirmsdur])
 
 %% new code
-%% behavioral analysis
-% impact of previous trial's success/failure on current trial's
-% success/failure and on saccade latency
-
+neur=neur(~cellfun('isempty',gsdata.allsacdelay));
+neur(:,2)=cellfun(@(x) x(1).rast, gsdata.allndata(~cellfun('isempty',gsdata.allsacdelay), 1),'UniformOutput',false); %NSS trials:
+neur(:,3)=cellfun(@(x) x(1).alignt, gsdata.allndata(~cellfun('isempty',gsdata.allsacdelay), 1),'UniformOutput',false); %NSS trials:
+neur(:,4)=cellfun(@(x) x(1).evttime, gsdata.allndata(~cellfun('isempty',gsdata.allsacdelay), 1),'UniformOutput',false); %NSS trials:
+%reminder of events: 'cue' 'eyemvt' 'fix' 'rew' 'fail'
 behav=cellfun(@(x) x(1).trialnb, gsdata.allndata(~cellfun('isempty',gsdata.allsacdelay), 1),'UniformOutput',false); %NSS trials:
 behav(:,2)=cellfun(@(x) [x(2:end).trialnb], gsdata.allndata(~cellfun('isempty',gsdata.allsacdelay), 1),'UniformOutput',false);%all SS trials
 behav(:,3)=cellfun(@(x) x.nsst, gsdata.allsacdelay(~cellfun('isempty',gsdata.allsacdelay),1),'UniformOutput',false);%NSS RT
 behav(:,4)=cellfun(@(x) x.ncst, gsdata.allsacdelay(~cellfun('isempty',gsdata.allsacdelay),1),'UniformOutput',false);%NCS RT
 
+neur=neur(~cellfun('isempty',behav(:,2)),:);%removing bad apples
 behav=behav(~cellfun('isempty',behav(:,2)),:);%removing bad apples
+
+%% behavioral analysis
+% impact of previous trial's success/failure on current trial's
+% success/failure and on saccade latency
 
 % Vincentizing not necessarily ideal
 % see An evaluation of the Vincentizing method of forming group-level response time distributions.
@@ -34,39 +47,60 @@ behav(:,5)=cellfun(@(x,y,z) x(ismember(y,z+1)), behav(:,3),behav(:,1),behav(:,2)
 behav(:,6)=cellfun(@(x,y,z) x(ismember(y,z+1)), behav(:,3),behav(:,1),behav(:,1),'UniformOutput',false);%RTs for NSS preceded by NSS trial
 
 [H, adstat, critvalue] = adtest2([behav{:,5}], [behav{:,6}]); %no needt sort RTs
-
-figure; subplot(1,2,1); hold on; hist([behav{:,6}]); hist([behav{:,5}]); 
-h = findobj(gca,'Type','patch');
-h(1).FaceColor = [0.8 0.2 0.1];
-h(1).EdgeColor = 'w';
-h(2).FaceColor = [0 0.5 0.5];
-h(2).EdgeColor = 'w';
+if H==1
+    disp(['Distribution are significantly different, A-D stat ' num2str(adstat) ' > critical value ' num2str(critvalue)])
+end
+figure('Name','Behav_RT_NSS-SSdiff'); ; subplot(1,2,1); hold on;
+histh(1)=histogram([behav{:,6}],'Normalization','probability');% mean([behav{:,6}]) %RTs for NSS preceded by NSS trial
+histh(2)=histogram([behav{:,5}],'Normalization','probability');% mean([behav{:,5}]) %RTs for NSS preceded by SS trial
+histh(1).FaceColor = [0.8 0.2 0.1];
+histh(1).EdgeColor = 'w';
+histh(2).FaceColor = [0 0.5 0.8];
+histh(2).EdgeColor = 'w';
+text(300,0.14,{'Two-sample Anderson-Darling'; 'test of significant difference.'; 'alpha = 0.05'})
 legend('RTs for NSS preceded by NSS trial','RTs for NSS preceded by SS trial')
+legend('boxoff')
+xlabel('Reaction times')
+title('Normalized distribution histogram')
 
 [N,edges] = histcounts([behav{:,6}], 'Normalization', 'probability');
 subplot(1,2,2); plot([edges(1)-diff(edges(1:2))/2 edges(2:end)-diff(edges)/2], cumsum([0 N]))
 [N,edges] = histcounts([behav{:,5}], 'Normalization', 'probability');
 hold on; plot([edges(1)-diff(edges(1:2))/2 edges(2:end)-diff(edges)/2], cumsum([0 N]))
 axis('tight');box off;
+xlabel('Reaction times')
 title('Cumulative distribution')
 legend('RTs for NSS preceded by NSS trial','RTs for NSS preceded by SS trial','location','southeast')
+legend('boxoff')
 
+% printing
+% cd('E:\BoxSync\Box Sync\Home Folder vp35\Sync\CbTimingPredict\figures')
+% exportfigname=get(gcf,'Name');
+% exportfigname=strrep(exportfigname,' ','_');
+% savefig([exportfigname '.fig']);
+% %print png
+% print(gcf, '-dpng', '-noui', '-opengl','-r300', exportfigname);
+% %print svg
+% print(gcf, '-dsvg', '-noui', exportfigname);
+% % plot2svg([exportfigname,'.svg'],gcf, 'png');
+% close(gcf)
 
-%% get indivudual trial's slope
+%% Neuron / behavior correlation
+%get indivudual trial's slope
+
 % now with polynomial derivative, but hopefully with nonhomogeneous PP
-% modeling in the future
-
+%% modeling in the future
 % homogeneous poisson coeff
 % y=poissrnd(0.5,1,100);
 % y(y>0)=1;
-% X=1:100; 
+% X=1:100;
 % coeff = glmfit(X, y,'poisson')
-% 
+%
 % foo=gsdata.allgsndata{1, 1}(1).rast;
 % foo=foo(:,200:600);
 % [convsdf,convtrial]=conv_raster(foo,10);
 % figure;plot(convsdf)
-% 
+%
 % figure; hold on
 % for tr=1:size(convtrial,1)
 % %     plot(convtrial(43,:))
@@ -74,15 +108,41 @@ legend('RTs for NSS preceded by NSS trial','RTs for NSS preceded by SS trial','l
 %        bla(tr,1:2)= [tr  mean(convtrial(tr,:))];
 %     end
 % end
-% 
+%
 
 % coeff = glmfit(1:81, foo(43,180:260),'poisson')
 % yfit = glmval(coeff,1:81,-2);
 % plot(1:81,yfit,'o')
+%% polynomial derivative
 
-p = polyfit(1:81, behav(43,180:260),4); %4 seems to work best for that sample 
-k = polyder(p)    
-plot(1:81,(1:81)*k(end-1)+k(end))
+% keep cluster 1 only for the moment
+behav=behav([neur{:,1}]==101,:);
+neur=neur([neur{:,1}]==101,:);
+% 
+% figure; hold on;
+for cell=1:1 %size(neur,1)
+    figure('Name',['Cell ' num2str(cell)]); hold on;
+    for trial=1:size(neur{cell,2},1)
+        % fnid max first
+         
+        conv = gauss_filtconv(neur{cell,2}(trial,neur{cell,3}-500:neur{cell,3}-200),50);
+        plot(conv);         % 200 to 500 ms before saccades
+        
+        
+%         pf = polyfit(1:301, neur{cell,2}(trial,neur{cell,3}-500:neur{cell,3}-200),4);
+%         k = polyder(pf);plot(1:301,(1:301)*k(end-1)+k(end));
+        b = glmfit(1:301,neur{cell,2}(trial,neur{cell,3}-500:neur{cell,3}-200));
+        yfit = glmval(b,1:301,'identity');
+%         coeff = glmfit(1:301,neur{cell,2}(trial,neur{cell,3}-500:neur{cell,3}-200),'poisson')
+%         yfit = glmval(coeff,1:301,'log');
+        plot(yfit);
 
-%get residuals as compared to gaussian smoothing 
-bli=gauss_filtconv(behav(43,180:260),10); figure; hold on; plot(bli)
+    end
+end
+
+% p = polyfit(1:81, neur{22,2}(180:260),4); %4 seems to work best for that sample
+% k = polyder(p)
+% plot(1:81,(1:81)*k(end-1)+k(end))
+
+
+
