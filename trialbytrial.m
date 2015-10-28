@@ -22,9 +22,9 @@ neur=mat2cell(([profiles{sunitid_revidx,2}])',ones(110,1));
 
 %% new code
 neur=neur(~cellfun('isempty',gsdata.allsacdelay));
-neur(:,2)=cellfun(@(x) x(1).rast, gsdata.allndata(~cellfun('isempty',gsdata.allsacdelay), 1),'UniformOutput',false); %NSS trials:
-neur(:,3)=cellfun(@(x) x(1).alignt, gsdata.allndata(~cellfun('isempty',gsdata.allsacdelay), 1),'UniformOutput',false); %NSS trials:
-neur(:,4)=cellfun(@(x) x(1).evttime, gsdata.allndata(~cellfun('isempty',gsdata.allsacdelay), 1),'UniformOutput',false); %NSS trials:
+neur(:,2)=cellfun(@(x) x(1).rast, gsdata.allndata(~cellfun('isempty',gsdata.allsacdelay), 1),'UniformOutput',false); %NSS trials rast:
+neur(:,3)=cellfun(@(x) x(1).alignt, gsdata.allndata(~cellfun('isempty',gsdata.allsacdelay), 1),'UniformOutput',false); %NSS trials alignt:
+neur(:,4)=cellfun(@(x) x(1).evttime, gsdata.allndata(~cellfun('isempty',gsdata.allsacdelay), 1),'UniformOutput',false); %NSS trials event time:
 %reminder of events: 'cue' 'eyemvt' 'fix' 'rew' 'fail'
 behav=cellfun(@(x) x(1).trialnb, gsdata.allndata(~cellfun('isempty',gsdata.allsacdelay), 1),'UniformOutput',false); %NSS trials:
 behav(:,2)=cellfun(@(x) [x(2:end).trialnb], gsdata.allndata(~cellfun('isempty',gsdata.allsacdelay), 1),'UniformOutput',false);%all SS trials
@@ -85,11 +85,11 @@ legend('boxoff')
 % % plot2svg([exportfigname,'.svg'],gcf, 'png');
 % close(gcf)
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Neuron / behavior correlation
-%get indivudual trial's slope
-
-% now with polynomial derivative, but hopefully with nonhomogeneous PP
-%% modeling in the future
+%try correlation between "slope" and RT
+%now with polynomial derivative, but hopefully with nonhomogeneous PP
+%% future spiking rate model
 % homogeneous poisson coeff
 % y=poissrnd(0.5,1,100);
 % y(y>0)=1;
@@ -113,36 +113,56 @@ legend('boxoff')
 % coeff = glmfit(1:81, foo(43,180:260),'poisson')
 % yfit = glmval(coeff,1:81,-2);
 % plot(1:81,yfit,'o')
-%% polynomial derivative
-
+%% current method
 % keep cluster 1 only for the moment
 behav=behav([neur{:,1}]==101,:);
 neur=neur([neur{:,1}]==101,:);
-% 
+% get slopes (and if really daring, get curve's start as well)
 % figure; hold on;
-for cell=1:1 %size(neur,1)
-    figure('Name',['Cell ' num2str(cell)]); hold on;
+for cell=1:size(neur,1)
+    %     figure('Name',['Cell ' num2str(cell)]); hold on;
     for trial=1:size(neur{cell,2},1)
-        % fnid max first
-         
-        conv = gauss_filtconv(neur{cell,2}(trial,neur{cell,3}-500:neur{cell,3}-200),50);
-        plot(conv);         % 200 to 500 ms before saccades
-        
-        
-%         pf = polyfit(1:301, neur{cell,2}(trial,neur{cell,3}-500:neur{cell,3}-200),4);
-%         k = polyder(pf);plot(1:301,(1:301)*k(end-1)+k(end));
-        b = glmfit(1:301,neur{cell,2}(trial,neur{cell,3}-500:neur{cell,3}-200));
-        yfit = glmval(b,1:301,'identity');
-%         coeff = glmfit(1:301,neur{cell,2}(trial,neur{cell,3}-500:neur{cell,3}-200),'poisson')
-%         yfit = glmval(coeff,1:301,'log');
-        plot(yfit);
+%         figure('Name',['Trial ' num2str(trial)]); hold on;
+        % conv % 200 to 500 ms before saccades
+        tr_wd_conv = gauss_filtconv(neur{cell,2}(trial,neur{cell,3}-500:neur{cell,3}-1),50);
+        %         plot(conv);           
+        wd_shift=500-find(tr_wd_conv==max(tr_wd_conv));% plot(tr_wd_conv(1:end-wd_shift));     
+        neur{cell,5}(trial)={glmfit(1:500-wd_shift,tr_wd_conv(1:end-wd_shift))};
+%         yfit = glmval(coeff,1:301-wd_shift,'identity');
 
+        %         pf = polyfit(1:301, neur{cell,2}(trial,neur{cell,3}-500:neur{cell,3}-200),4);
+        %         k = polyder(pf);plot(1:301,(1:301)*k(end-1)+k(end));
+        %         coeff = glmfit(1:301,neur{cell,2}(trial,neur{cell,3}-500:neur{cell,3}-200),'poisson')
+        %         yfit = glmval(coeff,1:301,'log');
+%         plot(yfit);
+        
     end
 end
+% figure; histogram(cellfun(@(x) x(2)*1000,neur(:,5)),10)
+%reminder: neur 'labels' are 'cluster id','NSST raster','NSST alignment','NSST evt time','slopes'
 
-% p = polyfit(1:81, neur{22,2}(180:260),4); %4 seems to work best for that sample
-% k = polyder(p)
-% plot(1:81,(1:81)*k(end-1)+k(end))
+[ccoefs,sigcc]=cellfun(@(x,y) corrcoef(x(2,:)*1000,y),cellfun(@(x) [x{:}], neur(:,5),'UniformOutput',false),behav(:,3),'UniformOutput',false);
+ccoefs=[ccoefs{:}];ccoefs=ccoefs(2,1:2:end);
+sigcc=[sigcc{:}];sigcc=sigcc(2,1:2:end);
+sigcoefs=find(sigcc<0.05); %significant correlation coefficients between pre-sac slope and RT
+for cell=1:size(neur,1)
+%     neur{sigcoefs(cell),6}=conv_raster(neur{sigcoefs(cell),2}(:,neur{sigcoefs(cell),3}-1900:neur{sigcoefs(cell),3}),20);
+%     figure;plot(neur{sigcoefs(sigramp),6});
+    [neur{cell,6},~,neur{cell,7}]=conv_raster(neur{cell,2}(:,neur{cell,3}-1900:neur{cell,3}),20);
+    % no need for sem actually
+end
+figure;hold on;
+cmap = colormap(gcf);
+sigslope_RT=nanmean(cat(1,neur{sigcoefs,6})); sigslope_RT_sem=std(cat(1,neur{sigcoefs,6}))/ sqrt(size(cat(1,neur{sigcoefs,6}),1));
+%plot confidence intervals
+patch([1:length(sigslope_RT),fliplr(1:length(sigslope_RT))],[sigslope_RT-sigslope_RT_sem,fliplr(sigslope_RT+sigslope_RT_sem)],cmap(1,:),'EdgeColor','none','FaceAlpha',0.1);
+%plot sdf
+plot(sigslope_RT,'Color',cmap(1,:),'LineWidth',1.8);
 
+nsigslope_RT=nanmean(cat(1,neur{sigcc>=0.05,6})); nsigslope_RT_sem=std(cat(1,neur{sigcc>=0.05,6}))/ sqrt(size(cat(1,neur{sigcc>=0.05,6}),1));
+%plot confidence intervals
+patch([1:length(nsigslope_RT),fliplr(1:length(nsigslope_RT))],[nsigslope_RT-nsigslope_RT_sem,fliplr(nsigslope_RT+nsigslope_RT_sem)],cmap(20,:),'EdgeColor','none','FaceAlpha',0.1);
+%plot sdf
+plot(nsigslope_RT,'Color',cmap(20,:),'LineWidth',1.8);
 
 
