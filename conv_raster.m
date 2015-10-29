@@ -27,6 +27,8 @@ end
 rasters=rasters(~isnan(mean(rasters(:,fsigma*3+start:stop-3*fsigma),2)),:);
 % allocating
 convrasters=NaN(size(rasters,1),stop-start-fsigma*6+1);
+% convrasters=NaN(size(rasters,1),stop-start+1); %when switching convolution shape to 'same'
+
 % figure;
 % hold on
 for trial=1:size(rasters,1)

@@ -7,7 +7,7 @@ try
     CCNdb = connect2DB('vp_sldata');
     %     query = 'SELECT FileName FROM b_dentate';
     %     results = fetch(CCNdb,query);
-    dentatefiles =fetch(CCNdb,'select r.a_file FROM recordings r WHERE r.task=''st_saccades'' AND r.recloc=''dentate'''); %dentate %top_cortex %gapstop %st_saccades
+    dentatefiles =fetch(CCNdb,'select r.a_file FROM recordings r WHERE r.task=''gapstop'' AND r.recloc=''dentate'''); %dentate %top_cortex %gapstop %st_saccades
 catch db_fail
     results = [];
 end
@@ -30,7 +30,7 @@ alldata=struct('fname',{},'task',{},'aligntype',{},'prevssd',{},'allmssrt_tacho'
     'ssds',{},'sacdelay',{},'prefdiridx',{},...
     'pk',struct('sac',{},'vis',{},'corsac',{},'rew',{}),...
     'trialidx',struct('stoptrials',{},'goodsac',{},'noncancel',{},'cancel',{}),...
-    'ndata',struct('rast',{},'alignt',{},'trialnb',{},'evttime',{}),...
+    'ndata',struct('rast',{},'alignt',{},'trialnb',{},'evttime',{},'eyevel',{}),...
     'db',struct('rec_id',{},'sort_id',{},'unit_id',{}),...
     'stats',struct('hval',{},'pval',{},'sign',{}));
 %allmssrt_tacho=NaN(length(dentatefiles),1);
@@ -347,7 +347,7 @@ for flbn=1:length(dentatefiles)
         
         
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    %% gapstop files
+    %% Countermanding ("gapstop task") files
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%    
     elseif strcmp(task,'gapstop')
         %% align rasters
@@ -726,12 +726,14 @@ for flbn=1:length(dentatefiles)
             end
             
             %%%%%%%%%%%%%%%%%%%%%%%%
-            %% store rasters, alignment index, trial index, "grey" event times
+            %% store rasters, alignment index, trial index, "grey" event times, eye velocity
             [alldata(flbn,algn).ndata(1:size({getaligndata.rasters},2)).rast]=deal(getaligndata.rasters);
             [alldata(flbn,algn).ndata(1:size({getaligndata.rasters},2)).alignt]=deal(getaligndata.alignidx);
             [alldata(flbn,algn).ndata(1:size({getaligndata.rasters},2)).trialnb]=deal(getaligndata.trials);
             [alldata(flbn,algn).ndata(1:size({getaligndata.rasters},2)).evttime]=deal(getaligndata.allgreyareas);
-            
+            if algn==2
+                [alldata(flbn,algn).ndata(1:size({getaligndata.rasters},2)).eyevel]=deal(getaligndata.eyevel);
+            end
             % [t df pvals] = statcond({convrasters closeconvrasters}, 'method', 'perm', 'naccu', 20000,'verbose','off');
             
             %% store data for population plotting
@@ -790,7 +792,7 @@ stdata.alldb=reshape({alldata(gsdlist,:).db},size(alldata(gsdlist,:))); stdata.a
 %% Save processed file
 cd('E:\BoxSync\Box Sync\Home Folder vp35\Sync\CbTimingPredict\data')
 if size(gsdata.alldb,1)~=0
-%       save cDn_gsdata gsdata -v7.3
+    save cDn_gsdata gsdata -v7.3
 elseif size(stdata.alldb,1)~=0
     save cDn_stdata stdata -v7.3
 end
