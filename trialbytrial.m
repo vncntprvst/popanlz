@@ -42,6 +42,8 @@ behav(:,4)=cellfun(@(x) x.ncst, gsdata.allsacdelay(~cellfun('isempty',gsdata.all
     'UniformOutput',false);%NCS RT
 behav(:,5)=cellfun(@(x) x(1).eyevel, gsdata.allndata(~cellfun('isempty',gsdata.allsacdelay),2),...
     'UniformOutput',false);%eye velocity
+behav(:,8)=cellfun(@(x) x, gsdata.allssds(~cellfun('isempty',gsdata.allsacdelay),1),...
+    'UniformOutput',false);%ssds
 
 neur=neur(~cellfun('isempty',behav(:,2)),:,:);%removing bad apples
 behav=behav(~cellfun('isempty',behav(:,2)),:);%removing bad apples
@@ -57,6 +59,8 @@ behav=behav(~cellfun('isempty',behav(:,2)),:);%removing bad apples
 
 behav(:,6)=cellfun(@(x,y,z) x(ismember(y,z+1)), behav(:,3),behav(:,1),behav(:,2),'UniformOutput',false);%RTs for NSS preceded by SS trial
 behav(:,7)=cellfun(@(x,y,z) x(ismember(y,z+1)), behav(:,3),behav(:,1),behav(:,1),'UniformOutput',false);%RTs for NSS preceded by NSS trial
+%not going to work:
+% behav(:,8)=cellfun(@(x,y,z) x(ismember(z+1,y)), behav(:,8),behav(:,1),behav(:,2),'UniformOutput',false);%SSDs for SS followed by NSS trial
 
 [H, adstat, critvalue] = adtest2([behav{:,6}], [behav{:,7}]); %no needt sort RTs
 if H==1
@@ -177,9 +181,34 @@ set(gca,'xticklabel',-(max(get(gca,'xlim'))):200:0,'TickDir','out'); %'xtick',1:
 box off; % axis('tight'); 
 legh=legend(ploth(1:2),'location','southeast');
 
-% Trial-by-Trial Correlation of Neural and Behavioral Latency (a la Erlich)
-pkOffsets=latency_analysis(behav,neur)
-
+%% Trial-by-Trial Correlation of Neural and Behavioral Latency (a la Erlich)
+pkOffsets=latency_analysis(behav,neur,0);
+% test correlation between FR and eye mvt
+[ccoefs,sigcc]=cellfun(@(x,y) corrcoef(x,y),pkOffsets(:,1),pkOffsets(:,2),'UniformOutput',false);
+ccoefs=[ccoefs{:}];ccoefs=ccoefs(2,1:2:end);[ccoefs(isnan(ccoefs))]=deal(0);
+sigcc=[sigcc{:}];sigcc=sigcc(2,1:2:end);[sigcc(isnan(sigcc))]=deal(1);
+sigcoefs=sigcc<0.05; %significant trial-by-trial correlation of neural and behavioral latency
+figure; hold on;
+histogram(ccoefs,-1:0.1:1);
+histogram(ccoefs(sigcoefs),-1:0.1:1);
+% patch([linspace(mean(ccoefs)-0.1,mean(ccoefs)+0.1,length(min(get(gca,'ylim')):max(get(gca,'ylim')))),...
+%     fliplr(linspace(mean(ccoefs)-0.1,mean(ccoefs)+0.1,length(min(get(gca,'ylim')):max(get(gca,'ylim')))))],...
+%     [min(get(gca,'ylim')):max(get(gca,'ylim')),fliplr(min(get(gca,'ylim')):max(get(gca,'ylim')))],cmap(1,:),'EdgeColor','none','FaceAlpha',1);
+plot(mean(ccoefs),max(get(gca,'ylim'))/1.5,'kd')
+% test correlation between FR and stop signal delay from previous SST
+[ccoefs,sigcc]=cellfun(@(x,y) corrcoef(x,y),pkOffsets(:,3),pkOffsets(:,4),'UniformOutput',false);
+gCoeffs=cellfun(@(x) size(x,1)>1, ccoefs);
+ccoefs=ccoefs(gCoeffs);sigcc=sigcc(gCoeffs);
+ccoefs=[ccoefs{:}];ccoefs=ccoefs(2,1:2:end);[ccoefs(isnan(ccoefs))]=deal(0);
+sigcc=[sigcc{:}];sigcc=sigcc(2,1:2:end);[sigcc(isnan(sigcc))]=deal(1);
+sigcoefs=sigcc<0.1; %significant trial-by-trial correlation of neural and behavioral latency
+figure; hold on;
+histogram(ccoefs,-1:0.1:1);
+histogram(ccoefs(sigcoefs),-1:0.1:1);
+% patch([linspace(mean(ccoefs)-0.1,mean(ccoefs)+0.1,length(min(get(gca,'ylim')):max(get(gca,'ylim')))),...
+%     fliplr(linspace(mean(ccoefs)-0.1,mean(ccoefs)+0.1,length(min(get(gca,'ylim')):max(get(gca,'ylim')))))],...
+%     [min(get(gca,'ylim')):max(get(gca,'ylim')),fliplr(min(get(gca,'ylim')):max(get(gca,'ylim')))],cmap(1,:),'EdgeColor','none','FaceAlpha',1);
+plot(mean(ccoefs),max(get(gca,'ylim'))/1.5,'kd')
 
 
 % printing
