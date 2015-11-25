@@ -2,12 +2,13 @@ global directory slash;
 
 %% settings
 [directory,slash,user,dbldir,mapdr,servrep,mapddataf]=SetUserDir;
-
+recloc='top_cortex'; %dentate %top_cortex
+rectask='gapstop'; %gapstop %st_saccades
 try
     CCNdb = connect2DB('vp_sldata');
     %     query = 'SELECT FileName FROM b_dentate';
     %     results = fetch(CCNdb,query);
-    dentatefiles =fetch(CCNdb,'select r.a_file FROM recordings r WHERE r.task=''gapstop'' AND r.recloc=''dentate'''); %dentate %top_cortex %gapstop %st_saccades
+    dentatefiles =fetch(CCNdb,['select r.a_file FROM recordings r WHERE r.task=''' rectask ''' AND r.recloc=''' recloc '''']);  
 catch db_fail
     results = [];
 end
@@ -73,6 +74,9 @@ for flbn=1:length(dentatefiles)
     end
     try
         rectype=regexp(loadfile{:},'(?<=\d\d_)\w+(?=\.\w+)','match'); % get recording type (REX or Sp2)
+        if isempty(rectype)
+            continue
+        end
     catch
         loadfile{:}
         continue
@@ -748,7 +752,7 @@ for flbn=1:length(dentatefiles)
     
 end
 
-clearvars -except alldata CCNdb
+clearvars -except alldata CCNdb recloc rectask
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% save gapstop data
@@ -791,9 +795,10 @@ stdata.alldb=reshape({alldata(gsdlist,:).db},size(alldata(gsdlist,:))); stdata.a
 
 %% Save processed file
 cd('E:\BoxSync\Box Sync\Home Folder vp35\Sync\CbTimingPredict\data')
-if size(gsdata.alldb,1)~=0
-    save cDn_gsdata gsdata -v7.3
-elseif size(stdata.alldb,1)~=0
-    save cDn_stdata stdata -v7.3
+if strcmp(rectask,'gapstop')
+    task='gsdata';
+elseif strcmp(rectask,'st_saccades')
+    task='stdata';
 end
+save([recloc '_' task],'gsdata','-v7.3')
 

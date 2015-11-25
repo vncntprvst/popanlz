@@ -201,7 +201,7 @@ gCoeffs=cellfun(@(x) size(x,1)>1, ccoefs);
 ccoefs=ccoefs(gCoeffs);sigcc=sigcc(gCoeffs);
 ccoefs=[ccoefs{:}];ccoefs=ccoefs(2,1:2:end);[ccoefs(isnan(ccoefs))]=deal(0);
 sigcc=[sigcc{:}];sigcc=sigcc(2,1:2:end);[sigcc(isnan(sigcc))]=deal(1);
-sigcoefs=sigcc<0.1; %significant trial-by-trial correlation of neural and behavioral latency
+sigcoefs=sigcc<0.05; %significant trial-by-trial correlation of neural and behavioral latency
 figure; hold on;
 histogram(ccoefs,-1:0.1:1);
 histogram(ccoefs(sigcoefs),-1:0.1:1);
