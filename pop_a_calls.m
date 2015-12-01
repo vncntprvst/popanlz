@@ -1,11 +1,13 @@
-
 global directory slash;
 
 %% settings
-[directory,slash,user,dbldir,mapdr,servrep,mapddataf]=SetUserDir;
+userinfo=SetUserDir;
+directory=userinfo.directory;
+slash=userinfo.slash;
+% userinfo.user,userinfo.dbldir,userinfo.mapdr,userinfo.servrep,userinfo.mapddataf
 CCNdb = connect2DB('vp_sldata');
 
-cd('E:\BoxSync\Box Sync\Home Folder vp35\Sync\CbTimingPredict\data')
+cd(userinfo.syncdir);
 load('cDn_gsdata.mat');
 
 %% Call task specific analysis

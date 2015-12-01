@@ -4,6 +4,7 @@ function [behav, neur]=trialbytrial(gsdata,conn)
 % if isempty(directory)
 %     [directory,slash]=SetUserDir;
 % end
+plotfig=0;
 
 % get cluster indices
 [sorted_unit_ids,sunitid_idx]=sort(cellfun(@(x) x.unit_id, gsdata.alldb));
@@ -66,28 +67,30 @@ behav(:,7)=cellfun(@(x,y,z) x(ismember(y,z+1)), behav(:,3),behav(:,1),behav(:,1)
 if H==1
     disp(['Distribution are significantly different, A-D stat ' num2str(adstat) ' > critical value ' num2str(critvalue)])
 end
-fh(1)=figure('Name','Behav_RT_NSS-SSdiff'); subplot(1,2,1); hold on;
-histh(1)=histogram([behav{:,7}],'Normalization','probability');% mean([behav{:,7}]) %RTs for NSS preceded by NSS trial
-histh(2)=histogram([behav{:,6}],'Normalization','probability');% mean([behav{:,6}]) %RTs for NSS preceded by SS trial
-histh(1).FaceColor = [0.8 0.2 0.1];
-histh(1).EdgeColor = 'w';
-histh(2).FaceColor = [0 0.5 0.8];
-histh(2).EdgeColor = 'w';
-text(300,0.14,{'Two-sample Anderson-Darling'; 'test of significant difference.'; 'alpha = 0.05'})
-legend('RTs for NSS preceded by NSS trial','RTs for NSS preceded by SS trial')
-legend('boxoff')
-xlabel('Reaction times')
-title('Normalized distribution histogram')
-
-[N,edges] = histcounts([behav{:,7}], 'Normalization', 'probability');
-subplot(1,2,2); plot([edges(1)-diff(edges(1:2))/2 edges(2:end)-diff(edges)/2], cumsum([0 N]))
-[N,edges] = histcounts([behav{:,6}], 'Normalization', 'probability');
-hold on; plot([edges(1)-diff(edges(1:2))/2 edges(2:end)-diff(edges)/2], cumsum([0 N]))
-axis('tight');box off;
-xlabel('Reaction times')
-title('Cumulative distribution')
-legend('RTs for NSS preceded by NSS trial','RTs for NSS preceded by SS trial','location','southeast')
-legend('boxoff')
+if plotfig
+    fh(1)=figure('Name','Behav_RT_NSS-SSdiff'); subplot(1,2,1); hold on;
+    histh(1)=histogram([behav{:,7}],'Normalization','probability');% mean([behav{:,7}]) %RTs for NSS preceded by NSS trial
+    histh(2)=histogram([behav{:,6}],'Normalization','probability');% mean([behav{:,6}]) %RTs for NSS preceded by SS trial
+    histh(1).FaceColor = [0.8 0.2 0.1];
+    histh(1).EdgeColor = 'w';
+    histh(2).FaceColor = [0 0.5 0.8];
+    histh(2).EdgeColor = 'w';
+    text(300,0.14,{'Two-sample Anderson-Darling'; 'test of significant difference.'; 'alpha = 0.05'})
+    legend('RTs for NSS preceded by NSS trial','RTs for NSS preceded by SS trial')
+    legend('boxoff')
+    xlabel('Reaction times')
+    title('Normalized distribution histogram')
+    
+    [N,edges] = histcounts([behav{:,7}], 'Normalization', 'probability');
+    subplot(1,2,2); plot([edges(1)-diff(edges(1:2))/2 edges(2:end)-diff(edges)/2], cumsum([0 N]))
+    [N,edges] = histcounts([behav{:,6}], 'Normalization', 'probability');
+    hold on; plot([edges(1)-diff(edges(1:2))/2 edges(2:end)-diff(edges)/2], cumsum([0 N]))
+    axis('tight');box off;
+    xlabel('Reaction times')
+    title('Cumulative distribution')
+    legend('RTs for NSS preceded by NSS trial','RTs for NSS preceded by SS trial','location','southeast')
+    legend('boxoff')
+end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Neuron / behavior correlation
@@ -157,44 +160,75 @@ for rec=1:size(neur,1)
     [neur{rec,6,1},~,neur{rec,7,1}]=conv_raster(neur{rec,2,1}(:,neur{rec,3,1}-1900:neur{rec,3,1}+3*sigma),sigma);
     % no need for sem actually
 end
-fh(2)=figure('Name','ramp_RT correlation - Mean pre-sac activity');hold on;
-cmap = colormap(gcf);
-sigslope_RT=nanmean(cat(1,neur{sigcoefs,6,1})); sigslope_RT_sem=std(cat(1,neur{sigcoefs,6,1}))/ sqrt(size(cat(1,neur{sigcoefs,6,1}),1));
-%plot confidence intervals
-patch([1:length(sigslope_RT),fliplr(1:length(sigslope_RT))],[sigslope_RT-sigslope_RT_sem,fliplr(sigslope_RT+sigslope_RT_sem)],cmap(1,:),'EdgeColor','none','FaceAlpha',0.1);
-%plot sdf
-ploth(1)=plot(sigslope_RT,'Color',cmap(1,:),'LineWidth',2,'DisplayName','significant RT/slope correlation'); 
-
-nsigslope_RT=nanmean(cat(1,neur{sigcc>=0.05,6,1})); nsigslope_RT_sem=std(cat(1,neur{sigcc>=0.05,6,1}))/ sqrt(size(cat(1,neur{sigcc>=0.05,6,1}),1));
-%plot confidence intervals
-patch([1:length(nsigslope_RT),fliplr(1:length(nsigslope_RT))],[nsigslope_RT-nsigslope_RT_sem,fliplr(nsigslope_RT+nsigslope_RT_sem)],cmap(20,:),'EdgeColor','none','FaceAlpha',0.1);
-%plot sdf
-ploth(2)=plot(nsigslope_RT,'Color',cmap(20,:),'LineWidth',2,'DisplayName','non-significant RT/slope correlation');
-
-[~,ks_p] = kstest2(sigslope_RT,nsigslope_RT); % test should focus on peak times, rather than sdf over whole time course
-text(10,max(get(gca,'ylim'))-10,{'Two-sample Kolmogorov-Smirnov test';['p=' num2str(ks_p)]})
-
-title('population average pre-sac sdf')
-xlabel('Time')
-ylabel('Firing rate')
-set(gca,'xticklabel',-(max(get(gca,'xlim'))):200:0,'TickDir','out'); %'xtick',1:100:max ...
-box off; % axis('tight'); 
-legh=legend(ploth(1:2),'location','southeast');
+if plotfig
+    fh(2)=figure('Name','ramp_RT correlation - Mean pre-sac activity');hold on;
+    cmap = colormap(gcf);
+    sigslope_RT=nanmean(cat(1,neur{sigcoefs,6,1})); sigslope_RT_sem=std(cat(1,neur{sigcoefs,6,1}))/ sqrt(size(cat(1,neur{sigcoefs,6,1}),1));
+    %plot confidence intervals
+    patch([1:length(sigslope_RT),fliplr(1:length(sigslope_RT))],[sigslope_RT-sigslope_RT_sem,fliplr(sigslope_RT+sigslope_RT_sem)],cmap(1,:),'EdgeColor','none','FaceAlpha',0.1);
+    %plot sdf
+    ploth(1)=plot(sigslope_RT,'Color',cmap(1,:),'LineWidth',2,'DisplayName','significant RT/slope correlation');
+    
+    nsigslope_RT=nanmean(cat(1,neur{sigcc>=0.05,6,1})); nsigslope_RT_sem=std(cat(1,neur{sigcc>=0.05,6,1}))/ sqrt(size(cat(1,neur{sigcc>=0.05,6,1}),1));
+    %plot confidence intervals
+    patch([1:length(nsigslope_RT),fliplr(1:length(nsigslope_RT))],[nsigslope_RT-nsigslope_RT_sem,fliplr(nsigslope_RT+nsigslope_RT_sem)],cmap(20,:),'EdgeColor','none','FaceAlpha',0.1);
+    %plot sdf
+    ploth(2)=plot(nsigslope_RT,'Color',cmap(20,:),'LineWidth',2,'DisplayName','non-significant RT/slope correlation');
+    
+    [~,ks_p] = kstest2(sigslope_RT,nsigslope_RT); % test should focus on peak times, rather than sdf over whole time course
+    text(10,max(get(gca,'ylim'))-10,{'Two-sample Kolmogorov-Smirnov test';['p=' num2str(ks_p)]})
+    
+    title('population average pre-sac sdf')
+    xlabel('Time')
+    ylabel('Firing rate')
+    set(gca,'xticklabel',-(max(get(gca,'xlim'))):200:0,'TickDir','out'); %'xtick',1:100:max ...
+    box off; % axis('tight');
+    legh=legend(ploth(1:2),'location','southeast');
+end
 
 %% Trial-by-Trial Correlation of Neural and Behavioral Latency (a la Erlich)
-pkOffsets=latency_analysis(behav,neur,0);
+[pkOffsets,recIdx]=latency_analysis(behav,neur,0);
 % test correlation between FR and eye mvt
 [ccoefs,sigcc]=cellfun(@(x,y) corrcoef(x,y),pkOffsets(:,1),pkOffsets(:,2),'UniformOutput',false);
 ccoefs=[ccoefs{:}];ccoefs=ccoefs(2,1:2:end);[ccoefs(isnan(ccoefs))]=deal(0);
 sigcc=[sigcc{:}];sigcc=sigcc(2,1:2:end);[sigcc(isnan(sigcc))]=deal(1);
 sigcoefs=sigcc<0.05; %significant trial-by-trial correlation of neural and behavioral latency
-figure; hold on;
-histogram(ccoefs,-1:0.1:1);
-histogram(ccoefs(sigcoefs),-1:0.1:1);
-% patch([linspace(mean(ccoefs)-0.1,mean(ccoefs)+0.1,length(min(get(gca,'ylim')):max(get(gca,'ylim')))),...
-%     fliplr(linspace(mean(ccoefs)-0.1,mean(ccoefs)+0.1,length(min(get(gca,'ylim')):max(get(gca,'ylim')))))],...
-%     [min(get(gca,'ylim')):max(get(gca,'ylim')),fliplr(min(get(gca,'ylim')):max(get(gca,'ylim')))],cmap(1,:),'EdgeColor','none','FaceAlpha',1);
-plot(mean(ccoefs),max(get(gca,'ylim'))/1.5,'kd')
+if plotfig
+%     figure; hold on;
+% histogram(ccoefs,-1:0.1:1);
+% histogram(ccoefs(sigcoefs),-1:0.1:1);
+% % patch([linspace(mean(ccoefs)-0.1,mean(ccoefs)+0.1,length(min(get(gca,'ylim')):max(get(gca,'ylim')))),...
+% %     fliplr(linspace(mean(ccoefs)-0.1,mean(ccoefs)+0.1,length(min(get(gca,'ylim')):max(get(gca,'ylim')))))],...
+% %     [min(get(gca,'ylim')):max(get(gca,'ylim')),fliplr(min(get(gca,'ylim')):max(get(gca,'ylim')))],cmap(1,:),'EdgeColor','none','FaceAlpha',1);
+% plot(mean(ccoefs),max(get(gca,'ylim'))/1.5,'kd')
+    recIdx=find(recIdx);
+    fh(3)=figure('Name','FR - Eye velocity correlation');hold on;
+    cmap = colormap(gcf);
+    %% stoped here. Replace sigslope_RT with FReyevel_cor
+    sigslope_RT=nanmean(cat(1,neur{recIdx(sigcoefs),6,1})); sigslope_RT_sem=std(cat(1,neur{recIdx(sigcoefs),6,1}))/ sqrt(size(cat(1,neur{recIdx(sigcoefs),6,1}),1));
+    %plot confidence intervals
+    patch([1:length(sigslope_RT),fliplr(1:length(sigslope_RT))],[sigslope_RT-sigslope_RT_sem,fliplr(sigslope_RT+sigslope_RT_sem)],cmap(1,:),'EdgeColor','none','FaceAlpha',0.1);
+    %plot sdf
+    ploth(1)=plot(sigslope_RT,'Color',cmap(1,:),'LineWidth',2,'DisplayName','significant RT/slope correlation');
+    
+    nsigslope_RT=nanmean(cat(1,neur{sigcc>=0.05,6,1})); nsigslope_RT_sem=std(cat(1,neur{sigcc>=0.05,6,1}))/ sqrt(size(cat(1,neur{sigcc>=0.05,6,1}),1));
+    %plot confidence intervals
+    patch([1:length(nsigslope_RT),fliplr(1:length(nsigslope_RT))],[nsigslope_RT-nsigslope_RT_sem,fliplr(nsigslope_RT+nsigslope_RT_sem)],cmap(20,:),'EdgeColor','none','FaceAlpha',0.1);
+    %plot sdf
+    ploth(2)=plot(nsigslope_RT,'Color',cmap(20,:),'LineWidth',2,'DisplayName','non-significant RT/slope correlation');
+    
+    [~,ks_p] = kstest2(sigslope_RT,nsigslope_RT); % test should focus on peak times, rather than sdf over whole time course
+    text(10,max(get(gca,'ylim'))-10,{'Two-sample Kolmogorov-Smirnov test';['p=' num2str(ks_p)]})
+    
+    title('population average pre-sac sdf')
+    xlabel('Time')
+    ylabel('Firing rate')
+    set(gca,'xticklabel',-(max(get(gca,'xlim'))):200:0,'TickDir','out'); %'xtick',1:100:max ...
+    box off; % axis('tight');
+    legh=legend(ploth(1:2),'location','southeast');
+end
+
+
 % test correlation between FR and stop signal delay from previous SST
 [ccoefs,sigcc]=cellfun(@(x,y) corrcoef(x,y),pkOffsets(:,3),pkOffsets(:,4),'UniformOutput',false);
 gCoeffs=cellfun(@(x) size(x,1)>1, ccoefs);
