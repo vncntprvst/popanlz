@@ -451,7 +451,11 @@ for flbn=1:length(dentatefiles)
                 for ssdval=1:length(ccssdval)
                     % Keeping NSS trials with sac latencies long enough
                     % that they would have occured after a stop-signal
-                    ctmatchlatidx(:,ssdval)=sacdelay.nsst>ccssdval(ssdval)+round(mssrt);
+                    if ~isempty(sacdelay.nsst)
+                        ctmatchlatidx(:,ssdval)=sacdelay.nsst>ccssdval(ssdval)+round(mssrt);
+                    else
+                        ctmatchlatidx(:,ssdval)=0;
+                    end
                 end
                 nullidx=sum(ctmatchlatidx,2)==0;
                 ctmatchlatidx(nullidx,1)=1;
@@ -473,8 +477,12 @@ for flbn=1:length(dentatefiles)
                     % We take tachomc-tachowidth/2
                     % rather than the arbitrary
                     % 50ms from Hanes et al 98
-                    nctallmatchlatidx(:,ssdval)=sacdelay.nsst>nccssdval(ssdval)+(mean(tachomc)-tachowidth/2) & sacdelay.nsst<nccssdval(ssdval)+round(mssrt);
-                end
+                    if ~isempty(sacdelay.nsst)
+                        nctallmatchlatidx(:,ssdval)=sacdelay.nsst>nccssdval(ssdval)+(mean(tachomc)-tachowidth/2) & sacdelay.nsst<nccssdval(ssdval)+round(mssrt);
+                    else
+                         nctallmatchlatidx(:,ssdval)=0;
+                    end
+                 end
                 % getting ssds for each NNS trial, taking the lowest ssd.
                 nctmatchlatidx=zeros(size(nctallmatchlatidx,1),1);
                 for midx=1:size(nctallmatchlatidx,1)
@@ -800,5 +808,5 @@ if strcmp(rectask,'gapstop')
 elseif strcmp(rectask,'st_saccades')
     task='stdata';
 end
-save([recloc '_' task],'gsdata','-v7.3')
+save([recloc '_' task],task,'-v7.3');
 
