@@ -8,13 +8,13 @@ slash=userinfo.slash;
 CCNdb = connect2DB('vp_sldata');
 
 cd(userinfo.syncdir);
-load('cDn_gsdata.mat');
+load('cDn_gsdata.mat'); %cDn_gsdata.mat  top_cortex_gsdata.mat
 
 %% Call task specific analysis
 %make separate calls for different conditions
 calloptions={'compare_st','trial_by_trial','singlessd','allssd_basic_dft',...
     'allssd_basic_multidct','allssd_control'};
-call=calloptions{2};
+call=calloptions{3};
 
 switch call
     case 'compare_st'

@@ -16,11 +16,12 @@ end
 % 1/ convolve rasters with 200ms before saccade, 200 after saccade, 20ms kernel
 %time window. Add kernel * 6 ms (see fullgauss_filtconv), e.g. 60 ms at both
 % ends, which will be cut.
-% data.allgsndata has 3 column for 3 aligntype. Each cell has 3 or 4 for different conditions
+% data.allndata has 3 column for 3 aligntype. Each cell has 3 or 4 for different conditions
 sigma=10;
-sacresps=cellfun(@(x) conv_raster(x(1,1).rast,sigma,x(1,1).alignt-(200+sigma*3),x(1,1).alignt+(199+sigma*3)), data.allgsndata(:,1), 'UniformOutput',false); %400ms period
-bslresps=cellfun(@(x) conv_raster(x(1,1).rast,sigma,x(1,1).alignt-(500+sigma*3),x(1,1).alignt+(sigma*3-1)), data.allgsndata(:,2), 'UniformOutput',false); %500ms period
-fullresps=cellfun(@(x) conv_raster(x(1,1).rast,sigma,1,size(x(1,1).rast,2)), data.allgsndata(:,2), 'UniformOutput',false); %full response
+baslineLength=500;
+[sacresps,sacrespsTrials]=cellfun(@(x) conv_raster(x(1,1).rast,sigma,x(1,1).alignt-(200+sigma*3),x(1,1).alignt+(199+sigma*3)), data.allndata(:,1), 'UniformOutput',false); %400ms period
+[bslresps,bslrespsTrials]=cellfun(@(x) conv_raster(x(1,1).rast,sigma,x(1,1).alignt-(baslineLength+sigma*3),x(1,1).alignt+(sigma*3-1)), data.allndata(:,2), 'UniformOutput',false); %500ms period
+fullresps=cellfun(@(x) conv_raster(x(1,1).rast,sigma,1,size(x(1,1).rast,2)), data.allndata(:,2), 'UniformOutput',false); %full response
 
 %% remove bad apples
 badapl=cellfun(@(x) size(x,2)==1, sacresps);
@@ -31,17 +32,20 @@ bslresps=cat(1,bslresps{:});
 fullresps=fullresps(~badapl,:);
 % fullresps=cat(1,fullresps{:});
 
-data.allgsalignmnt=data.allgsalignmnt(~badapl,:);
-data.allgsmssrt_tacho=data.allgsmssrt_tacho(~badapl,1);
-%allgspk=allgspk(~badapl,:); %not needed
-data.allgsndata=data.allgsndata(~badapl,:);
-%allgs_rec_id=allgs_rec_id(~badapl,1); %not needed
-%allgsstats=allgsstats(~badapl,1); %not needed
-data.allgsprevssd=data.allgsprevssd(~badapl,:);
-data.allgsssds=data.allgsssds(~badapl,:);
-data.allgssacdelay=data.allgssacdelay(~badapl,:);
-data.allgsprefdir=data.allgsprefdir(~badapl,:);
-%allgstrialidx=allgstrialidx(~badapl,:); %not needed
+% clusterIdx=clusterIdx(~badapl,:);
+% figure; plot(mean(sacresps(clusterIdx==5,:)))
+
+data.allalignmnt=data.allalignmnt(~badapl,:);
+data.allmssrt_tacho=data.allmssrt_tacho(~badapl,1);
+%allpk=allpk(~badapl,:); %not needed
+data.allndata=data.allndata(~badapl,:);
+%all_rec_id=all_rec_id(~badapl,1); %not needed
+%allstats=allstats(~badapl,1); %not needed
+data.allprevssd=data.allprevssd(~badapl,:);
+data.allssds=data.allssds(~badapl,:);
+data.allsacdelay=data.allsacdelay(~badapl,:);
+data.allprefdir=data.allprefdir(~badapl,:);
+%alltrialidx=alltrialidx(~badapl,:); %not needed
 data.alldb=data.alldb(~badapl,:);
 
 % 2/ standardize response
@@ -96,8 +100,8 @@ fr_sd=cellfun(@(x) nanstd(x),fullresps);
 % figure;
 % for topfig=1:size(top_drop,1)
 %     try
-%     align=data.allgsndata{top_drop(topfig), 3}(4).alignt;
-%     rasters=((data.allgsndata{top_drop(topfig), 3}(4).rast(:,align-800:align+800)));
+%     align=data.allndata{top_drop(topfig), 3}(4).alignt;
+%     rasters=((data.allndata{top_drop(topfig), 3}(4).rast(:,align-800:align+800)));
 %     subplot(2,1,2)
 %     hold on 
 %     plot(conv_raster(rasters))
@@ -180,11 +184,11 @@ ssd_startstop=[800 700];
 conv_sigma=50;
 half_sixsig=conv_sigma*3; %half kernel window
 
-for gsd=1:size(data.allgsndata,1)
+for gsd=1:size(data.allndata,1)
     if clusidx(gsd)~=-1
         try
-        rasters=data.allgsndata{gsd,3}(3).rast;
-        alignmtt=data.allgsndata{gsd,3}(3).alignt;
+        rasters=data.allndata{gsd,3}(3).rast;
+        alignmtt=data.allndata{gsd,3}(3).alignt;
         start=alignmtt-ssd_startstop(1)-half_sixsig; stop=alignmtt+ssd_startstop(2)+half_sixsig;
         normsdf=conv_raster(rasters,conv_sigma,start,stop,bslresps(gsd,:)); %normalize by baseline
         % find peak and drough
@@ -216,9 +220,9 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% cb cx cluster
-% clusgsndata{1}=data.allgsndata(clusidx==4 | clusidx==10,:);
-% clusgsndata{2}=data.allgsndata(clusidx==2,:);
-% clusgsndata{3}=data.allgsndata(clusidx==6,:);
+% clusgsndata{1}=data.allndata(clusidx==4 | clusidx==10,:);
+% clusgsndata{2}=data.allndata(clusidx==2,:);
+% clusgsndata{3}=data.allndata(clusidx==6,:);
 %
 % clussblmean{1}=bslresp_mean(clusidx==4 | clusidx==10);
 % clussblmean{2}=bslresp_mean(clusidx==2);
@@ -228,18 +232,18 @@ end
 % clussbslresp_sd{2}=bslresp_sd(clusidx==2);
 % clussbslresp_sd{3}=bslresp_sd(clusidx==6);
 %
-% clusprefdir{1}=data.allgsprefdir(clusidx==4 | clusidx==10,:);
-% clusprefdir{2}=data.allgsprefdir(clusidx==2,:);
-% clusprefdir{3}=data.allgsprefdir(clusidx==6,:);
+% clusprefdir{1}=data.allprefdir(clusidx==4 | clusidx==10,:);
+% clusprefdir{2}=data.allprefdir(clusidx==2,:);
+% clusprefdir{3}=data.allprefdir(clusidx==6,:);
 %
-% clusssds{1}=data.allgsssds(clusidx==4 | clusidx==10);
-% clusssds{2}=data.allgsssds(clusidx==2);
-% clusssds{3}=data.allgsssds(clusidx==6);
+% clusssds{1}=data.allssds(clusidx==4 | clusidx==10);
+% clusssds{2}=data.allssds(clusidx==2);
+% clusssds{3}=data.allssds(clusidx==6);
 
 %% cDN clusters
 for clusixdnum=1:length(unique(clusidx))-1
     % raster data
-    clusgsndata{clusixdnum}=data.allgsndata(clusidx==(100+clusixdnum),:);
+    clusgsndata{clusixdnum}=data.allndata(clusidx==(100+clusixdnum),:);
     % baseline
 %     clussblmean{clusixdnum}=bslresp_mean(clusidx==(100+clusixdnum));
     clussblresp{clusixdnum}=bslresps(clusidx==(100+clusixdnum),:); 
@@ -250,15 +254,15 @@ for clusixdnum=1:length(unique(clusidx))-1
     % full sd
     clussfr_sd{clusixdnum}=fr_sd(clusidx==(100+clusixdnum));
     % prefered direction
-    clusprefdir{clusixdnum}=data.allgsprefdir(clusidx==(100+clusixdnum),:);
+    clusprefdir{clusixdnum}=data.allprefdir(clusidx==(100+clusixdnum),:);
     % ssds
-    clusssds{clusixdnum}=data.allgsssds(clusidx==(100+clusixdnum));
+    clusssds{clusixdnum}=data.allssds(clusidx==(100+clusixdnum));
     % saccade delays
-    clussacRT{clusixdnum}=data.allgssacdelay(clusidx==(100+clusixdnum));
+    clussacRT{clusixdnum}=data.allsacdelay(clusidx==(100+clusixdnum));
     % prevalent ssds
-    clusprevssd{clusixdnum}=data.allgsprevssd(clusidx==(100+clusixdnum));
+    clusprevssd{clusixdnum}=data.allprevssd(clusidx==(100+clusixdnum));
     % ssrts
-    clusmssrt{clusixdnum}=data.allgsmssrt_tacho(clusidx==(100+clusixdnum));
+    clusmssrt{clusixdnum}=data.allmssrt_tacho(clusidx==(100+clusixdnum));
     % database info 
     clusdbinfo{clusixdnum}=data.alldb(clusidx==(100+clusixdnum));
 end
@@ -287,7 +291,7 @@ rew_startstop=[800 200];
 % colors for population plots
 %     figure(1);
 % close all
-cc=lines(size(data.allgsalignmnt,1)); % one color per file
+cc=lines(size(data.allalignmnt,1)); % one color per file
 if size(cc,1)==8
     cc(8,:)=[0 0.75 0];
 end
@@ -303,7 +307,7 @@ for clusnum=1:4
         gsdata=clusgsndata{clusnum}{gsd,1}; %this will be 3 structures containing rasters
         % and alignments sac/cancellation/ wrong sac)
         %         try
-        %             gspk=clusallgspk{clusnum}{gsd,1}.sac;
+        %             gspk=clusallpk{clusnum}{gsd,1}.sac;
         %         catch nopeak
         %             gspk=0;
         %         end
@@ -436,7 +440,7 @@ for clusnum=1:4
         gsdata=clusgsndata{clusnum}{gsd,2}; %this will be 3 structures containing rasters
         % and alignments tgt/tgt-CS/tgt-NCS)
         %         try
-        %             gspk=clusallgspk{clusnum}{gsd,2}.vis;
+        %             gspk=clusallpk{clusnum}{gsd,2}.vis;
         %         catch nopeak
         %             gspk=0;
         %         end
@@ -586,7 +590,7 @@ for clusnum=1:4
         % and alignment CS & NCS with corresponding
         % Lm-NSS trials (Lm-CS,Lm-NCS,CS,NCS)
         %         try
-        %             gspk=clusallgspk{clusnum}{gsd,3}.vis;
+        %             gspk=clusallpk{clusnum}{gsd,3}.vis;
         %         catch nopeak
         %             gspk=0;
         %         end
@@ -789,7 +793,7 @@ for clusnum=1:4
         gsdata=clusgsndata{clusnum}{gsd,4}; %this will be 3 structures containing rasters
         % and alignments corsac/~corsac/NCS corsac)
         %         try
-        %             gspk=clusallgspk{clusnum}{gsd,4}.corsac;
+        %             gspk=clusallpk{clusnum}{gsd,4}.corsac;
         %         catch nopeak
         %             gspk=0;
         %         end
@@ -832,7 +836,7 @@ for clusnum=1:4
         gsdata=clusgsndata{clusnum}{gsd,5}; %this will be 3 structures containing rasters
         % and alignments NSS/CS/NCS)
         %         try
-        %             gspk=clusallgspk{clusnum}{gsd,5}.rew;
+        %             gspk=clusallpk{clusnum}{gsd,5}.rew;
         %         catch nopeak
         %             gspk=0;
         %         end
