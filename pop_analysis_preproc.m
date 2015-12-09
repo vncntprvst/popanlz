@@ -588,6 +588,8 @@ for flbn=1:length(dentatefiles)
                 if length(prefdir{:})>1 %then keep dir with most trials
                     prefdirnbtrial=([sum([getaligndata.dir]==prefdir{:}(1)) sum([getaligndata.dir]==prefdir{:}(2))]);
                     prefdir={prefdir{:}(find(prefdirnbtrial==max(prefdirnbtrial),1))};
+                elseif isempty(prefdir{:})
+                    prefdir{:}=NaN;
                 end
                 alldata(flbn,algn).prefdiridx=arrayfun(@(x) x.dir==prefdir{:},getaligndata,'UniformOutput',false);
                 convrasters=conv_raster(colrast,10,1,size(colrast,2));
@@ -731,6 +733,8 @@ for flbn=1:length(dentatefiles)
                 if length(prefdir{:})>1 %then keep dir with most trials
                     prefdirnbtrial=([sum([getaligndata.dir]==prefdir{:}(1)) sum([getaligndata.dir]==prefdir{:}(2))]);
                     prefdir={prefdir{:}(find(prefdirnbtrial==max(prefdirnbtrial),1))};
+                elseif isempty(prefdir{:})
+                    prefdir{:}=NaN;
                 end
                 alldata(flbn,algn).prefdiridx=arrayfun(@(x) x.dir==prefdir{:},getaligndata,'UniformOutput',false);
                 convrasters=conv_raster(colrast,10,11,size(colrast,2)-10);
