@@ -88,9 +88,9 @@ rampdown_seed_polyf = polyfit(xfit_vals,seeds(4,:),5);
 % figure
 % plot(seeds(1,:))
 % hold on
-% plot(seeds(2,:),'r')
-% plot(seeds(3,:),'g')
-
+% plot(seeds(2,:))
+% plot(seeds(3,:))
+% plot(seeds(4,:))
 
 %%%%%%%%%%%%%%%%%%%%%%
 %% clusterization
@@ -328,7 +328,7 @@ elseif strcmp(method,'hclus')
     % inc_coef_th=1.15;
     % hc_clus = cluster(hc_links,'cutoff',inc_coef_th);
     % or define number of cluster wanted
-    hc_clus = cluster(hc_links,'maxclust',opti_clusnm*2); %simply using opti_clusnm doesn't give a good sense of family tree
+    hc_clus = cluster(hc_links,'maxclust',opti_clusnm+1); %simply using opti_clusnm doesn't give a good sense of family tree
     
     % plot HC clusters
 %     for hclus=1:opti_clusnm*2
@@ -395,7 +395,7 @@ for clus=1:max(clusidx)
             [~,varminshift(respsnm,5)] = fminsearch(@(shift) template_curve_match(shift,xfit_vals,clusresps(respsnm,:),rampdown_seed_polyf), 250);
         end
         [~,besttempl]=min(varminshift(:,2:4),[],2);
-        tokeep=varminshift(:,1)>0.45 & varminshift(sub2ind(size(varminshift),[1,2]',besttempl+1))<0.5; %save it
+        tokeep=varminshift(:,1)>0.45 & varminshift(sub2ind(size(varminshift),linspace(1,size(varminshift,1),size(varminshift,1))',besttempl+1))<0.5; %save it
             clusidx(subclusidx(tokeep))=besttempl(tokeep)+100;
             clusidx(subclusidx(~tokeep))=deal(-1);
         continue
@@ -443,14 +443,14 @@ for clus=1:max(clusidx)
     end
     
     %PCA plot
-    %     figure
-    %     scatter(PrComps(:,1), PrComps(:,2), 'k.');
-    %     xlabel('PC 1'); ylabel('PC 2')
-    %     hold on
-    %     clusgmmfith = ezcontour(@(x,y)pdf(gmm_fit_clusters,[x y]),[min(PrComps(:,1))-1 max(PrComps(:,1))+1],[min(PrComps(:,2))-1 max(PrComps(:,2))+1]);
-    %     gscatter(FirstPrComps(:,1), FirstPrComps(:,2), PCAclusidx);
-    %     text(PrComps(:,1), PrComps(:,2),num2str(rot90(size(PrComps(:,1),1):-1:1)));
-    
+%         figure
+%         scatter(PrComps(:,1), PrComps(:,2), 'k.');
+%         xlabel('PC 1'); ylabel('PC 2')
+%         hold on
+%         clusgmmfith = ezcontour(@(x,y)pdf(gmm_fit_clusters,[x y]),[min(PrComps(:,1))-1 max(PrComps(:,1))+1],[min(PrComps(:,2))-1 max(PrComps(:,2))+1]);
+%         gscatter(FirstPrComps(:,1), FirstPrComps(:,2), PCAclusidx);
+%         text(PrComps(:,1), PrComps(:,2),num2str(rot90(size(PrComps(:,1),1):-1:1)));
+%     
     % find best template by minimizing shift
     varminshift=nan(size(clusresps,1),5);
     varminshift(:,1)=var(clusresps,0,2);
