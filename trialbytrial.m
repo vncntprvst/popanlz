@@ -10,10 +10,9 @@ plotfig=0;
 [sorted_unit_ids,sunitid_idx]=sort(cellfun(@(x) x.unit_id, gsdata.alldb));
 query = ['SELECT c.profile, c.profile_type, c.cluster_id FROM clusters c WHERE cluster_id IN (' sprintf('%.0f,' ,sorted_unit_ids(1:end-1)') num2str(sorted_unit_ids(end)) ')'];
 profiles = fetch(conn,query);
-sunitid_revidx(sunitid_idx)=1:length(cellfun(@(x) x.unit_id, gsdata.alldb));
-neur=mat2cell(([profiles{sunitid_revidx,2}])',ones(110,1));
-% clustypes={profiles{sunitid_revidx,1}};
-% foo=[profiles{sunitid_revidx,3}];
+sunitid_revidx(sunitid_idx)=1:length(cellfun(@(x) x.unit_id, gsdata.alldb));%reverse index
+% initialize neural data cell array
+neur=profiles(sunitid_revidx,2); % much simpler than mat2cell(([profiles{sunitid_revidx,2}])',ones(110,1))  ^^
 
 %% old code
 % [peakcct, peaksdf,tbtdircor,tbtdirmsact,tbtdirmsdur]=crosscorel(filename,dataaligned,'all',0);
@@ -45,6 +44,11 @@ behav(:,5)=cellfun(@(x) x(1).eyevel, gsdata.allndata(~cellfun('isempty',gsdata.a
     'UniformOutput',false);%eye velocity
 behav(:,8)=cellfun(@(x) x, gsdata.allssds(~cellfun('isempty',gsdata.allsacdelay),1),...
     'UniformOutput',false);%ssds
+
+cellfun(@(x,y) [size(x(2).trialnb,2),size(y{1},1)],...
+    gsdata.allndata(~cellfun('isempty',gsdata.allsacdelay)), gsdata.allssds(~cellfun('isempty',gsdata.allsacdelay),1),...
+    'UniformOutput',false);
+cellfun(@(x) isempty(x(2).trialnb),gsdata.allndata(~cellfun('isempty',gsdata.allsacdelay)));
 
 neur=neur(~cellfun('isempty',behav(:,2)),:,:);%removing bad apples
 behav=behav(~cellfun('isempty',behav(:,2)),:);%removing bad apples
@@ -94,6 +98,7 @@ end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Neuron / behavior correlation
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %try correlation between "slope" and RT
 %now with polynomial derivative, but hopefully with nonhomogeneous PP
 %% future spiking rate model

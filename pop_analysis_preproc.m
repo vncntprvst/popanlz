@@ -1,14 +1,16 @@
 global directory slash;
 
 %% settings
-[directory,slash,user,dbldir,mapdr,servrep,mapddataf]=SetUserDir;
-recloc='top_cortex'; %dentate %top_cortex
+userinfo=SetUserDir;
+directory=userinfo.directory;
+slash=userinfo.slash;
+recloc='dentate'; %dentate %top_cortex
 rectask='gapstop'; %gapstop %st_saccades
 try
     CCNdb = connect2DB('vp_sldata');
     %     query = 'SELECT FileName FROM b_dentate';
     %     results = fetch(CCNdb,query);
-    dentatefiles =fetch(CCNdb,['select r.a_file FROM recordings r WHERE r.task=''' rectask ''' AND r.recloc=''' recloc '''']);  
+    dentatefiles =fetch(CCNdb,['select r.a_file FROM recordings r WHERE r.task=''' rectask ''' AND r.recloc=''' recloc '''']);
 catch db_fail
     results = [];
 end
@@ -145,7 +147,7 @@ for flbn=1:length(dentatefiles)
         r_id=[];
     end
     
-    %% Self_time saccade files
+    %% Self_time saccade files (countermanding is line 353)
     if strcmp(task,'st_saccades')
         %test peak shift on prefered dir vs anti-dir
         
@@ -349,10 +351,9 @@ for flbn=1:length(dentatefiles)
         % classification: ramp/burst vs pause rebound
         % Normalization by peak firing
         
-        
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %% Countermanding ("gapstop task") files
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%    
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     elseif strcmp(task,'gapstop')
         %% align rasters
         % common presets
@@ -480,9 +481,9 @@ for flbn=1:length(dentatefiles)
                     if ~isempty(sacdelay.nsst)
                         nctallmatchlatidx(:,ssdval)=sacdelay.nsst>nccssdval(ssdval)+(mean(tachomc)-tachowidth/2) & sacdelay.nsst<nccssdval(ssdval)+round(mssrt);
                     else
-                         nctallmatchlatidx(:,ssdval)=0;
+                        nctallmatchlatidx(:,ssdval)=0;
                     end
-                 end
+                end
                 % getting ssds for each NNS trial, taking the lowest ssd.
                 nctmatchlatidx=zeros(size(nctallmatchlatidx,1),1);
                 for midx=1:size(nctallmatchlatidx,1)
@@ -771,7 +772,6 @@ clearvars -except alldata CCNdb recloc rectask
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 gsdlist=cellfun(@(x) strcmp(x,'gapstop'),{alldata(:,1).task}) & ~cellfun('isempty',{alldata(:,1).ndata});
-recluster=0;
 
 % reshape data
 gsdata.allalignmnt=reshape({alldata(gsdlist,:).aligntype},size(alldata(gsdlist,:)));
@@ -794,15 +794,14 @@ gsdata.alldb=reshape({alldata(gsdlist,:).db},size(alldata(gsdlist,:))); gsdata.a
 %% save st_sac data
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-gsdlist=cellfun(@(x) strcmp(x,'st_saccades'),{alldata(:,1).task}) & ~cellfun('isempty',{alldata(:,1).ndata});
-recluster=0;
+stdlist=cellfun(@(x) strcmp(x,'st_saccades'),{alldata(:,1).task}) & ~cellfun('isempty',{alldata(:,1).ndata});
 
 % reshape data
-stdata.allalignmnt=reshape({alldata(gsdlist,:).aligntype},size(alldata(gsdlist,:)));
-stdata.allsacdelay=reshape({alldata(gsdlist,:).sacdelay},size(alldata(gsdlist,:)));stdata.allsacdelay=stdata.allsacdelay(:,1);
-stdata.allprefdir=reshape({alldata(gsdlist,:).prefdiridx},size(alldata(gsdlist,:)));
-stdata.allndata=reshape({alldata(gsdlist,:).ndata},size(alldata(gsdlist,:)));
-stdata.alldb=reshape({alldata(gsdlist,:).db},size(alldata(gsdlist,:))); stdata.alldb=stdata.alldb(:,1);
+stdata.allalignmnt=reshape({alldata(stdlist,:).aligntype},size(alldata(stdlist,:)));
+stdata.allsacdelay=reshape({alldata(stdlist,:).sacdelay},size(alldata(stdlist,:)));stdata.allsacdelay=stdata.allsacdelay(:,1);
+stdata.allprefdir=reshape({alldata(stdlist,:).prefdiridx},size(alldata(stdlist,:)));
+stdata.allndata=reshape({alldata(stdlist,:).ndata},size(alldata(stdlist,:)));
+stdata.alldb=reshape({alldata(stdlist,:).db},size(alldata(stdlist,:))); stdata.alldb=stdata.alldb(:,1);
 
 
 %% Save processed file

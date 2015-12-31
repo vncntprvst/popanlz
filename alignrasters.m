@@ -108,7 +108,7 @@ while ~islast
     % rex_first_trial and rex_next_trial).
     
     %[ecodeout, etimeout, spkchan, spk, arate, h, v, start_time, badtrial ] = rex_trial(name, d );
-    try
+    try %conditional breakpoint: logical(sum(ismember(ecodeout,alignto)))
         [ecodeout, etimeout, spkchan, spk, arate, h, v, start_time, isbadtrial, curtrialsacInfo] = rdd_rex_trial(name, d, selclus);%, rdt_includeaborted);
         curdir=ecodeout(2)-floor(ecodeout(2)/10)*10;
     catch
@@ -500,7 +500,7 @@ while ~islast
                     end
                     
                     
-                    % recordings with trigger channel
+                    % recordings with trigger channel (sync' trigger, e.g. for spike2 recordings)
                     if find(ecodeout==1502) % Trigger code
                         %                         triggercode=1;
                         trigtosac=aligntime-etimeout(1)-1; %trigger code is 1ms before 1001

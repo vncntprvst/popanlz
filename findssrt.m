@@ -179,7 +179,7 @@ ssdvalues=unique(ssdvalues);
 [ssdtots,ssdtotsidx]=sort((arrayfun(@(x) sum(ccssd<=x+3 & ccssd>=x-3),ssdvalues))); %+...
 %     (arrayfun(@(x) sum(nccssd<=x+3 & nccssd>=x-3),ssdvalues)));
 if length(ssdtots)>3 && max(ssdtots)<4 && sum(diff(ssdtots(end-3:end)))==1
-    prevssds=ssdvalues(ssdtotsidx(length(ssdtotsidx)-2:length(ssdtotsidx)));
+    prevssds=sort(ssdvalues(ssdtotsidx(length(ssdtotsidx)-2:length(ssdtotsidx))));
 else
     prevssds=sort(ssdvalues(ssdtotsidx(ssdtots>(median(ssdtots(ssdtots>1))-std(ssdtots)))));
 end
@@ -192,12 +192,12 @@ end
 %% cancellation probability (aka inhibition function)
 try
     if length(prevssds)>=2
-        nccssdhist=hist(nccssd,prevssds);
-        ccssdhist=hist(ccssd,prevssds);
+        nccssdhist=hist(nccssd,sort(prevssds));
+        ccssdhist=hist(ccssd,sort(prevssds));
         if sum(diff(ccssdhist)<0)>=length(ccssdhist)-2 && diff(nccssdhist(end-1:end))<0
             prevssds=prevssds(1:end-1);
-            nccssdhist=hist(nccssd,prevssds);
-            ccssdhist=hist(ccssd,prevssds);
+            nccssdhist=hist(nccssd,sort(prevssds));
+            ccssdhist=hist(ccssd,sort(prevssds));
         end
         nccssdhist=nccssdhist(nccssdhist>0);
         ccssdhist=ccssdhist(nccssdhist>0);

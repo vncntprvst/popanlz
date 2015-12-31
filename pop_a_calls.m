@@ -14,7 +14,7 @@ load('cDn_gsdata.mat'); %cDn_gsdata.mat  top_cortex_gsdata.mat
 %make separate calls for different conditions
 calloptions={'compare_st','trial_by_trial','singlessd','allssd_basic_dft',...
     'allssd_basic_multidct','allssd_control'};
-call=calloptions{3};
+call=calloptions{2};
 
 switch call
     case 'compare_st'
