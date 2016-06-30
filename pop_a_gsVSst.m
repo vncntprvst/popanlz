@@ -5,8 +5,8 @@ if isempty(directory)
 end
 
 %number cells
-gs.goodrecs=~cellfun('isempty',gsdata.allgssacdelay);
-st.goodrecs=~cellfun('isempty',stdata.allgssacdelay);
+gs.goodrecs=~cellfun('isempty',gsdata.allsacdelay);
+st.goodrecs=~cellfun('isempty',stdata.allsacdelay);
 
 %remove bad apples
 fn = fieldnames(gsdata);
@@ -14,8 +14,8 @@ for lp=1:length(fn)
     gsdata.(fn{lp})=gsdata.(fn{lp})(gs.goodrecs,:);
 end
 
-gs.cellnum=sum(~cellfun('isempty',gsdata.allgssacdelay));
-st.cellnum=sum(~cellfun('isempty',stdata.allgssacdelay));
+gs.cellnum=sum(~cellfun('isempty',gsdata.allsacdelay));
+st.cellnum=sum(~cellfun('isempty',stdata.allsacdelay));
 
 disp([num2str(gs.cellnum) ' cells for gs, '  num2str(st.cellnum) ' cells for st'])
 
@@ -33,7 +33,7 @@ gs.commoncells=find(fileidx{1});
 %% individual sessions
 % figure; hold on;
 % for ccell=1:length(gs.commoncells)
-%     sacdelays=gsdata.allgssacdelay{gs.commoncells(ccell), 1}{1, 1};
+%     sacdelays=gsdata.allsacdelay{gs.commoncells(ccell), 1}{1, 1};
 %     xlim=ceil(max(sacdelays)/100)*100;
 %     [saclatquant,saclatxlims]=hist(sacdelays,0:25:xlim);
 %     saclatfreq=saclatquant./sum(saclatquant);
@@ -41,7 +41,9 @@ gs.commoncells=find(fileidx{1});
 %     plot(saclatxlims,saclatfreq);
 % end
 %% all sessions together
-allsacdelays=cellfun(@(x) x{:},gsdata.allgssacdelay(gs.commoncells),'UniformOutput',false);
+allsacdelays=cellfun(@(x) x.nsst,gsdata.allsacdelay,'UniformOutput',false);
+%% using only common cells
+% allsacdelays=cellfun(@(x) x.nsst,gsdata.allsacdelay(gs.commoncells),'UniformOutput',false);
 allsacdelays=[allsacdelays{:}];
 xlim=ceil(max(allsacdelays)/100)*100;
 [saclatquant,saclatxlims]=hist(allsacdelays,0:25:xlim);
@@ -56,11 +58,12 @@ curylim=get(gca,'YLim');
 set(gca,'TickDir','out','box','off');
 
 %%
-st.commoncells=find(fileidx{2});
+st.commoncells=find(fileidx{2}); %st.commoncells=1:size(fileidx{2},1);
 properdelay=false(size(st.commoncells,1),1);
 % figure; hold on;
 for ccell=1:length(st.commoncells)
-    sacdelays=stdata.allgssacdelay{gs.commoncells(ccell), 1}{1, 1};
+    sacdelays=stdata.allsacdelay{gs.commoncells(ccell), 1}{1, 1};
+% sacdelays=stdata.allsacdelay{ccell}{1, 1};
     if median(sacdelays)<750
 %         commoncells{ccell}
         continue
@@ -73,7 +76,9 @@ for ccell=1:length(st.commoncells)
     properdelay(ccell)=true;
 end
 %% (almost) all sessions together
-allsacdelays=cellfun(@(x) x{:},stdata.allgssacdelay(st.commoncells(properdelay)),'UniformOutput',false);
+allsacdelays=cellfun(@(x) x{:},stdata.allsacdelay(properdelay),'UniformOutput',false);
+%% only common recordings
+% allsacdelays=cellfun(@(x) x{:},stdata.allsacdelay(st.commoncells(properdelay)),'UniformOutput',false);
 allsacdelays=[allsacdelays{:}];
 allsacdelays=allsacdelays(allsacdelays>800);
 xlim=ceil(max(allsacdelays)/100)*100;

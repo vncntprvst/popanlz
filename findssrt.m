@@ -1,5 +1,6 @@
 % Find SSRT for single file
-function [mssrt,inhibfun,ccssd,nccssd,ssds,tachomc,tachowidth,sacdelay,rewtimes,prevssds,trialidx]=findssrt(recname, plots)
+function [mssrt,inhibfun,ccssd,nccssd,ssds,...
+    tachomc,tachowidth,sacdelay,rewtimes,prevssds,trialidx,alltacho]=findssrt(recname, plots)
 global directory;
 
 if nargin < 2 | isempty(plots)
@@ -239,11 +240,29 @@ try
 catch
     [tachomc, xtach, tach, rPTc, rPTe] = deal(NaN);
 end
-
-% smooth tacho curve and get tachowidth
+if ~isnan(xtach)
+    if sum(tach(find(tach==1,1):end)<1)
+%         close all; figure; hold on; plot(xtach,tach)
+        tach(end:-1:find(tach==1,1))=1;
+%         plot(xtach,tach); hold off
+    end
+end
+    % smooth tacho curve and get tachowidth
 filttach=gauss_filtconv(tach,4);
+
 coretach=filttach(xtach>-20 & xtach<170);
 tachowidth=length(coretach(coretach>=0.1 & coretach<=0.9));
+if xtach(find(tach==max(tach),1))>50 & xtach(find(tach==max(tach),1))<120
+    alltacho.tachomc=tachomc;
+    alltacho.tachowidth=tachowidth;
+    alltacho.xtach=xtach;
+    alltacho.tach=tach;
+    alltacho.rPTc=rPTc;
+    alltacho.rPTe=rPTe;
+else
+	[alltacho.tachomc,alltacho.tachowidth,alltacho.xtach,...
+        alltacho.tach,alltacho.rPTc,alltacho.rPTe]=deal(NaN);
+end
 
 if plots
     psychoplots=figure('color','white','position',[2315	200	524	636]);
@@ -355,8 +374,7 @@ end
 if mssrt < 50 ||  mssrt > 200
    mssrt=NaN;
 end
-
-
+    
 % if ~(mssrt>75 & mssrt<150)
 %     load([recname(1),'_evolSSRT'],'evolSSRT','foSSRT');
 %     session=regexp(recname,'\d+','match');

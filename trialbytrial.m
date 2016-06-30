@@ -233,9 +233,8 @@ if plotfig
     legh=legend(ploth(1:2),'location','southeast');
 end
 
-
 % test correlation between FR and stop signal delay from previous SST
-[ccoefs,sigcc]=cellfun(@(x,y) corrcoef(x,y),pkOffsets(:,3),pkOffsets(:,4),'UniformOutput',false);
+[ccoefs,sigcc]=cellfun(@(x,y) corrcoef(x,y),pkOffsets(recIdx,3),pkOffsets(recIdx,4),'UniformOutput',false);
 gCoeffs=cellfun(@(x) size(x,1)>1, ccoefs);
 ccoefs=ccoefs(gCoeffs);sigcc=sigcc(gCoeffs);
 ccoefs=[ccoefs{:}];ccoefs=ccoefs(2,1:2:end);[ccoefs(isnan(ccoefs))]=deal(0);
@@ -249,6 +248,10 @@ histogram(ccoefs(sigcoefs),-1:0.1:1);
 %     [min(get(gca,'ylim')):max(get(gca,'ylim')),fliplr(min(get(gca,'ylim')):max(get(gca,'ylim')))],cmap(1,:),'EdgeColor','none','FaceAlpha',1);
 plot(mean(ccoefs),max(get(gca,'ylim'))/1.5,'kd')
 
+%test pooling all offsets together
+pooledPkOffsets=vertcat(pkOffsets{:,3});
+pooledPkOffsets(:,2)=vertcat(pkOffsets{:,4});
+[ccoefs,sigcc]=corrcoef(foo);
 
 % printing
 cd('E:\BoxSync\Box Sync\Home Folder vp35\Sync\CbTimingPredict\figures')
