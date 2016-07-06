@@ -361,7 +361,7 @@ if isnan(mssrt) || ~(mssrt>50 & mssrt<150) %get tachomc and lookup SSRT/tachomc 
         tachomc=mean(tachomc);
         %estimate mssrt
 %         mssrt=round(tachomc*fit.coeff(1)+fit.coeff(2));
-        if (tachomc>45 && tachomc<75)
+        if (tachomc>40 && tachomc<75)
              mssrt=round(tachomc+tachowidth);
         elseif (tachomc>75 && tachomc<110)
              mssrt=round(tachomc+tachowidth/2);
@@ -371,11 +371,27 @@ if isnan(mssrt) || ~(mssrt>50 & mssrt<150) %get tachomc and lookup SSRT/tachomc 
     end
 end
 
-if mssrt < 50 ||  mssrt > 200
-   mssrt=NaN;
-end
-    
-% if ~(mssrt>75 & mssrt<150)
+% if mssrt < 50 ||  mssrt > 200
+%    mssrt=NaN;
+% end
+%     
+if ~(mssrt>70 & mssrt<130)
+    userinfo=SetUserDir;
+    load([userinfo.syncdir userinfo.slash 'behavData.mat']);
+    SSRTs=[behavData.mssrt];
+    if strcmp('R',recname(1))
+        indivSSRTs=SSRTs(cellfun(@(x) strcmp(x,'Rigel'), {behavData.subject}));
+    elseif strcmp('S',recname(1))
+        indivSSRTs=SSRTs(cellfun(@(x) strcmp(x,'Sixx'), {behavData.subject}));
+    elseif strcmp('H',recname(1))
+        indivSSRTs=SSRTs(cellfun(@(x) strcmp(x,'Hilda'), {behavData.subject}));
+    end
+    indivSSRTs=indivSSRTs(~isnan(indivSSRTs));
+    if ~isnan(mssrt)
+        mssrt=round(mssrt/3+(mean(indivSSRTs)*2/3));
+    else
+        mssrt=mean(indivSSRTs);
+    end
 %     load([recname(1),'_evolSSRT'],'evolSSRT','foSSRT');
 %     session=regexp(recname,'\d+','match');
 %     if min(abs(evolSSRT(2,:)-str2num(session{1})))<=5
@@ -383,6 +399,6 @@ end
 %     else
 %         mssrt=round(mssrt/3+foSSRT*2/3);
 %     end
-% end
+end
 
 end
