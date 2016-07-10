@@ -110,14 +110,14 @@ hylabel=ylabel(gca,'Fraction cancelled','FontName','calibri','FontSize',12);
 set(gca,'Ylim',[0 1],'TickDir','out','box','off');
 
 medtachoplot=subplot(1,2,2);
-medTach=nanmean(xtachComp);
-medTach=medTach(-19-min([xtachLims{:}]): 171-min([xtachLims{:}]));
-medTachsem=(nanstd(xtachComp)/ sqrt(size(xtachComp,1))) * 1.96;
-medTachsem=medTachsem(-19-min([xtachLims{:}]): 171-min([xtachLims{:}]));
+meanTach=nanmean(xtachComp);
+meanTach=meanTach(-19-min([xtachLims{:}]): 171-min([xtachLims{:}]));
+meanTachsem=(nanstd(xtachComp)/ sqrt(size(xtachComp,1))) * 1.96;
+meanTachsem=meanTachsem(-19-min([xtachLims{:}]): 171-min([xtachLims{:}]));
 % medTachsem(isnan(medTachsem))=0;
-plot(medTach,'linewidth',2)
-patch([1:length(medTachsem),fliplr(1:length(medTachsem))],...
-    [medTach-medTachsem,fliplr(medTach+medTachsem)],cmap(1,:),'EdgeColor','none','FaceAlpha',0.5);
+plot(meanTach,'linewidth',2)
+patch([1:length(meanTachsem),fliplr(1:length(meanTachsem))],...
+    [meanTach-meanTachsem,fliplr(meanTach+meanTachsem)],cmap(1,:),'EdgeColor','none','FaceAlpha',0.5);
 % patch([1:11,fliplr(1:11)],[1:11,fliplr(5:15)],cmap(1,:),'EdgeColor','none','FaceAlpha',0.5);
 
 title('Mean tachometric curve','FontName','calibri','FontSize',12);
@@ -125,6 +125,41 @@ xlabel(gca,'rPT (ms)','FontName','calibri','FontSize',12);
 set(gca,'Xlim',[0 190],'XTick',0:50:190,'XTickLabel',-20:50:170,'TickDir','out','box','off');
 ylabel(gca,'Fraction cancelled','FontName','calibri','FontSize',12);
 set(gca,'Ylim',[0 1],'TickDir','out','box','off');
+
+% plot for each individual
+subjectList={behavData.subject};
+subjects={'Rigel';'Sixx';'Hilda'};
+meanTach=nanmean(xtachComp);
+meanTach=meanTach(-19-min([xtachLims{:}]): 171-min([xtachLims{:}]));
+meanTachsem=(nanstd(xtachComp)/ sqrt(size(xtachComp,1))) * 1.96;
+meanTachsem=meanTachsem(-19-min([xtachLims{:}]): 171-min([xtachLims{:}]));
+
+figure; hold on;
+plot(meanTach,'linewidth',2)
+patch([1:length(meanTachsem),fliplr(1:length(meanTachsem))],...
+    [meanTach-meanTachsem,fliplr(meanTach+meanTachsem)],cmap(1,:),'EdgeColor','none','FaceAlpha',0.5);
+
+for subjNum=1:3
+    indivxtachComp=xtachComp(cellfun(@(x) strcmp(x,subjects{subjNum}), subjectList),:);
+    meanTach=nanmean(indivxtachComp);
+    meanTach=meanTach(-19-min([xtachLims{:}]): 171-min([xtachLims{:}]));
+    meanTachsem=(nanstd(indivxtachComp)/ sqrt(size(indivxtachComp,1))) * 1.96;
+    meanTachsem=meanTachsem(-19-min([xtachLims{:}]): 171-min([xtachLims{:}]));
+    plot(meanTach,'linewidth',2)
+    if sum(meanTachsem)>0
+        patch([1:length(meanTachsem),fliplr(1:length(meanTachsem))],...
+            [meanTach-meanTachsem,fliplr(meanTach+meanTachsem)],cmap(subjNum+1,:),'EdgeColor','none','FaceAlpha',0.5);
+    end
+end
+legend({'All','','Rigel','Sixx','','Hilda',''})
+
+title('Mean tachometric curve per individual','FontName','calibri','FontSize',12);
+xlabel(gca,'rPT (ms)','FontName','calibri','FontSize',12);
+set(gca,'Xlim',[0 190],'XTick',0:50:190,'XTickLabel',-20:50:170,'TickDir','out','box','off');
+ylabel(gca,'Fraction cancelled','FontName','calibri','FontSize',12);
+set(gca,'Ylim',[0 1],'TickDir','out','box','off');
+
+
 
 %% rPT figures
 [rPTcComp,rPTeComp]=deal(nan(size(gs.recnames,1),max([xtachLims{:}])-min([xtachLims{:}])+1));
@@ -200,7 +235,7 @@ for gsFileNum=1:size(allSSDs,2)
     timeoutliers=(250-(SSDS(end)-SSDS(1)))/2;
     rs_inhibFun = timeseries([0;inhibFun;1],[SSDS(1)-timeoutliers; SSDS; SSDS(end)+timeoutliers]);
     rs_inhibFun.TimeInfo.Units='milliseconds';
-    rs_inhibFun = resample(rs_inhibFun, linspace(SSDS(1)-timeoutliers,SSDS(end)+timeoutliers,20)) 
+    rs_inhibFun = resample(rs_inhibFun, linspace(SSDS(1)-timeoutliers,SSDS(end)+timeoutliers,20));
     % figure; plot(ts1)
     inhibFunsComp(gsFileNum,:)=rs_inhibFun.Data;
 end
@@ -215,6 +250,30 @@ patch([1:length(meanInhibFunsem),fliplr(1:length(meanInhibFunsem))],...
 % patch([1:11,fliplr(1:11)],[1:11,fliplr(5:15)],cmap(1,:),'EdgeColor','none','FaceAlpha',0.5);
 
 title('Mean inhibtion function', 'FontName','calibri','FontSize',12);
+xlabel(gca,'SSDS(ms)','FontName','calibri','FontSize',12);
+set(gca,'Xlim',[0 20],'XTick',0:5:20,'XTickLabel',round(linspace(-125,125,5)),'TickDir','out','box','off');
+ylabel(gca,'Fraction cancelled','FontName','calibri','FontSize',12);
+set(gca,'Ylim',[0 1],'TickDir','out','box','off');
+
+% plot for each individual
+subjectList={behavData(~cellfun(@(x) isnan(sum(x)),{behavData.inhibfun})).subject};
+subjects={'Rigel';'Sixx';'Hilda'};
+
+figure; hold on;
+plot(meanInhibFun,'linewidth',2)
+patch([1:length(meanInhibFunsem),fliplr(1:length(meanInhibFunsem))],...
+    [meanInhibFun-meanInhibFunsem,fliplr(meanInhibFun+meanInhibFunsem)],cmap(1,:),'EdgeColor','none','FaceAlpha',0.5);
+
+for subjNum=1:3
+    indivInhibFunsComp=inhibFunsComp(cellfun(@(x) strcmp(x,subjects{subjNum}), subjectList),:);
+    meanInhibFun=nanmean(indivInhibFunsComp);meanInhibFun=fliplr(meanInhibFun);
+    meanInhibFunsem=(nanstd(indivInhibFunsComp)/ sqrt(size(indivInhibFunsComp,1))) * 1.96;
+    plot(meanInhibFun,'linewidth',2,'color',cmap(subjNum+1,:));
+    patch([1:length(meanInhibFunsem),fliplr(1:length(meanInhibFunsem))],...
+        [meanInhibFun-meanInhibFunsem,fliplr(meanInhibFun+meanInhibFunsem)],cmap(subjNum+1,:),'EdgeColor','none','FaceAlpha',0.5);
+end
+legend({'All','','Rigel','','Sixx','','Hilda',''})
+title('Mean inhibition function per individual', 'FontName','calibri','FontSize',12);
 xlabel(gca,'SSDS(ms)','FontName','calibri','FontSize',12);
 set(gca,'Xlim',[0 20],'XTick',0:5:20,'XTickLabel',round(linspace(-125,125,5)),'TickDir','out','box','off');
 ylabel(gca,'Fraction cancelled','FontName','calibri','FontSize',12);

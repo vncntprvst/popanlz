@@ -14,8 +14,8 @@ load('cDn_gsdata.mat'); %cDn_gsdata.mat  top_cortex_gsdata.mat
 
 %% Call task specific analysis
 %make separate calls for different conditions
-calloptions={'compare_st','trial_by_trial','singlessd','allssd_basic_dft',...
-    'allssd_basic_multidct','allssd_control','behavior_values'};
+calloptions={'compare_st','behavior_values','task_related','multi_task_normalization',...
+    'trial_by_trial','singlessd','allssd_basic_dft','allssd_basic_multidct','allssd_control'};
 call=calloptions{optionNb};
 
 switch call
@@ -25,6 +25,22 @@ switch call
     case 'compare_st'
         load('cDn_stdata.mat');
         pop_a_gsVSst(gsdata,stdata,CCNdb);
+    case 'task_related'
+        recloc='cDn';
+        task='stdata';
+        load('cDn_stdata.mat');
+        stdata.taskrelated=pop_a_task_related(stdata);
+%         %% Save field to data
+%         cd(userinfo.syncdir)
+%         save([recloc '_' task],task,'-v7.3');
+    case 'multi_task_normalization'
+        recloc='cDn';
+        task='gsdata';
+        load('cDn_stdata.mat');
+        gsdata.normFactor=pop_a_normalization(gsdata,stdata,CCNdb);
+%         %% Save field to data
+%         cd(userinfo.syncdir)
+%         save([recloc '_' task],task,'-v7.3');
     case 'trial_by_trial'
         [behav, neur]=trialbytrial(gsdata,CCNdb);
     case 'singlessd'

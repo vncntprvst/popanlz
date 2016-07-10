@@ -10,7 +10,7 @@ if proc_option.singlessd
 end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% normalize data
+%% data normalization
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % 1/ convolve rasters with 200ms before saccade, 200 after saccade, 20ms kernel
