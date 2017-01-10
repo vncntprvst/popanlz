@@ -15,7 +15,8 @@ load('cDn_gsdata.mat'); %cDn_gsdata.mat  top_cortex_gsdata.mat
 %% Call task specific analysis
 %make separate calls for different conditions
 calloptions={'compare_st','behavior_values','task_related','multi_task_normalization',...
-    'trial_by_trial','singlessd','allssd_basic_dft','allssd_basic_multidct','allssd_control'};
+    'baseline_thd','trial_by_trial','singlessd','allssd_basic_dft',...
+    'allssd_basic_multidct','allssd_control'};
 call=calloptions{optionNb};
 
 switch call
@@ -38,6 +39,14 @@ switch call
         task='gsdata';
         load('cDn_stdata.mat');
         gsdata.normFactor=pop_a_normalization(gsdata,stdata,CCNdb);
+%         %% Save field to data
+%         cd(userinfo.syncdir)
+%         save([recloc '_' task],task,'-v7.3');
+    case 'baseline_thd'
+        recloc='cDn';
+        task='gsdata';
+%         load('cDn_stdata.mat');
+        gsdata.bslThd=pop_a_bsl_threshold(gsdata,CCNdb);
 %         %% Save field to data
 %         cd(userinfo.syncdir)
 %         save([recloc '_' task],task,'-v7.3');

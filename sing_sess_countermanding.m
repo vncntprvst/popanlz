@@ -14,7 +14,7 @@ cmdData=struct('file',[],'allalignmnt',[],'allprevssd',[],'allssds',[],'allsacde
 
 if strcmp(fileName,'get')
     %% finding best candidate
-    
+   
     % userinfo.user,userinfo.dbldir,userinfo.mapdr,userinfo.servrep,userinfo.mapddataf
     CCNdb = connect2DB('vp_sldata');
     
@@ -76,55 +76,56 @@ if strcmp(fileName,'get')
     [~,mostNSST]=sort(numTrials(:,1),'descend'); [~,mostNSSTscore]=sort(mostNSST);
     [~,mostCSST]=sort(numTrials(:,2),'descend'); [~,mostCSSTscore]=sort(mostCSST);
     [~,mostNCSST]=sort(numTrials(:,3),'descend'); [~,mostNCSSTscore]=sort(mostNCSST);
-%     Index can do without mostNSSTscore
+    %     Index can do without mostNSSTscore
     [~,mostTrials]=sort(sum([mostNSSTscore,mostCSSTscore,mostNCSSTscore],2));[~,mostTrials]=sort(mostTrials);
-%     [~,mostTrials]=sort(sum([mostCSSTscore,mostNCSSTscore],2));[~,mostTrials]=sort(mostTrials);
-
-    % make an index of recordings with most same-ssd in SST. 
-        % now gets those with the most trials, aligned to target
+    %     [~,mostTrials]=sort(sum([mostCSSTscore,mostNCSSTscore],2));[~,mostTrials]=sort(mostTrials);
+    
+    % make an index of recordings with most same-ssd in SST.
+    % now gets those with the most trials, aligned to target
     numSSDs=cellfun(@(x) [x{1,1};x{1,2}] ,gsdata.allssds, 'UniformOutput',false);
     numSSDs=numSSDs(clus1Idx,:);
     [~,numSSDs]=sort(cellfun(@(x) length(unique(floor(x/5)*5)), numSSDs, 'UniformOutput',true));[~,numSSDs]=sort(numSSDs);
     
     %combine indices to find recordings with best activity and most trials
     [~,bestFiles]=sort(topEventActivity+mostTrials+numSSDs);
-%     numTrials(bestFiles,:)
+    %     numTrials(bestFiles,:)
     % hand picked recordings with best activity and most trials were 5,14,15
-
+    
     % plot them
-%     for cellNum=1:10
-%         bestFile=bestFiles(cellNum);
-%     
-%         figure('position',[1686 49 867 1308])
-%         for plotNum=1:3
-%             %get rasters
-%             periTargetActivity=cellfun(@(x) conv_raster(x(plotNum).rast,sigma,x(plotNum).alignt-(100+sigma*3),x(plotNum).alignt+(500+sigma*3)), gsdata.allndata(:,2), 'UniformOutput',false); %600ms epoch
-%             periTargetActivity=periTargetActivity(clus1Idx);
-%     
-%             subplot(3,1,plotNum)
-%             plot(periTargetActivity{bestFile},'LineWidth',2);
-%             currylim=get(gca,'YLim');
-%                 patch([repmat(98,1,2) repmat(102,1,2)], ...
-%                 [[0 currylim(2)] fliplr([0 currylim(2)])], ...
-%                 [0 0 0 0],[1 0 0],'EdgeColor','none','FaceAlpha',0.5);
-%     
-%         axis(gca,'tight');
-%         box off;
-%     
-%         end
-%     end
+    %     for cellNum=1:10
+    %         bestFile=bestFiles(cellNum);
+    %
+    %         figure('position',[1686 49 867 1308])
+    %         for plotNum=1:3
+    %             %get rasters
+    %             periTargetActivity=cellfun(@(x) conv_raster(x(plotNum).rast,sigma,x(plotNum).alignt-(100+sigma*3),x(plotNum).alignt+(500+sigma*3)), gsdata.allndata(:,2), 'UniformOutput',false); %600ms epoch
+    %             periTargetActivity=periTargetActivity(clus1Idx);
+    %
+    %             subplot(3,1,plotNum)
+    %             plot(periTargetActivity{bestFile},'LineWidth',2);
+    %             currylim=get(gca,'YLim');
+    %                 patch([repmat(98,1,2) repmat(102,1,2)], ...
+    %                 [[0 currylim(2)] fliplr([0 currylim(2)])], ...
+    %                 [0 0 0 0],[1 0 0],'EdgeColor','none','FaceAlpha',0.5);
+    %
+    %         axis(gca,'tight');
+    %         box off;
+    %
+    %         end
+    %     end
     
     %best cells in cDN cluster #1 are 31, 4, 8, 1
-
+    
     clus1Idx=find(clus1Idx);
+    fieldName = fieldnames(gsdata);
     for lp=1:length(fieldName)
-        cmdData.(fieldName{lp})=gsdata.(fieldName{lp})(clus1Idx(bestFiles(2)),:);
+        cmdData.(fieldName{lp})=gsdata.(fieldName{lp})(clus1Idx(bestFiles(1)),:);
     end
     % queries{1} = ['SELECT a_file FROM sorts s INNER JOIN recordings r on s.recording_id_fk = r.recording_id WHERE sort_id IN (' ...
     %     sprintf('%.0f,' ,cellfun(@(x) x.sort_id,gsdata.alldb(1:end-1,1))) num2str(gsdata.alldb{end,1}.sort_id) ')'];
     cmdData.file=fetch(CCNdb,['SELECT a_file FROM sorts s INNER JOIN recordings r on ' ...
         's.recording_id_fk = r.recording_id WHERE sort_id IN (' ...
-        num2str(gsdata.alldb{clus1Idx(bestFiles(2))}.sort_id) ')']);
+        num2str(gsdata.alldb{clus1Idx(bestFiles(1))}.sort_id) ')']);
     cmdData.file=cmdData.file{:}(1:end-1);
     
 else
@@ -163,237 +164,243 @@ end
 
 %% session psychophysics
 if ~isfield(cmdData,'allssds')
-
-% subjects={'Rigel','Sixx','Hilda'};
-%
-% % best use a recording made with gapstop training and lots of trials
-% subject=subjects{3};
-% recname='H48L5A1_18102'; % S148cnttrain
-% load(recname,'allcodes','alltimes','allbad','saccadeInfo');
-% % load([recname,'_sac'],'alignedata');
-%
-% %% find stop trials
-%     trialtypes=floor(allcodes(:,2)./10);%./10 only /10 if pooling data together
-%     stoptrials=find(trialtypes==407);
-%     stoptrialcodes=allcodes(stoptrials,:);
-%
-% %% find canceled and noncanceled stop trials
-% if find(stoptrialcodes(:,8)==1503,1) %recordings with benchmark code (1503)
-%     bmssd=1;
-%     abortedstoptrials=~(floor(stoptrialcodes(:,9)./10)==507);
-%     noncancel=(stoptrialcodes(~abortedstoptrials,10)==16386) | ... % trials where a saccade is initiated
-%         (stoptrialcodes(~abortedstoptrials,10)==17385);                % or subsequently breaking fixation
-% else
-%     bmssd=0;
-%     abortedstoptrials=~(floor(stoptrialcodes(:,8)./10)==507);
-%     noncancel=(stoptrialcodes(~abortedstoptrials,9)==17385) | ...
-%         (stoptrialcodes(~abortedstoptrials,9)==16386);
-% end
-%
-% %% find "desired" delay times (keep in mind that video synch adds ~65ms, so real ssd are variable)
-%
-% % calculate ssd
-% stoptrialtimes=alltimes(stoptrials(~abortedstoptrials,:),:);
-% noncanceltimes=stoptrialtimes(noncancel,:);
-% canceltimes=stoptrialtimes(~noncancel,:);
-%
-%     if bmssd %benchmark
-%         nccssd=(noncanceltimes(:,9)-noncanceltimes(:,7))-3; %3 ms added by the state transitions
-%         ccssd=(canceltimes(:,9)-canceltimes(:,7))-3;
-%         allssd=nan(size(alltimes,1),1);
-%         allssd(stoptrials)=(alltimes(stoptrials,9)-alltimes(stoptrials,7))-3;
-%     else
-%         nccssd=(noncanceltimes(:,8)-noncanceltimes(:,7))-2; %2 ms added by the state transitions
-%         ccssd=(canceltimes(:,8)-canceltimes(:,7))-2;
-%     end
-%
-% ssdvalues=unique([ccssd;nccssd]);
-%
-% % show progression of rt and ssd
-% % figure;
-% % subplot(2,1,1);
-% % stairs(goodtrials);
-% % set(gca,'xlim',[1 length(allssd)]);
-% % title('successful trials');
-% % allssd=zeros(size(alltimes,1),1);
-% % allssd(stoptrials(~abortedstoptrials))=...
-% %     (alltimes(stoptrials(~abortedstoptrials),9)-alltimes(stoptrials(~abortedstoptrials),7))-3;
-% % subplot(2,1,2);
-% % plot(find(allssd>0),allssd(allssd>0));
-% % set(gca,'xlim',[1 length(allssd)]);
-% % hold on;
-%
-% %% get saccade delay for signal-respond (noncancel) trial
-%
-%     if bmssd %benchmark
-%         alldata.SRsacdelay=(noncanceltimes(:,10)-noncanceltimes(:,7))-6; %6 ms added by the state transitions
-%     else
-%         alldata.SRsacdelay=(noncanceltimes(:,9)-noncanceltimes(:,7))-6;
-%     end
-%
-% %% saccade delay for non-stop trials: all good saccade from non-stop trials
-% %(may yield slightly different results than with left/right parsing method
-% % used previously)
-%
-% alllats=reshape({saccadeInfo.latency},size(saccadeInfo));
-% alllats=alllats';%needs to be transposed because the logical indexing below will be done column by column, not row by row
-% allgoodsacs=~cellfun('isempty',reshape({saccadeInfo.latency},size(saccadeInfo)));
-%     %removing bad trials
-%     allgoodsacs(logical(allbad),:)=0;
-%     %removing stop trials that may be included
-%     allgoodsacs(floor(allcodes(:,2)./1000)~=6,:)=0;
-%     %indexing good sac trials
-%     % if saccade detection corrected, there may two 'good' saccades
-%     if max(sum(allgoodsacs,2))>1
-%         twogoods=find(sum(allgoodsacs,2)>1);
-%         for dblsac=1:length(twogoods)
-%             allgoodsacs(twogoods(dblsac),find(allgoodsacs(twogoods(dblsac),:),1))=0;
-%         end
-%     end
-% sacdelay.all=(cell2mat(alllats(allgoodsacs')))';
-%
-% alldata.NSSsacdelay=sacdelay;%[sacdelay{:}];
-%
-% % plot RTs on top of SSDs
-% % alllats=zeros(size(allgoodsacs,1),1);
-% % alllats(logical(sum(allgoodsacs,2)))=sacdelay.all;
-% % plot(find(alllats>0),alllats(alllats>0),'r');
-% % title('evolution of SSDs and RTs across trials')
-% % legend('ssd','rt');
-%
-% % NSS success rate
-% % NSS_targ=allcodes(floor(allcodes(:,7)./10)==684,8);
-% % alldata.NSSsuccessrate=sum(floor(NSS_targ./10)==704)/length(NSS_targ);
-%
-% %% calculating probabilities for this session
-% %histo binning method
-% [~,delaybincenters]=hist([ccssd;nccssd],4);
-% alldlbincnt=round(delaybincenters');
-% % sort unique delay bin centers
-% ssdbins=unique(sort(alldlbincnt));
-% % narrow ssds to those found more than once
-%     % narssdbins=ssdbins(hist(nccssd,ssdbins)>1); %not for
-%     % individual SSRT calculation
-%     narssdbins=ssdbins(hist(nccssd,ssdbins)>0);
-%     alldata.ssd=narssdbins;
-% % bin canceled and non-canceled trials according to these ssds
-% try
-% nccssdhist=hist(nccssd,narssdbins);
-% ccssdhist=hist(ccssd,narssdbins);
-% % find probability to respond
-% probaresp=nccssdhist'./(nccssdhist'+ccssdhist');
-% catch
-%     probaresp=1;
-%     narssdbins=0;
-% end
-%
-% %diff method
-% ssdvalues(find(diff(ssdvalues)==1)+1)=ssdvalues(diff(ssdvalues)==1);
-% ssdvalues=ssdvalues(diff(ssdvalues)>0);
-% try
-% nccssdhist=hist(nccssd,ssdvalues);
-% ccssdhist=hist(ccssd,ssdvalues);
-% % find probability to respond
-% probaresp_diff=nccssdhist'./(nccssdhist'+ccssdhist');
-% catch
-%     probaresp_diff=1;
-% end
-%
-% %% calculate SSRT
-% if ~(isempty(narssdbins) || length(narssdbins)==1)
-%
-%     % test monotonicity and keep relevant inhibition function
-% if (all(diff(probaresp)>=0) && length(probaresp)>=3) && ~all(diff(probaresp_diff)>=0)
-%     alldata.inhibfun=probaresp;
-%         % calculate SSRT with Boucher et al's method
-%         try
-%             [meanIntSSRT, meanSSRT, overallMeanSSRT]= ...
-%             ssrt_bestfit(sacdelay.all', probaresp', narssdbins');
-%         catch
-%            sacdelay;
-%         end
-% else
-%     alldata.inhibfun=probaresp_diff;
-%         % calculate SSRTs
-%         try
-%         [meanIntSSRT, meanSSRT, overallMeanSSRT]= ...
-%             ssrt_bestfit(sacdelay.all', probaresp_diff', ssdvalues');
-%         catch
-%         end
-% end
-%
-% allmeanssrt=overallMeanSSRT;
-% alldata.meanIntSSRT=meanIntSSRT;
-% alldata.meanSSRT=meanSSRT;
-% alldata.overallMeanSSRT=overallMeanSSRT;
-% end
-% % clearvars -except nccssd ccssd allsacdelay alldlbincnt filestoload ...
-% %     numfile splitdataaligned allmeanssrt alldata andir emdirections subject ...
-% %     monknum colecalldata;
-%
-% %% prepare plot
-%     CMdatfig=figure;
-% %     CMdatfigpos=get(CMdatfig,'Position');
-%     CMdatfigpos=[500 300 800 500];
-%     set(CMdatfig,'Position',CMdatfigpos,'Color','w');
-%
-%         % subplot to display values
-%     hvaldisp = axes('Position', [.6, .6, .3, .3]);
-%     set(hvaldisp,'Visible','off');
-%         htitle=title('SSD ranges and SSRT values','FontName','calibri','FontSize',14);
-%         set(htitle,'Visible','on')
-%
-% % fit sigmoid through inhibition function
-%         fitresult = sigmoidfit(narssdbins, probaresp);
-%         yfitval=fitresult(50:10:400); % This gives us the templates for the SSD range-dependant inhibition functions (six for Sixx, ha ha)
-%
-% % plot overall inhibition function
-% subplot(1,2,1);
-% plot(narssdbins,probaresp,'Color',[0.25 0.25 0.25],'LineWidth',1.8);
-% % hold on
-% % plot([50:10:400],yfitval,'Color',[0.2 0.4 0.6],'LineStyle','-.','LineWidth',1.5);
-% title('Inhibition function','FontName','calibri','FontSize',15);
-% hxlabel=xlabel(gca,'Stop Signal Delays','FontName','calibri','FontSize',12);
-% set(gca,'Xlim',[50 400],'XTick',[100:50:350],'TickDir','out','box','off'); %'XTickLabel',[50:50:400]
-% hylabel=ylabel(gca,'P(Signal-respond)','FontName','calibri','FontSize',12);
-% set(gca,'Ylim',[0 1],'TickDir','out','box','off');
-%
-% % print SSRT values
-% [meanIntSSRT, meanSSRT, overallMeanSSRT]= ...
-%     ssrt_bestfit(sacdelay.all', probaresp', narssdbins');
-% text(0.5,0.6,['meanIntSSRT = ' num2str(round(meanIntSSRT))],'FontName','calibri','FontSize',10,'Parent',hvaldisp);
-% text(0.5,0.5,['meanSSRT = ' num2str(round(meanSSRT))],'FontName','calibri','FontSize',10,'Parent',hvaldisp);
-% text(0.5,0.4,['overallMeanSSRT = ' num2str(round(overallMeanSSRT))],'FontName','calibri','FontSize',10,'Parent',hvaldisp);
-%     % now with inhib function sigmoid fit
-%     [meanIntSSRT, meanSSRT, overallMeanSSRT]= ...
-%     ssrt_bestfit(sacdelay.all', yfitval', [50:10:400]);
-%     text(0.5,0.3,['meanIntSSRT_s = ' num2str(round(meanIntSSRT))],'FontName','calibri','FontSize',10,'Parent',hvaldisp);
-%     text(0.5,0.2,['meanSSRT_s = ' num2str(round(meanSSRT))],'FontName','calibri','FontSize',10,'Parent',hvaldisp);
-%     text(0.5,0.1,['overallMeanSSRT_s = ' num2str(round(overallMeanSSRT))],'FontName','calibri','FontSize',10,'Parent',hvaldisp);
-%
-%
-% %prepare and plot saccade latency frequency
-% [saclatquant,saclatxlims]=hist(sacdelay.all,[0:25:500]);
-% saclatfreq=saclatquant./sum(saclatquant);
-%
-% subplot(1,2,2);
-% plot(saclatxlims,saclatfreq,'Color','k','LineWidth',1.8);
-% title('Saccade Latency','FontName','calibri','FontSize',15);
-% hxlabel=xlabel(gca,'Saccade latency','FontName','calibri','FontSize',12);
-% set(gca,'Xlim',[0 500],'XTick',[0:50:500],'TickDir','out','box','off'); %'XTickLabel',[50:50:400]
-% hylabel=ylabel(gca,'Proportion','FontName','calibri','FontSize',12);
-% curylim=get(gca,'YLim');
-% set(gca,'Ylim',[0 curylim(2)],'TickDir','out','box','off');
-%
-% %% export figure
-% exportfigname=['CMdat_',subject,'_',recname];
-% print(gcf, '-dpng', '-noui', '-opengl','-r600', exportfigname);
-% delete(CMdatfig);
+    
+    % subjects={'Rigel','Sixx','Hilda'};
+    %
+    % % best use a recording made with gapstop training and lots of trials
+    % subject=subjects{3};
+    % recname='H48L5A1_18102'; % S148cnttrain
+    % load(recname,'allcodes','alltimes','allbad','saccadeInfo');
+    % % load([recname,'_sac'],'alignedata');
+    %
+    % %% find stop trials
+    %     trialtypes=floor(allcodes(:,2)./10);%./10 only /10 if pooling data together
+    %     stoptrials=find(trialtypes==407);
+    %     stoptrialcodes=allcodes(stoptrials,:);
+    %
+    % %% find canceled and noncanceled stop trials
+    % if find(stoptrialcodes(:,8)==1503,1) %recordings with benchmark code (1503)
+    %     bmssd=1;
+    %     abortedstoptrials=~(floor(stoptrialcodes(:,9)./10)==507);
+    %     noncancel=(stoptrialcodes(~abortedstoptrials,10)==16386) | ... % trials where a saccade is initiated
+    %         (stoptrialcodes(~abortedstoptrials,10)==17385);                % or subsequently breaking fixation
+    % else
+    %     bmssd=0;
+    %     abortedstoptrials=~(floor(stoptrialcodes(:,8)./10)==507);
+    %     noncancel=(stoptrialcodes(~abortedstoptrials,9)==17385) | ...
+    %         (stoptrialcodes(~abortedstoptrials,9)==16386);
+    % end
+    %
+    % %% find "desired" delay times (keep in mind that video synch adds ~65ms, so real ssd are variable)
+    %
+    % % calculate ssd
+    % stoptrialtimes=alltimes(stoptrials(~abortedstoptrials,:),:);
+    % noncanceltimes=stoptrialtimes(noncancel,:);
+    % canceltimes=stoptrialtimes(~noncancel,:);
+    %
+    %     if bmssd %benchmark
+    %         nccssd=(noncanceltimes(:,9)-noncanceltimes(:,7))-3; %3 ms added by the state transitions
+    %         ccssd=(canceltimes(:,9)-canceltimes(:,7))-3;
+    %         allssd=nan(size(alltimes,1),1);
+    %         allssd(stoptrials)=(alltimes(stoptrials,9)-alltimes(stoptrials,7))-3;
+    %     else
+    %         nccssd=(noncanceltimes(:,8)-noncanceltimes(:,7))-2; %2 ms added by the state transitions
+    %         ccssd=(canceltimes(:,8)-canceltimes(:,7))-2;
+    %     end
+    %
+    % ssdvalues=unique([ccssd;nccssd]);
+    %
+    % % show progression of rt and ssd
+    % % figure;
+    % % subplot(2,1,1);
+    % % stairs(goodtrials);
+    % % set(gca,'xlim',[1 length(allssd)]);
+    % % title('successful trials');
+    % % allssd=zeros(size(alltimes,1),1);
+    % % allssd(stoptrials(~abortedstoptrials))=...
+    % %     (alltimes(stoptrials(~abortedstoptrials),9)-alltimes(stoptrials(~abortedstoptrials),7))-3;
+    % % subplot(2,1,2);
+    % % plot(find(allssd>0),allssd(allssd>0));
+    % % set(gca,'xlim',[1 length(allssd)]);
+    % % hold on;
+    %
+    % %% get saccade delay for signal-respond (noncancel) trial
+    %
+    %     if bmssd %benchmark
+    %         alldata.SRsacdelay=(noncanceltimes(:,10)-noncanceltimes(:,7))-6; %6 ms added by the state transitions
+    %     else
+    %         alldata.SRsacdelay=(noncanceltimes(:,9)-noncanceltimes(:,7))-6;
+    %     end
+    %
+    % %% saccade delay for non-stop trials: all good saccade from non-stop trials
+    % %(may yield slightly different results than with left/right parsing method
+    % % used previously)
+    %
+    % alllats=reshape({saccadeInfo.latency},size(saccadeInfo));
+    % alllats=alllats';%needs to be transposed because the logical indexing below will be done column by column, not row by row
+    % allgoodsacs=~cellfun('isempty',reshape({saccadeInfo.latency},size(saccadeInfo)));
+    %     %removing bad trials
+    %     allgoodsacs(logical(allbad),:)=0;
+    %     %removing stop trials that may be included
+    %     allgoodsacs(floor(allcodes(:,2)./1000)~=6,:)=0;
+    %     %indexing good sac trials
+    %     % if saccade detection corrected, there may two 'good' saccades
+    %     if max(sum(allgoodsacs,2))>1
+    %         twogoods=find(sum(allgoodsacs,2)>1);
+    %         for dblsac=1:length(twogoods)
+    %             allgoodsacs(twogoods(dblsac),find(allgoodsacs(twogoods(dblsac),:),1))=0;
+    %         end
+    %     end
+    % sacdelay.all=(cell2mat(alllats(allgoodsacs')))';
+    %
+    % alldata.NSSsacdelay=sacdelay;%[sacdelay{:}];
+    %
+    % % plot RTs on top of SSDs
+    % % alllats=zeros(size(allgoodsacs,1),1);
+    % % alllats(logical(sum(allgoodsacs,2)))=sacdelay.all;
+    % % plot(find(alllats>0),alllats(alllats>0),'r');
+    % % title('evolution of SSDs and RTs across trials')
+    % % legend('ssd','rt');
+    %
+    % % NSS success rate
+    % % NSS_targ=allcodes(floor(allcodes(:,7)./10)==684,8);
+    % % alldata.NSSsuccessrate=sum(floor(NSS_targ./10)==704)/length(NSS_targ);
+    %
+    % %% calculating probabilities for this session
+    % %histo binning method
+    % [~,delaybincenters]=hist([ccssd;nccssd],4);
+    % alldlbincnt=round(delaybincenters');
+    % % sort unique delay bin centers
+    % ssdbins=unique(sort(alldlbincnt));
+    % % narrow ssds to those found more than once
+    %     % narssdbins=ssdbins(hist(nccssd,ssdbins)>1); %not for
+    %     % individual SSRT calculation
+    %     narssdbins=ssdbins(hist(nccssd,ssdbins)>0);
+    %     alldata.ssd=narssdbins;
+    % % bin canceled and non-canceled trials according to these ssds
+    % try
+    % nccssdhist=hist(nccssd,narssdbins);
+    % ccssdhist=hist(ccssd,narssdbins);
+    % % find probability to respond
+    % probaresp=nccssdhist'./(nccssdhist'+ccssdhist');
+    % catch
+    %     probaresp=1;
+    %     narssdbins=0;
+    % end
+    %
+    % %diff method
+    % ssdvalues(find(diff(ssdvalues)==1)+1)=ssdvalues(diff(ssdvalues)==1);
+    % ssdvalues=ssdvalues(diff(ssdvalues)>0);
+    % try
+    % nccssdhist=hist(nccssd,ssdvalues);
+    % ccssdhist=hist(ccssd,ssdvalues);
+    % % find probability to respond
+    % probaresp_diff=nccssdhist'./(nccssdhist'+ccssdhist');
+    % catch
+    %     probaresp_diff=1;
+    % end
+    %
+    % %% calculate SSRT
+    % if ~(isempty(narssdbins) || length(narssdbins)==1)
+    %
+    %     % test monotonicity and keep relevant inhibition function
+    % if (all(diff(probaresp)>=0) && length(probaresp)>=3) && ~all(diff(probaresp_diff)>=0)
+    %     alldata.inhibfun=probaresp;
+    %         % calculate SSRT with Boucher et al's method
+    %         try
+    %             [meanIntSSRT, meanSSRT, overallMeanSSRT]= ...
+    %             ssrt_bestfit(sacdelay.all', probaresp', narssdbins');
+    %         catch
+    %            sacdelay;
+    %         end
+    % else
+    %     alldata.inhibfun=probaresp_diff;
+    %         % calculate SSRTs
+    %         try
+    %         [meanIntSSRT, meanSSRT, overallMeanSSRT]= ...
+    %             ssrt_bestfit(sacdelay.all', probaresp_diff', ssdvalues');
+    %         catch
+    %         end
+    % end
+    %
+    % allmeanssrt=overallMeanSSRT;
+    % alldata.meanIntSSRT=meanIntSSRT;
+    % alldata.meanSSRT=meanSSRT;
+    % alldata.overallMeanSSRT=overallMeanSSRT;
+    % end
+    % % clearvars -except nccssd ccssd allsacdelay alldlbincnt filestoload ...
+    % %     numfile splitdataaligned allmeanssrt alldata andir emdirections subject ...
+    % %     monknum colecalldata;
+    %
+    % %% prepare plot
+    %     CMdatfig=figure;
+    % %     CMdatfigpos=get(CMdatfig,'Position');
+    %     CMdatfigpos=[500 300 800 500];
+    %     set(CMdatfig,'Position',CMdatfigpos,'Color','w');
+    %
+    %         % subplot to display values
+    %     hvaldisp = axes('Position', [.6, .6, .3, .3]);
+    %     set(hvaldisp,'Visible','off');
+    %         htitle=title('SSD ranges and SSRT values','FontName','calibri','FontSize',14);
+    %         set(htitle,'Visible','on')
+    %
+    % % fit sigmoid through inhibition function
+    %         fitresult = sigmoidfit(narssdbins, probaresp);
+    %         yfitval=fitresult(50:10:400); % This gives us the templates for the SSD range-dependant inhibition functions (six for Sixx, ha ha)
+    %
+    % % plot overall inhibition function
+    % subplot(1,2,1);
+    % plot(narssdbins,probaresp,'Color',[0.25 0.25 0.25],'LineWidth',1.8);
+    % % hold on
+    % % plot([50:10:400],yfitval,'Color',[0.2 0.4 0.6],'LineStyle','-.','LineWidth',1.5);
+    % title('Inhibition function','FontName','calibri','FontSize',15);
+    % hxlabel=xlabel(gca,'Stop Signal Delays','FontName','calibri','FontSize',12);
+    % set(gca,'Xlim',[50 400],'XTick',[100:50:350],'TickDir','out','box','off'); %'XTickLabel',[50:50:400]
+    % hylabel=ylabel(gca,'P(Signal-respond)','FontName','calibri','FontSize',12);
+    % set(gca,'Ylim',[0 1],'TickDir','out','box','off');
+    %
+    % % print SSRT values
+    % [meanIntSSRT, meanSSRT, overallMeanSSRT]= ...
+    %     ssrt_bestfit(sacdelay.all', probaresp', narssdbins');
+    % text(0.5,0.6,['meanIntSSRT = ' num2str(round(meanIntSSRT))],'FontName','calibri','FontSize',10,'Parent',hvaldisp);
+    % text(0.5,0.5,['meanSSRT = ' num2str(round(meanSSRT))],'FontName','calibri','FontSize',10,'Parent',hvaldisp);
+    % text(0.5,0.4,['overallMeanSSRT = ' num2str(round(overallMeanSSRT))],'FontName','calibri','FontSize',10,'Parent',hvaldisp);
+    %     % now with inhib function sigmoid fit
+    %     [meanIntSSRT, meanSSRT, overallMeanSSRT]= ...
+    %     ssrt_bestfit(sacdelay.all', yfitval', [50:10:400]);
+    %     text(0.5,0.3,['meanIntSSRT_s = ' num2str(round(meanIntSSRT))],'FontName','calibri','FontSize',10,'Parent',hvaldisp);
+    %     text(0.5,0.2,['meanSSRT_s = ' num2str(round(meanSSRT))],'FontName','calibri','FontSize',10,'Parent',hvaldisp);
+    %     text(0.5,0.1,['overallMeanSSRT_s = ' num2str(round(overallMeanSSRT))],'FontName','calibri','FontSize',10,'Parent',hvaldisp);
+    %
+    %
+    % %prepare and plot saccade latency frequency
+    % [saclatquant,saclatxlims]=hist(sacdelay.all,[0:25:500]);
+    % saclatfreq=saclatquant./sum(saclatquant);
+    %
+    % subplot(1,2,2);
+    % plot(saclatxlims,saclatfreq,'Color','k','LineWidth',1.8);
+    % title('Saccade Latency','FontName','calibri','FontSize',15);
+    % hxlabel=xlabel(gca,'Saccade latency','FontName','calibri','FontSize',12);
+    % set(gca,'Xlim',[0 500],'XTick',[0:50:500],'TickDir','out','box','off'); %'XTickLabel',[50:50:400]
+    % hylabel=ylabel(gca,'Proportion','FontName','calibri','FontSize',12);
+    % curylim=get(gca,'YLim');
+    % set(gca,'Ylim',[0 curylim(2)],'TickDir','out','box','off');
+    %
+    % %% export figure
+    % exportfigname=['CMdat_',subject,'_',recname];
+    % print(gcf, '-dpng', '-noui', '-opengl','-r600', exportfigname);
+    % delete(CMdatfig);
 end
 
 %% session recording
-singleSSD=1;
+singleSSD=0;
+alignCondition='basic_tgt';
+
 alignedata=cmdData.allndata{1, 2};
+if strcmp(alignCondition,'basic_tgt')
+    alignedata=alignedata(1:2);
+end
+
 numrast=length(alignedata);
 [alignedata(1:numrast).alignlabel]=deal(cmdData.allalignmnt{1, 2});
 % rasters=cmdData.allndata{1, 2}.rast;  %alignedata(rastnum).rasters;
@@ -404,11 +411,14 @@ numrast=length(alignedata);
 if singleSSD
     
     % find most prevalent SSD
-%     [ssdbin,ssdbinval]=hist([cmdData.allssds{1, 1}{1, 1};cmdData.allssds{1, 1}{1, 2}]);
-%     ssdspread=abs(cmdData.allprevssd{1, 1}{:}-max(ssdbinval(ssdbin==max(ssdbin))));
-   %     prevssd=cmdData.allprevssd{1, 1}{:}(ssdspread==min(ssdspread));
-   allSSDs=[cmdData.allssds{1, 1}{1, 1};cmdData.allssds{1, 1}{1, 2}];
+    %     [ssdbin,ssdbinval]=hist([cmdData.allssds{1, 1}{1, 1};cmdData.allssds{1, 1}{1, 2}]);
+    %     ssdspread=abs(cmdData.allprevssd{1, 1}{:}-max(ssdbinval(ssdbin==max(ssdbin))));
+    %     prevssd=cmdData.allprevssd{1, 1}{:}(ssdspread==min(ssdspread));
+    allSSDs=[cmdData.allssds{1, 1}{1, 1};cmdData.allssds{1, 1}{1, 2}];
     [~,~,uniqSSDsIdx]=unique(floor(allSSDs/5)*5);
+    % if plotting second most frequent
+%     prevssdIdx=uniqSSDsIdx==mode(uniqSSDsIdx);
+%     allSSDs=allSSDs(~prevssdIdx);uniqSSDsIdx=uniqSSDsIdx(~prevssdIdx);
     prevssd=mode(allSSDs(uniqSSDsIdx==mode(uniqSSDsIdx)));
     %categorize prevalent SSD
     SSDplace=prevssd/median(allSSDs);
@@ -449,20 +459,21 @@ if singleSSD
                 cmdData.allssds{1, 1}{1, 1})));
         end
     end
-
-    %NCS trials
-    for lp=1:length(fieldName)
-        try
-            alignedata(1, 3).(fieldName{lp})=alignedata(1, 3).(fieldName{lp})(logical(arrayfun(@(x) sum(prevssd<=x+3 & prevssd>=x-3),...
-                cmdData.allssds{1, 1}{1, 2})),:);
-        catch
-            alignedata(1, 3).(fieldName{lp})=alignedata(1, 3).(fieldName{lp})(:,logical(arrayfun(@(x) sum(prevssd<=x+3 & prevssd>=x-3),...
-                cmdData.allssds{1, 1}{1, 2})));
+    
+    if ~strcmp(alignCondition,'basic_tgt')
+        %NCS trials
+        for lp=1:length(fieldName)
+            try
+                alignedata(1, 3).(fieldName{lp})=alignedata(1, 3).(fieldName{lp})(logical(arrayfun(@(x) sum(prevssd<=x+3 & prevssd>=x-3),...
+                    cmdData.allssds{1, 1}{1, 2})),:);
+            catch
+                alignedata(1, 3).(fieldName{lp})=alignedata(1, 3).(fieldName{lp})(:,logical(arrayfun(@(x) sum(prevssd<=x+3 & prevssd>=x-3),...
+                    cmdData.allssds{1, 1}{1, 2})));
+            end
         end
     end
-
-%     alignedata(1, 3).rast=alignedata(1, 3).rast(logical(arrayfun(@(x) sum(prevssd<=x+3 & prevssd>=x-3),...
-%         cmdData.allssds{1, 1}{1, 2})),:);
+    %     alignedata(1, 3).rast=alignedata(1, 3).rast(logical(arrayfun(@(x) sum(prevssd<=x+3 & prevssd>=x-3),...
+    %         cmdData.allssds{1, 1}{1, 2})),:);
 else
     condition='All SSDs';
 end
@@ -547,7 +558,7 @@ for rastnum=1:numrast
     
     
     if(size(rasters,1) == 1) %don't plot
-%         plot([indx;indx],[indy;indy+1],'color',cmap(rastnum,:),'LineStyle','-'); % plot rasters
+        %         plot([indx;indx],[indy;indy+1],'color',cmap(rastnum,:),'LineStyle','-'); % plot rasters
     else
         plot([indx';indx'],[indy';indy'+1],'color',cmap(rastnum,:),'LineStyle','-'); % plot rasters
     end
@@ -571,7 +582,7 @@ for rastnum=1:numrast
     axis(gca, 'off'); % axis tight sets the axis limits to the range of the data.
     figtitleh=title([cmdData.file ' ' condition]);
     set(figtitleh,'Interpreter','none');
-   
+    
     %% Plot sdf
     sdfplot=subplot(numsubplot,1,(numsubplot/3)+1:(numsubplot/3)+(numsubplot/3),'Layer','top','Parent', mainfig);
     %sdfh = axes('Position', [.15 .65 .2 .2], 'Layer','top');
@@ -608,38 +619,38 @@ for rastnum=1:numrast
     % vided the difference reached 6 SD and remained >2 SD
     % threshold for 50 ms.
     
-    if numrast==2 && rastnum==numrast
-        diff_trials=mean(first_smtrials)-mean(smoothtrial);
-        diff_preal_epoch=diff_trials(alignidx-start-200:alignidx-start);
-        difftime_preal=find(abs(diff_preal_epoch)>2*(std(diff_preal_epoch)),1);
-        diff_postal_epoch=diff_trials(alignidx-start:alignidx-start+200);
-        difftime_postal=find(abs(diff_postal_epoch)>2*(std(diff_postal_epoch)),1);
-        if ~isempty(difftime_preal)
-            %recursive time search
-            difftime_preal=difftime_preal-find(abs(diff_trials(alignidx-start-200+difftime_preal+1:-1:1))<=2*(std(diff_preal_epoch)),1);
-            difftime_preal=alignidx-start-200+1+difftime_preal;
-        end
-        if ~isempty(difftime_postal)
-            %recursive time search
-            difftime_postal=difftime_postal-find(abs(diff_trials(alignidx-start+difftime_postal+1:-1:1))<=2*(std(diff_preal_epoch)),1);
-            difftime_postal=alignidx-start+1+difftime_postal;
-        end
-    else
-        difftime_preal=[];
-        difftime_postal=[];
-    end
+%     if numrast==2 && rastnum==numrast
+%         diff_trials=mean(first_smtrials)-mean(smoothtrial);
+%         diff_preal_epoch=diff_trials(1:alignidx-start); %alignidx-start-200
+%         difftime_preal=find(abs(diff_preal_epoch)>2*(std(diff_preal_epoch)),1);
+%         diff_postal_epoch=diff_trials(alignidx-start:alignidx-start+200);
+%         difftime_postal=find(abs(diff_postal_epoch)>2*(std(diff_postal_epoch)),1);
+%         if ~isempty(difftime_preal)
+%             %recursive time search
+%             difftime_preal=difftime_preal-find(abs(diff_trials(alignidx-start-200+difftime_preal+1:-1:1))<=2*(std(diff_preal_epoch)),1);
+%             difftime_preal=alignidx-start-200+1+difftime_preal;
+%         end
+%         if ~isempty(difftime_postal)
+%             %recursive time search
+%             difftime_postal=difftime_postal-find(abs(diff_trials(alignidx-start+difftime_postal+1:-1:1))<=2*(std(diff_preal_epoch)),1);
+%             difftime_postal=alignidx-start+1+difftime_postal;
+%         end
+%     else
+%         difftime_preal=[];
+%         difftime_postal=[];
+%     end
     if size(rasters(~isnantrial,:),1)>=5
         %    plot confidence intervals
         patch([1:length(sdf),fliplr(1:length(sdf))],[sdf-rastsem,fliplr(sdf+rastsem)],cmap(rastnum,:),'EdgeColor','none','FaceAlpha',0.1);
         %plot sdf
         plot(sdf,'Color',cmap(rastnum,:),'LineWidth',1.8);
         
-        if ~isempty(difftime_preal)
-            plot(difftime_preal,max([sdf(difftime_preal)-40 1]),'r*')
-        end
-        if ~isempty(difftime_postal)
-            plot(difftime_postal,max([sdf(difftime_postal)-40 1]),'r*')
-        end
+%         if ~isempty(difftime_preal)
+%             plot(difftime_preal,max([sdf(difftime_preal)-40 1]),'r*')
+%         end
+%         if ~isempty(difftime_postal)
+%             plot(difftime_postal,max([sdf(difftime_postal)-40 1]),'r*')
+%         end
     end
     
     % axis([0 stop-start 0 200])
@@ -647,18 +658,10 @@ for rastnum=1:numrast
     box off;
     set(gca,'Color','white','TickDir','out','FontName','calibri','FontSize',8); %'YAxisLocation','rigth'
     set(gca,'XTick',1:100:length(sdf),'XTickLabel',-plotstart:100:plotstop,'TickDir','out','box','off'); %
-
+    
     %     hxlabel=xlabel(gca,'Time (ms)','FontName','calibri','FontSize',8);
     %     set(hxlabel,'Position',get(hxlabel,'Position') - [180 -0.2 0]); %doesn't stay there when export !
     hylabel=ylabel(gca,'Firing rate (spikes/s)','FontName','Calibri','FontSize',8);
-    currylim=get(gca,'YLim');
-    
-    if ~isempty(rasters)
-        % drawing the alignment bar
-        patch([repmat((alignidx-start)-2,1,2) repmat((alignidx-start)+2,1,2)], ...
-            [[0 currylim(2)] fliplr([0 currylim(2)])], ...
-            [0 0 0 0],[1 0 0],'EdgeColor','none','FaceAlpha',0.5);
-    end
     
     %% Plot eye velocities
     heyevelplot=subplot(numsubplot,1,(numsubplot*2/3)+1:numsubplot,'Layer','top','Parent', mainfig);
@@ -671,80 +674,106 @@ for rastnum=1:numrast
         eyevel=mean(eyevel(:,start:stop));
         heyevelline(rastnum)=plot(eyevel,'Color',cmap(rastnum,:),'LineWidth',1.8);
         axis(gca,'tight');
-%         eyevelymax=max(eyevel);
-%         if eyevelymax>0.8
-%             eyevelymax=eyevelymax*1.1;
-%         else
-%             eyevelymax=0.8;
-%         end
-%         axis([0 stop-start 0 eyevelymax]);
+        %         eyevelymax=max(eyevel);
+        %         if eyevelymax>0.8
+        %             eyevelymax=eyevelymax*1.1;
+        %         else
+        %             eyevelymax=0.8;
+        %         end
+        %         axis([0 stop-start 0 eyevelymax]);
         set(gca,'Color','none','TickDir','out','FontSize',8,'FontName','calibri','box','off');
         set(gca,'XTick',1:100:length(sdf),'XTickLabel',-plotstart:100:plotstop,'TickDir','out','box','off'); %
         ylabel(gca,'Eye velocity (deg/ms)','FontName','calibri','FontSize',8);
-        patch([repmat((alignidx-start)-2,1,2) repmat((alignidx-start)+2,1,2)], ...
-            [get(gca,'YLim') fliplr(get(gca,'YLim'))], ...
-            [0 0 0 0],[1 0 0],'EdgeColor','none','FaceAlpha',0.5);
         
         % get directions for the legend
         if isfield(alignedata,'dir')
             curdir{rastnum}=alignedata(rastnum).dir;
         else
             curdir{rastnum}='no';
-%             % need eyeh and eyev. But see cmdData.allprefdir 
-%             sacdeg=nan(size(alignedata(1,rastnum).trialnb,2),1);
-%             for eyetr=1:size(alignedata(1,rastnum).trialnb,2)
-%                 thissach=alignedata(1,rastnum).eyeh(eyetr,alignedata(1,rastnum).alignt:alignedata(1,rastnum).alignt+100);
-%                 thissacv=alignedata(1,rastnum).eyev(eyetr,alignedata(1,rastnum).alignt:alignedata(1,rastnum).alignt+100);
-%                 minwidth=5;
-%                 [~, ~, thissacvel, ~, ~, ~] = cal_velacc(thissach,thissacv,minwidth);
-%                 peakvel=find(thissacvel==max(thissacvel),1);
-%                 sacendtime=peakvel+find(thissacvel(peakvel:end)<=...
-%                     (min(thissacvel(peakvel:end))+(max(thissacvel(peakvel:end))-min(thissacvel(peakvel:end)))/10),1);
-%                 try
-%                     sacdeg(eyetr)=abs(atand((thissach(sacendtime)-thissach(1))/(thissacv(sacendtime)-thissacv(1))));
-%                 catch
-%                     thissacv;
-%                 end
-%                 
-%                 % sign adjustements
-%                 if thissacv(sacendtime)<thissacv(1) % negative vertical amplitude -> vertical flip
-%                     sacdeg(eyetr)=180-sacdeg(eyetr);
-%                 end
-%                 if thissach(sacendtime)>thissach(1)%inverted signal: leftward is in postive range. Correcting to negative.
-%                     sacdeg(eyetr)=360-sacdeg(eyetr); % mirror image;
-%                 end
-%             end
-%             % a quick fix to be able to put "upwards" directions together
-%             distrib=hist(sacdeg,3); %floor(length(sacdeg)/2)
-%             if max(bwlabel(distrib,4))>1 && distrib(1)>1 && distrib(end)>1 %=bimodal distribution with more than 1 outlier
-%                 sacdeg=sacdeg+45;
-%                 sacdeg(sacdeg>360)=-(360-(sacdeg(sacdeg>360)-45));
-%                 sacdeg(sacdeg>0)= sacdeg(sacdeg>0)-45;
-%             end
-%             sacdeg=abs(median(sacdeg));
-%             
-%             if sacdeg>45/2 && sacdeg <= 45+45/2
-%                 curdir{rastnum}='up_right';
-%             elseif sacdeg>45+45/2 && sacdeg <= 90+45/2
-%                 curdir{rastnum}='rightward';
-%             elseif sacdeg>90+45/2 && sacdeg <= 135+45/2
-%                 curdir{rastnum}='down_right';
-%             elseif sacdeg>135+45/2 && sacdeg < 180+45/2
-%                 curdir{rastnum}='downward';
-%             elseif sacdeg>=180+45/2 && sacdeg <= 225+45/2
-%                 curdir{rastnum}='down_left';
-%             elseif sacdeg>225+45/2 && sacdeg <= 270+45/2
-%                 curdir{rastnum}='leftward';
-%             elseif sacdeg>270+45/2 && sacdeg <= 315+45/2
-%                 curdir{rastnum}='up_left';
-%             else
-%                 curdir{rastnum}='upward';
-%             end
+            %             % need eyeh and eyev. But see cmdData.allprefdir
+            %             sacdeg=nan(size(alignedata(1,rastnum).trialnb,2),1);
+            %             for eyetr=1:size(alignedata(1,rastnum).trialnb,2)
+            %                 thissach=alignedata(1,rastnum).eyeh(eyetr,alignedata(1,rastnum).alignt:alignedata(1,rastnum).alignt+100);
+            %                 thissacv=alignedata(1,rastnum).eyev(eyetr,alignedata(1,rastnum).alignt:alignedata(1,rastnum).alignt+100);
+            %                 minwidth=5;
+            %                 [~, ~, thissacvel, ~, ~, ~] = cal_velacc(thissach,thissacv,minwidth);
+            %                 peakvel=find(thissacvel==max(thissacvel),1);
+            %                 sacendtime=peakvel+find(thissacvel(peakvel:end)<=...
+            %                     (min(thissacvel(peakvel:end))+(max(thissacvel(peakvel:end))-min(thissacvel(peakvel:end)))/10),1);
+            %                 try
+            %                     sacdeg(eyetr)=abs(atand((thissach(sacendtime)-thissach(1))/(thissacv(sacendtime)-thissacv(1))));
+            %                 catch
+            %                     thissacv;
+            %                 end
+            %
+            %                 % sign adjustements
+            %                 if thissacv(sacendtime)<thissacv(1) % negative vertical amplitude -> vertical flip
+            %                     sacdeg(eyetr)=180-sacdeg(eyetr);
+            %                 end
+            %                 if thissach(sacendtime)>thissach(1)%inverted signal: leftward is in postive range. Correcting to negative.
+            %                     sacdeg(eyetr)=360-sacdeg(eyetr); % mirror image;
+            %                 end
+            %             end
+            %             % a quick fix to be able to put "upwards" directions together
+            %             distrib=hist(sacdeg,3); %floor(length(sacdeg)/2)
+            %             if max(bwlabel(distrib,4))>1 && distrib(1)>1 && distrib(end)>1 %=bimodal distribution with more than 1 outlier
+            %                 sacdeg=sacdeg+45;
+            %                 sacdeg(sacdeg>360)=-(360-(sacdeg(sacdeg>360)-45));
+            %                 sacdeg(sacdeg>0)= sacdeg(sacdeg>0)-45;
+            %             end
+            %             sacdeg=abs(median(sacdeg));
+            %
+            %             if sacdeg>45/2 && sacdeg <= 45+45/2
+            %                 curdir{rastnum}='up_right';
+            %             elseif sacdeg>45+45/2 && sacdeg <= 90+45/2
+            %                 curdir{rastnum}='rightward';
+            %             elseif sacdeg>90+45/2 && sacdeg <= 135+45/2
+            %                 curdir{rastnum}='down_right';
+            %             elseif sacdeg>135+45/2 && sacdeg < 180+45/2
+            %                 curdir{rastnum}='downward';
+            %             elseif sacdeg>=180+45/2 && sacdeg <= 225+45/2
+            %                 curdir{rastnum}='down_left';
+            %             elseif sacdeg>225+45/2 && sacdeg <= 270+45/2
+            %                 curdir{rastnum}='leftward';
+            %             elseif sacdeg>270+45/2 && sacdeg <= 315+45/2
+            %                 curdir{rastnum}='up_left';
+            %             else
+            %                 curdir{rastnum}='upward';
+            %             end
         end
         aligntype{rastnum}=alignedata(rastnum).alignlabel;
     else
         curdir{rastnum}='no';
         aligntype{rastnum}='data';
     end
+end
+
+if ~isempty(rasters)
+    % drawing the alignment bars
+    axes(sdfplot)
+    currylim=get(gca,'YLim');
+    patch([repmat((alignidx-start)-2,1,2) repmat((alignidx-start)+2,1,2)], ...
+        [[0 currylim(2)] fliplr([0 currylim(2)])], ...
+        [0 0 0 0],[0 0 1],'EdgeColor','none','FaceAlpha',0.5);
+    axes(heyevelplot)
+    currylim=get(gca,'YLim');
+    patch([repmat((alignidx-start)-2,1,2) repmat((alignidx-start)+2,1,2)], ...
+        [[0 currylim(2)] fliplr([0 currylim(2)])], ...
+        [0 0 0 0],[0 0 1],'EdgeColor','none','FaceAlpha',0.5);
+end
+
+if singleSSD
+    % plot SSD bar
+    axes(sdfplot)
+    currylim=get(gca,'YLim');
+    alignTime=alignidx-start+prevssd;
+    patch([repmat((alignTime)-2,1,2) repmat((alignTime)+2,1,2)], ...
+        [[0 currylim(2)] fliplr([0 currylim(2)])], ...
+        [0 0 0 0],[1 0 0],'EdgeColor','none','FaceAlpha',0.5);
+    % plot SSRT
+    alignTime=alignTime+cmdData.allmssrt_tacho{1, 1}{1};
+        patch([repmat((alignTime)-2,1,2) repmat((alignTime)+2,1,2)], ...
+        [[0 currylim(2)] fliplr([0 currylim(2)])], ...
+        [0 0 0 0],[.5 .5 .5],'EdgeColor','none','FaceAlpha',0.5);
 end
 

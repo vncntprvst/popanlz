@@ -372,15 +372,17 @@ function printProfiles_Callback(hObject, eventdata, handles)
 clustypes=get(handles.NameClusters_box,'String');
 clusid=unique(handles.clusterIdx);
 % plot mean clusters profile
-figure('name','clusters mean response','position',[1120 260 540 760])
+figure('name','clusters mean response','position',[1120 -100 540 760])
 for clusNum=2:length(clusid) 
     subplot(length(clusid)-1,1,clusNum-1)
     clusterTag=['cluster' num2str(clusNum)];
     plot(zscore(handles.([clusterTag '_wf']),0,2),'Color',handles.fcm(clusNum,:),'LineWidth',2);
     title([clustypes{clusNum} ', n=' num2str(sum(handles.clusterIdx==clusid(clusNum)))])
     set(gca,'xtick',1:100:max(get(gca,'xlim')),'xticklabel',-(max(get(gca,'xlim'))/2):100:max(get(gca,'xlim'))/2,'TickDir','out');
+    set(gca,'ylim',[-2 3]);
     set(gca,'Color','white','FontSize',8,'FontName','calibri');
-    axis(gca,'tight'); box off;
+%     axis(gca,'tight'); 
+    box off;
 end
 % export figure
 exportfigname=[handles.userinfo.syncdir(1:regexp(handles.userinfo.syncdir,'\w+$')-1)...

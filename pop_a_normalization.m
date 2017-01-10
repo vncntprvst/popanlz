@@ -1,4 +1,5 @@
 function normFactor=pop_a_normalization(gsdata,stdata,conn)
+%get normalization factor
 global directory slash;
 if isempty(directory)
     [directory,slash]=SetUserDir;
@@ -50,5 +51,5 @@ tgtActivity=tgtActivity(properLengthRecs);
 % Get peak firing rates during the visual epoch and the motor epoch 
 % The larger value is the normalization factor of the cell. 
 normFactor=nan(size(gs.goodrecs,1),1);
-normFactor(gs.goodrecs)=cellfun(@(visEpoch,motEpoch) max([visEpoch,motEpoch]),tgtActivity,sacActivity, 'UniformOutput',true);
+normFactor(gs.goodrecs,1)=cellfun(@(visEpoch,motEpoch) max([visEpoch,motEpoch]),tgtActivity,sacActivity, 'UniformOutput',true);
 

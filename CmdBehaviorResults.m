@@ -159,8 +159,6 @@ set(gca,'Xlim',[0 190],'XTick',0:50:190,'XTickLabel',-20:50:170,'TickDir','out',
 ylabel(gca,'Fraction cancelled','FontName','calibri','FontSize',12);
 set(gca,'Ylim',[0 1],'TickDir','out','box','off');
 
-
-
 %% rPT figures
 [rPTcComp,rPTeComp]=deal(nan(size(gs.recnames,1),max([xtachLims{:}])-min([xtachLims{:}])+1));
 rPTfig=figure('color','white','position',[1054 -170 560 420]);
@@ -206,15 +204,23 @@ SSRTs=[behavData.mssrt];
 figure;
 subjects={'Rigel';'Sixx';'Hilda'};
 for subjNum=1:3
+%     subjects{subjNum}
     indivSSRTs=SSRTs(cellfun(@(x) strcmp(x,subjects{subjNum}), {behavData.subject}));
     indivSSRTs=indivSSRTs(~isnan(indivSSRTs));
     subplot(3,1,subjNum);
     histogram(indivSSRTs,50:10:130);
     title(['SSRTs for ' subjects{subjNum}])
+%     numel(indivSSRTs)
+%     meanIndivSSRT=mean(indivSSRTs)
+%     SEIndivSSRT=std(indivSSRTs)/sqrt(numel(indivSSRTs))
 end
 figure;
 histogram(SSRTs,50:10:130);
 title('SSRTs, all subjects')
+% numel(SSRTs)
+% meanAllSSRT=mean(SSRTs)
+% SEAllSSRT=std(SSRTs)/sqrt(numel(SSRTs))
+
 % save('behavData','behavData');
 
 %% psychometric curves

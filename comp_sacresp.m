@@ -10,9 +10,9 @@ function [sacresps,bnorm_sacresps,rnorm_sacresps,sacrespsTrials,bslrespsTrials]=
 % ends, which will be cut.
 % data.(dataField).allndata has 3 column for 3 aligntype. Each cell has 3 or 4 for different conditions
 sigma=10;
-baslineLength=500;
+baselineLength=500;
 [sacresps,sacrespsTrials]=cellfun(@(x) conv_raster(x(1,1).rast,sigma,x(1,1).alignt-(200+sigma*3),x(1,1).alignt+(199+sigma*3)), data.(dataField).allndata(:,1), 'UniformOutput',false); %400ms period
-[bslresps,bslrespsTrials]=cellfun(@(x) conv_raster(x(1,1).rast,sigma,x(1,1).alignt-(baslineLength+sigma*3),x(1,1).alignt+(sigma*3-1)), data.(dataField).allndata(:,2), 'UniformOutput',false); %500ms period
+[bslresps,bslrespsTrials]=cellfun(@(x) conv_raster(x(1,1).rast,sigma,x(1,1).alignt-(baselineLength+sigma*3),x(1,1).alignt+(sigma*3-1)), data.(dataField).allndata(:,2), 'UniformOutput',false); %500ms period
 fullresps=cellfun(@(x) conv_raster(x(1,1).rast,sigma,1,size(x(1,1).rast,2)), data.(dataField).allndata(:,2), 'UniformOutput',false); %full response
 %% remove bad apples
 badapl=cellfun(@(x) size(x,2)==1, sacresps);

@@ -361,11 +361,11 @@ if isnan(mssrt) || ~(mssrt>50 & mssrt<150) %get tachomc and lookup SSRT/tachomc 
         tachomc=mean(tachomc);
         %estimate mssrt
 %         mssrt=round(tachomc*fit.coeff(1)+fit.coeff(2));
-        if (tachomc>40 && tachomc<75)
+%         if (tachomc>40 && tachomc<75)
              mssrt=round(tachomc+tachowidth);
-        elseif (tachomc>75 && tachomc<110)
-             mssrt=round(tachomc+tachowidth/2);
-        end
+%         elseif (tachomc>75 && tachomc<110)
+%              mssrt=round(tachomc+tachowidth/2);
+%         end
     catch
 
     end
