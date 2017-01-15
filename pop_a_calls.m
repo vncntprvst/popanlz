@@ -37,11 +37,24 @@ switch call
     case 'multi_task_normalization'
         recloc='cDn';
         task='gsdata';
-        load('cDn_stdata.mat');
-        gsdata.normFactor=pop_a_normalization(gsdata,stdata,CCNdb);
-%         %% Save field to data
-%         cd(userinfo.syncdir)
-%         save([recloc '_' task],task,'-v7.3');
+%         load('cDn_stdata.mat');
+
+%number cells
+goodrecs=~cellfun('isempty',gsdata.allsacdelay);
+% st.goodrecs=~cellfun('isempty',stdata.allsacdelay);
+
+%remove bad apples
+% fn = fieldnames(data);
+% for lp=1:length(fn)
+%     data.(fn{lp})=data.(fn{lp})(goodrecs,:);
+% end
+        gsdata.normData=cell(size(goodrecs,1),5);
+        gsdata.normFactor=NaN(size(goodrecs));
+        epochs={[0 250];[300 300]};
+        [gsdata.normData(goodrecs,:),gsdata.normFactor(goodrecs)]=pop_a_normalization(gsdata.allndata(goodrecs,:),epochs);
+%       %% Save field to data
+        cd(userinfo.syncdir)
+        save([recloc '_' task],task,'-v7.3');
     case 'baseline_thd'
         recloc='cDn';
         task='gsdata';

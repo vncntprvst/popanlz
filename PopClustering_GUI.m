@@ -87,7 +87,12 @@ if isempty(varargin) || size(varargin,2)==1
     handles.unitsDBinfo=handles.unitsDBinfo(~isnan(handles.clusterIdx));
     handles.clusterIdx=handles.clusterIdx(~isnan(handles.clusterIdx));
     % process data
-    [handles.unitsProfile.sacresps,handles.unitsProfile.bnorm_sacresps,handles.unitsProfile.rnorm_sacresps]=comp_sacresp(data,dataField);
+%     [handles.unitsProfile.sacresps,handles.unitsProfile.bnorm_sacresps,handles.unitsProfile.rnorm_sacresps]=comp_sacresp(data,dataField);
+    % normalize data
+    data.(dataField).normData(:,1),);% send sac epoch data only (cut each raster? )
+    handles.unitsProfile.norm_sacresps=RespNormalization(data, data.(dataField).normFactor)
+    
+
 else
     handles.dataset=varargin{1};
     data=varargin{2};
