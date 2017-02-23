@@ -48,10 +48,10 @@ goodrecs=~cellfun('isempty',gsdata.allsacdelay);
 % for lp=1:length(fn)
 %     data.(fn{lp})=data.(fn{lp})(goodrecs,:);
 % end
-        gsdata.normData=cell(size(goodrecs,1),5);
-        gsdata.normFactor=NaN(size(goodrecs));
         epochs={[0 250];[300 300]};
-        [gsdata.normData(goodrecs,:),gsdata.normFactor(goodrecs)]=pop_a_normalization(gsdata.allndata(goodrecs,:),epochs);
+        gsdata.normData=cell(size(goodrecs,1),5);
+        gsdata.normFactor=NaN(size(goodrecs,1),size(epochs,1)+1);
+        [gsdata.normData(goodrecs,:),gsdata.normFactor(goodrecs,:)]=pop_a_normalization(gsdata.allndata(goodrecs,:),epochs);
 %       %% Save field to data
         cd(userinfo.syncdir)
         save([recloc '_' task],task,'-v7.3');

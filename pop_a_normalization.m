@@ -52,8 +52,8 @@ properLengthRecs=logical(cellfun(@(x) size(x(1,1).rast,1)>1, data(:,1)));
 % Convolve traces around epochs and get. 
 % sacActivity=cellfun(@(x) conv_raster(x(1,1).rast,sigma,x(1,1).alignt-(300+sigma*3),x(1,1).alignt+(299+sigma*3)), data.allndata(:,1), 'UniformOutput',false); %600ms epoch
 % tgtActivity=cellfun(@(x) conv_raster(x(1,1).rast,sigma,x(1,1).alignt-sigma*3,x(1,1).alignt+(249+sigma*3)), data.allndata(:,2), 'UniformOutput',false); % 250ms epoch
-normFactor=nan(size(properLengthRecs,1),1);
-normFactor(properLengthRecs,1)=FindNormFactor(data(properLengthRecs,1:size(epochs,1)), epochs);
+normFactor=nan(size(properLengthRecs,1),size(epochs,1)+1);
+normFactor(properLengthRecs,:)=FindNormFactor(data(properLengthRecs,1:size(epochs,1)), epochs);
 
 %% Normalize data
 normData=RespNormalization(data, normFactor);

@@ -1,4 +1,4 @@
-function [sacresps,bnorm_sacresps,rnorm_sacresps,sacrespsTrials,bslrespsTrials]=comp_sacresp(data,dataField)
+function [sacresps,bnorm_sacresps,rnorm_sacresps,sacrespsTrials,bslrespsTrials,badapl]=comp_sacresp(data)
 % computes average saccade response (un-normalized and normalized )
 % also outputs individual trial activity for saccade and baseline epochs
 
@@ -8,12 +8,12 @@ function [sacresps,bnorm_sacresps,rnorm_sacresps,sacrespsTrials,bslrespsTrials]=
 % 1/ convolve rasters with 200ms before saccade, 200 after saccade, 20ms kernel
 %time window. Add kernel * 6 ms (see fullgauss_filtconv), e.g. 60 ms at both
 % ends, which will be cut.
-% data.(dataField).allndata has 3 column for 3 aligntype. Each cell has 3 or 4 for different conditions
+% data.allndata has 3 column for 3 aligntype. Each cell has 3 or 4 for different conditions
 sigma=10;
 baselineLength=500;
-[sacresps,sacrespsTrials]=cellfun(@(x) conv_raster(x(1,1).rast,sigma,x(1,1).alignt-(200+sigma*3),x(1,1).alignt+(199+sigma*3)), data.(dataField).allndata(:,1), 'UniformOutput',false); %400ms period
-[bslresps,bslrespsTrials]=cellfun(@(x) conv_raster(x(1,1).rast,sigma,x(1,1).alignt-(baselineLength+sigma*3),x(1,1).alignt+(sigma*3-1)), data.(dataField).allndata(:,2), 'UniformOutput',false); %500ms period
-fullresps=cellfun(@(x) conv_raster(x(1,1).rast,sigma,1,size(x(1,1).rast,2)), data.(dataField).allndata(:,2), 'UniformOutput',false); %full response
+[sacresps,sacrespsTrials]=cellfun(@(x) conv_raster(x(1,1).rast,sigma,x(1,1).alignt-(200+sigma*3),x(1,1).alignt+(199+sigma*3)), data.allndata(:,1), 'UniformOutput',false); %400ms period
+[bslresps,bslrespsTrials]=cellfun(@(x) conv_raster(x(1,1).rast,sigma,x(1,1).alignt-(baselineLength+sigma*3),x(1,1).alignt+(sigma*3-1)), data.allndata(:,2), 'UniformOutput',false); %500ms period
+fullresps=cellfun(@(x) conv_raster(x(1,1).rast,sigma,1,size(x(1,1).rast,2)), data.allndata(:,2), 'UniformOutput',false); %full response
 %% remove bad apples
 badapl=cellfun(@(x) size(x,2)==1, sacresps);
 sacresps=sacresps(~badapl,:);
@@ -27,18 +27,18 @@ bslrespsTrials=bslrespsTrials(~badapl,:);
 % clusterIdx=clusterIdx(~badapl,:);
 % figure; plot(mean(sacresps(clusterIdx==5,:)))
 
-data.(dataField).allalignmnt=data.(dataField).allalignmnt(~badapl,:);
-data.(dataField).allmssrt_tacho=data.(dataField).allmssrt_tacho(~badapl,1);
+data.allalignmnt=data.allalignmnt(~badapl,:);
+data.allmssrt_tacho=data.allmssrt_tacho(~badapl,1);
 %allpk=allpk(~badapl,:); %not needed
-data.(dataField).allndata=data.(dataField).allndata(~badapl,:);
+data.allndata=data.allndata(~badapl,:);
 %all_rec_id=all_rec_id(~badapl,1); %not needed
 %allstats=allstats(~badapl,1); %not needed
-data.(dataField).allprevssd=data.(dataField).allprevssd(~badapl,:);
-data.(dataField).allssds=data.(dataField).allssds(~badapl,:);
-data.(dataField).allsacdelay=data.(dataField).allsacdelay(~badapl,:);
-data.(dataField).allprefdir=data.(dataField).allprefdir(~badapl,:);
+data.allprevssd=data.allprevssd(~badapl,:);
+data.allssds=data.allssds(~badapl,:);
+data.allsacdelay=data.allsacdelay(~badapl,:);
+data.allprefdir=data.allprefdir(~badapl,:);
 %alltrialidx=alltrialidx(~badapl,:); %not needed
-data.(dataField).alldb=data.(dataField).alldb(~badapl,:);
+data.alldb=data.alldb(~badapl,:);
 %% normalization
 % z-score normalization by baseline - based on pre-target activity
 bslresp_mean=nanmean(bslresps');
@@ -90,8 +90,8 @@ fr_sd=cellfun(@(x) nanstd(x),fullresps);
 % figure;
 % for topfig=1:size(top_drop,1)
 %     try
-%     align=data.(dataField).allndata{top_drop(topfig), 3}(4).alignt;
-%     rasters=((data.(dataField).allndata{top_drop(topfig), 3}(4).rast(:,align-800:align+800)));
+%     align=data.allndata{top_drop(topfig), 3}(4).alignt;
+%     rasters=((data.allndata{top_drop(topfig), 3}(4).rast(:,align-800:align+800)));
 %     subplot(2,1,2)
 %     hold on
 %     plot(conv_raster(rasters))

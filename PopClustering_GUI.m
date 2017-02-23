@@ -56,7 +56,9 @@ function PopClustering_GUI_OpeningFcn(hObject, eventdata, handles, varargin)
 
 %% settings
 handles.userinfo=SetUserDir;
-
+handles.boundaries=[400 199];
+sigma=15;
+    
 cd(handles.userinfo.syncdir);
 if isempty(varargin) || size(varargin,2)==1
     if ~isempty(varargin)
@@ -83,16 +85,31 @@ if isempty(varargin) || size(varargin,2)==1
     handles.clusterIdx=fetch(handles.dbConn,['SELECT profile_type FROM clusters c WHERE c.cluster_id IN (' ...
         sprintf('%.0f,' ,unitList(1:end-1)) num2str(unitList(end)) ')']);
     [~,resort]=sort(unitList);[~,resort]=sort(resort);handles.clusterIdx=[handles.clusterIdx{resort}]';
+    % check behavioral data: keep only ones with correct behavior data
+    badapl=isnan(handles.clusterIdx) | cellfun('isempty',data.(dataField).allsacdelay); 
     %remove bad apples
-    handles.unitsDBinfo=handles.unitsDBinfo(~isnan(handles.clusterIdx));
-    handles.clusterIdx=handles.clusterIdx(~isnan(handles.clusterIdx));
+    handles.unitsDBinfo=handles.unitsDBinfo(~badapl);
+    handles.clusterIdx=handles.clusterIdx(~badapl);
+    fn = fieldnames(data.(dataField));
+    for lp=1:length(fn)
+        data.(dataField).(fn{lp})=data.(dataField).(fn{lp})(~badapl,:);
+    end
     % process data
-%     [handles.unitsProfile.sacresps,handles.unitsProfile.bnorm_sacresps,handles.unitsProfile.rnorm_sacresps]=comp_sacresp(data,dataField);
+    [handles.unitsProfile.sacresps,handles.unitsProfile.old_norm_sacresps,...
+        handles.unitsProfile.old_rnorm_sacresps]=comp_sacresp(data.(dataField));
     % normalize data
-    data.(dataField).normData(:,1),);% send sac epoch data only (cut each raster? )
-    handles.unitsProfile.norm_sacresps=RespNormalization(data, data.(dataField).normFactor)
-    
-
+%     data.(dataField).normData(:,1),);% send sac epoch data only (cut each raster? )
+    sacRasters=cellfun(@(sacrast) sacrast(1).rast(:,sacrast(1).alignt-(handles.boundaries(1)+3*sigma):...
+        sacrast(1).alignt+(handles.boundaries(2)+3*sigma)),...
+        data.gsdata.allndata(:,1),'UniformOutput',false);
+%     cellfun(@(sacrast, alignt) sacrast{1}(:,alignt(1).alignt-(handles.boundaries(1)+3*sigma):...
+%         alignt(1).alignt+(handles.boundaries(2)+3*sigma)),...
+%         data.gsdata.normData(:,1),data.gsdata.allndata(:,1),'UniformOutput',false);
+    handles.unitsProfile.norm_sacresps=cell2mat(RespNormalization(sacRasters, data.(dataField).normFactor(:,1)));
+    handles.unitsProfile.rnorm_sacresps=cell2mat(RespNormalization(sacRasters, data.(dataField).normFactor(:,3)));
+    % again
+%     handles.unitsDBinfo=handles.unitsDBinfo(~badapl);
+%     handles.clusterIdx=handles.clusterIdx(~badapl);
 else
     handles.dataset=varargin{1};
     data=varargin{2};
@@ -121,7 +138,7 @@ for mclussp=1:length(unique(handles.clusterIdx))
 %      %findobj('Tag',['cluster' num2str(mclussp)])
     clusterTag=['cluster' num2str(mclussp)];
 %     % add waveform to handle structure
-    handles.([clusterTag '_wf'])= nanmean(handles.unitsProfile.bnorm_sacresps(handles.clusterIdx==clusid(mclussp),:));
+    handles.([clusterTag '_wf'])= nanmean(handles.unitsProfile.rnorm_sacresps(handles.clusterIdx==clusid(mclussp),:));
     % collect profile names
     [DBprofiles,~,DBprofilesIdx]=unique(handles.unitsProfileType(handles.clusterIdx==clusid(mclussp),:));
     handles.([clusterTag '_Profile'])= DBprofiles{mode(DBprofilesIdx)};
@@ -134,7 +151,8 @@ for mclussp=1:length(unique(handles.clusterIdx))
 %     ylabel('Norm. Firing rate')
 % %     title(cmrtitles{mclussp})
     title([clusterTag ' (' num2str(clusid(mclussp)) '), n=' num2str(sum(handles.clusterIdx==clusid(mclussp)))])
-    set(gca,'xtick',1:100:max(get(gca,'xlim')),'xticklabel',-(max(get(gca,'xlim'))/2):100:max(get(gca,'xlim'))/2,'TickDir','out');
+    set(gca,'xtick',1:100:max(get(gca,'xlim')),'xticklabel',-handles.boundaries(1):100:handles.boundaries(2)+1,'TickDir','out');
+%     'xticklabel',-(max(get(gca,'xlim'))/2):100:max(get(gca,'xlim'))/2,'TickDir','out');
     set(gca,'Color','white','FontSize',8,'FontName','calibri');
     axis(gca,'tight'); box off;
 end
@@ -150,15 +168,15 @@ set(handles.NameClusters_box,'String',clusterProfiles);
 
 %plot first unit and display info
 axes(handles.mainplot);
-plot(handles.mainplot,handles.unitsProfile.bnorm_sacresps(handles.currentUnitDisplay,:),'Color',...
+plot(handles.mainplot,handles.unitsProfile.rnorm_sacresps(handles.currentUnitDisplay,:),'Color',...
     handles.fcm(clusid==handles.clusterIdx(handles.currentUnitDisplay),:),'LineWidth',2);
-    set(gca,'xtick',1:100:max(get(gca,'xlim')),'xticklabel',-(max(get(gca,'xlim'))/2):100:max(get(gca,'xlim'))/2,'TickDir','out');
+    set(gca,'xtick',1:100:max(get(gca,'xlim')),'xticklabel',-handles.boundaries(1):100:handles.boundaries(2)+1,'TickDir','out');
     set(gca,'Color','white','FontSize',8,'FontName','calibri');
     axis(gca,'tight'); box off;
 recName=fetch(handles.dbConn,['SELECT r.e_file FROM recordings r WHERE r.recording_id = ' num2str(handles.unitsDBinfo{handles.currentUnitDisplay, 1}.rec_id) ';']);
 set(handles.recname_box,'string',{recName{:}(1:end-1)},'FontSize',10,'FontName','calibri','FontWeight','bold');
 set(handles.clusternumber_box,'string',{num2str(handles.clusterIdx(handles.currentUnitDisplay))},'FontSize',10,'FontName','calibri','FontWeight','bold');
-set(handles.clustertype_box,'string',{handles.unitsProfileType{handles.currentUnitDisplay}},'FontSize',10,'FontName','calibri','FontWeight','bold');
+set(handles.clustertype_box,'string',handles.unitsProfileType(handles.currentUnitDisplay),'FontSize',10,'FontName','calibri','FontWeight','bold');
 set(hObject,'visible','off')
 % Update handles structure
 guidata(hObject, handles);
@@ -191,15 +209,15 @@ set(handles.unitNumber,'String',num2str(handles.currentUnitDisplay));
 %update plot
 clusid=unique(handles.clusterIdx);
 axes(handles.mainplot);
-plot(handles.mainplot,handles.unitsProfile.bnorm_sacresps(handles.currentUnitDisplay,:),'Color',...
+plot(handles.mainplot,handles.unitsProfile.rnorm_sacresps(handles.currentUnitDisplay,:),'Color',...
     handles.fcm(clusid==handles.clusterIdx(handles.currentUnitDisplay),:),'LineWidth',2);
-    set(gca,'xtick',1:100:max(get(gca,'xlim')),'xticklabel',-(max(get(gca,'xlim'))/2):100:max(get(gca,'xlim'))/2,'TickDir','out');
+    set(gca,'xtick',1:100:max(get(gca,'xlim')),'xticklabel',-handles.boundaries(1):100:handles.boundaries(2)+1,'TickDir','out');
     set(gca,'Color','white','FontSize',8,'FontName','calibri');
     axis(gca,'tight'); box off;
 recName=fetch(handles.dbConn,['SELECT r.e_file FROM recordings r WHERE r.recording_id = ' num2str(handles.unitsDBinfo{handles.currentUnitDisplay, 1}.rec_id) ';']);
 set(handles.recname_box,'string',{recName{:}(1:end-1)},'FontSize',10,'FontName','calibri','FontWeight','bold');
 set(handles.clusternumber_box,'string',{num2str(handles.clusterIdx(handles.currentUnitDisplay))},'FontSize',10,'FontName','calibri','FontWeight','bold');
-set(handles.clustertype_box,'string',{handles.unitsProfileType{handles.currentUnitDisplay}},'FontSize',10,'FontName','calibri','FontWeight','bold');
+set(handles.clustertype_box,'string',handles.unitsProfileType(handles.currentUnitDisplay),'FontSize',10,'FontName','calibri','FontWeight','bold');
 set(handles.changeclustype_listbox,'value',find(clusid==handles.clusterIdx(handles.currentUnitDisplay)));
 % Update handles structure
 guidata(hObject, handles);
@@ -218,15 +236,15 @@ set(handles.unitNumber,'String',num2str(handles.currentUnitDisplay));
 %update plot
 clusid=unique(handles.clusterIdx);
 axes(handles.mainplot);
-plot(handles.mainplot,handles.unitsProfile.bnorm_sacresps(handles.currentUnitDisplay,:),'Color',...
+plot(handles.mainplot,handles.unitsProfile.rnorm_sacresps(handles.currentUnitDisplay,:),'Color',...
     handles.fcm(clusid==handles.clusterIdx(handles.currentUnitDisplay),:),'LineWidth',2);
-    set(gca,'xtick',1:100:max(get(gca,'xlim')),'xticklabel',-(max(get(gca,'xlim'))/2):100:max(get(gca,'xlim'))/2,'TickDir','out');
+    set(gca,'xtick',1:100:max(get(gca,'xlim')),'xticklabel',-handles.boundaries(1):100:handles.boundaries(2)+1,'TickDir','out');
     set(gca,'Color','white','FontSize',8,'FontName','calibri');
     axis(gca,'tight'); box off;
 recName=fetch(handles.dbConn,['SELECT r.e_file FROM recordings r WHERE r.recording_id = ' num2str(handles.unitsDBinfo{handles.currentUnitDisplay, 1}.rec_id) ';']);
 set(handles.recname_box,'string',{recName{:}(1:end-1)},'FontSize',10,'FontName','calibri','FontWeight','bold');
 set(handles.clusternumber_box,'string',{num2str(handles.clusterIdx(handles.currentUnitDisplay))},'FontSize',10,'FontName','calibri','FontWeight','bold');
-set(handles.clustertype_box,'string',{handles.unitsProfileType{handles.currentUnitDisplay}},'FontSize',10,'FontName','calibri','FontWeight','bold');
+set(handles.clustertype_box,'string',handles.unitsProfileType(handles.currentUnitDisplay),'FontSize',10,'FontName','calibri','FontWeight','bold');
 set(handles.changeclustype_listbox,'value',find(clusid==handles.clusterIdx(handles.currentUnitDisplay)));
 % Update handles structure
 guidata(hObject, handles);
@@ -258,9 +276,9 @@ handles.clusterIdx(handles.currentUnitDisplay)=str2double(clusterList{get(handle
 %update plot color and unit cluster info
 clusid=unique(handles.clusterIdx);
 axes(handles.mainplot);
-plot(handles.mainplot,handles.unitsProfile.bnorm_sacresps(handles.currentUnitDisplay,:),'Color',...
+plot(handles.mainplot,handles.unitsProfile.rnorm_sacresps(handles.currentUnitDisplay,:),'Color',...
     handles.fcm(clusid==handles.clusterIdx(handles.currentUnitDisplay),:),'LineWidth',2);
-set(gca,'xtick',1:100:max(get(gca,'xlim')),'xticklabel',-(max(get(gca,'xlim'))/2):100:max(get(gca,'xlim'))/2,'TickDir','out');
+set(gca,'xtick',1:100:max(get(gca,'xlim')),'xticklabel',-handles.boundaries(1):100:handles.boundaries(2)+1,'TickDir','out');
 set(gca,'Color','white','FontSize',8,'FontName','calibri');
 axis(gca,'tight'); box off;
 set(handles.clusternumber_box,'string',{num2str(handles.clusterIdx(handles.currentUnitDisplay))},'FontSize',10,'FontName','calibri','FontWeight','bold');
@@ -271,24 +289,24 @@ set(handles.changeclustype_listbox,'value',find(clusid==handles.clusterIdx(handl
 clusNum=find(clusid==originalUnitClusIdx);
 clusterTag=['cluster' num2str(clusNum)];
 %change waveform in handle structure
-handles.([clusterTag '_wf'])= nanmean(handles.unitsProfile.bnorm_sacresps(handles.clusterIdx==clusid(clusNum),:));
+handles.([clusterTag '_wf'])= nanmean(handles.unitsProfile.rnorm_sacresps(handles.clusterIdx==clusid(clusNum),:));
 % update cluster plot
 axes(handles.(clusterTag));
 plot(handles.(clusterTag),handles.([clusterTag '_wf']),'Color',handles.fcm(clusNum,:),'LineWidth',2);
 title([clusterTag ' (' num2str(clusid(clusNum)) '), n=' num2str(sum(handles.clusterIdx==clusid(clusNum)))])
-set(gca,'xtick',1:100:max(get(gca,'xlim')),'xticklabel',-(max(get(gca,'xlim'))/2):100:max(get(gca,'xlim'))/2,'TickDir','out');
+set(gca,'xtick',1:100:max(get(gca,'xlim')),'xticklabel',-handles.boundaries(1):100:handles.boundaries(2)+1,'TickDir','out');
 set(gca,'Color','white','FontSize',8,'FontName','calibri');
 axis(gca,'tight'); box off;
 % new one
 clusNum=find(clusid==handles.clusterIdx(handles.currentUnitDisplay));
 clusterTag=['cluster' num2str(clusNum)];
 %change waveform in handle structure
-handles.([clusterTag '_wf'])= nanmean(handles.unitsProfile.bnorm_sacresps(handles.clusterIdx==clusid(clusNum),:));
+handles.([clusterTag '_wf'])= nanmean(handles.unitsProfile.rnorm_sacresps(handles.clusterIdx==clusid(clusNum),:));
 % update cluster plot
 axes(handles.(clusterTag));
 plot(handles.(clusterTag),handles.([clusterTag '_wf']),'Color',handles.fcm(clusNum,:),'LineWidth',2);
 title([clusterTag ' (' num2str(clusid(clusNum)) '), n=' num2str(sum(handles.clusterIdx==clusid(clusNum)))])
-set(gca,'xtick',1:100:max(get(gca,'xlim')),'xticklabel',-(max(get(gca,'xlim'))/2):100:max(get(gca,'xlim'))/2,'TickDir','out');
+set(gca,'xtick',1:100:max(get(gca,'xlim')),'xticklabel',-handles.boundaries(1):100:handles.boundaries(2)+1,'TickDir','out');
 set(gca,'Color','white','FontSize',8,'FontName','calibri');
 axis(gca,'tight'); box off;
 
@@ -337,13 +355,17 @@ clusid=unique(handles.clusterIdx);
 %population raster heat map
 figure('name','population raster heatmap','position',[90 450 560 570])
 % subplot(1,20,1:9)
-% imagesc(1:size(handles.unitsProfile.rnorm_sacresps,2),1:size(handles.unitsProfile.rnorm_sacresps,1),handles.unitsProfile.rnorm_sacresps)
+% imagesc(1:size(handles.unitsProfile.rnorm_sacresps,2),1:size(handles.unitsProfile.rnorm_sacresps,1),...
+%           handles.unitsProfile.rnorm_sacresps)
 % set(gca,'FontSize',15);
 % xlabel('Time')
 % ylabel('Neuron #')
 % title('Unsorted')
 heatmaph=subplot(1,10,1:9);
-imagesc(1:size(handles.unitsProfile.rnorm_sacresps,2),1:size(handles.unitsProfile.rnorm_sacresps,1),handles.unitsProfile.rnorm_sacresps(sortidx(sortedClusterIdx~=clusid(1)),:))
+%looks much nicer with rnorm_sacresps.
+imagesc(1:size(handles.unitsProfile.old_rnorm_sacresps(sortidx(sortedClusterIdx~=clusid(1)),:),2),...
+    1:size(handles.unitsProfile.old_rnorm_sacresps(sortidx(sortedClusterIdx~=clusid(1)),:),1),...
+    handles.unitsProfile.old_rnorm_sacresps(sortidx(sortedClusterIdx~=clusid(1)),:))
 colormap(heatmaph,parula);
 set(gca,'xtick',1:100:max(floor(get(gca,'xlim'))),'xticklabel',-(max(floor(get(gca,'xlim')))/2):100:max(floor(get(gca,'xlim')))/2,'TickDir','out');
 set(gca,'Color','white','FontSize',14,'FontName','calibri');
@@ -380,11 +402,19 @@ clusid=unique(handles.clusterIdx);
 figure('name','clusters mean response','position',[1120 -100 540 760])
 for clusNum=2:length(clusid) 
     subplot(length(clusid)-1,1,clusNum-1)
-    clusterTag=['cluster' num2str(clusNum)];
-    plot(zscore(handles.([clusterTag '_wf']),0,2),'Color',handles.fcm(clusNum,:),'LineWidth',2);
+%     clusterTag=['cluster' num2str(clusNum)];
+    wfProfile=nanmean(handles.unitsProfile.norm_sacresps(handles.clusterIdx==clusid(clusNum),:));
+%     wfProfile=zscore(nanmean(handles.unitsProfile.norm_sacresps(handles.clusterIdx==clusid(clusNum),:)),0,2);
+    wfSEM=nanstd(handles.unitsProfile.norm_sacresps(handles.clusterIdx==clusid(clusNum),:))/...
+        sqrt(size(handles.unitsProfile.norm_sacresps(handles.clusterIdx==clusid(clusNum),:),1));
+%     plot(zscore(handles.([clusterTag '_wf']),0,2),'Color',handles.fcm(clusNum,:),'LineWidth',2);
+    plot(wfProfile,'Color',handles.fcm(clusNum,:),'LineWidth',2);
+    % plot SEM
+patch([1:length(wfSEM),fliplr(1:length(wfSEM))],[wfProfile-wfSEM,fliplr(wfProfile+wfSEM)],...
+    handles.fcm(clusNum,:),'EdgeColor','none','FaceAlpha',0.1);
     title([clustypes{clusNum} ', n=' num2str(sum(handles.clusterIdx==clusid(clusNum)))])
-    set(gca,'xtick',1:100:max(get(gca,'xlim')),'xticklabel',-(max(get(gca,'xlim'))/2):100:max(get(gca,'xlim'))/2,'TickDir','out');
-    set(gca,'ylim',[-2 3]);
+    set(gca,'xtick',1:100:max(get(gca,'xlim')),'xticklabel',-handles.boundaries(1):100:handles.boundaries(2)+1,'TickDir','out');
+    set(gca,'ylim',[0 1]);
     set(gca,'Color','white','FontSize',8,'FontName','calibri');
 %     axis(gca,'tight'); 
     box off;
