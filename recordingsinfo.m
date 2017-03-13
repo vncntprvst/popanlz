@@ -1,4 +1,7 @@
 function recInfo=recordingsinfo
+% returns three columns:
+% file name / recording location / whether location is congruent 
+% between database and curated list in xls file
 
 userinfo=SetUserDir; 
 cd(userinfo.syncdir);
