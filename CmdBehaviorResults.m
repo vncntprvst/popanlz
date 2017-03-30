@@ -6,11 +6,10 @@ if isempty(directory)
 end
 
 unitsDBinfo=gsdata.alldb;
-% get cluster index from database
 unitList=cellfun(@(x) x.unit_id, unitsDBinfo);
-clusterIdx=fetch(conn,['SELECT profile_type FROM clusters c WHERE c.cluster_id IN (' ...
-        sprintf('%.0f,' ,unitList(1:end-1)) num2str(unitList(end)) ')']);
-[~,resort]=sort(unitList);[~,resort]=sort(resort);clusterIdx=[clusterIdx{resort}]';
+% get cluster index from database
+dbConn = connect2DB('vp_sldata');
+clusterIdx=getclusterindex(dbConn,unitList);
 
 %number cells
 gs.goodrecs=~(isnan(clusterIdx) | cellfun('isempty',gsdata.allsacdelay));

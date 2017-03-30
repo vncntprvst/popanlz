@@ -1,4 +1,5 @@
 function recLoc=recordingslocation(fileList)
+% compare db recloc with xls file info
 
 userinfo=SetUserDir; 
 cd(userinfo.syncdir);

@@ -1,5 +1,5 @@
 function recInfo=recordingsinfo
-% returns three columns:
+% from a defined dataset returns three columns:
 % file name / recording location / whether location is congruent 
 % between database and curated list in xls file
 
@@ -21,17 +21,17 @@ data=load([dataset '.mat']); %cDn_gsdata.mat  top_cortex_gsdata.mat
 dataField=cell2mat(fieldnames(data));
 unitsDBinfo=data.(dataField).alldb;
 dbConn = connect2DB('vp_sldata');
-% get cluster index from database
 unitList=cellfun(@(x) x.unit_id, unitsDBinfo);
-clusterIdx=fetch(dbConn,['SELECT profile_type, sort_id_fk FROM clusters c WHERE c.cluster_id IN (' ...
-    sprintf('%.0f,' ,unitList(1:end-1)) num2str(unitList(end)) ')']);
-[~,resort]=sort(unitList);[~,resort]=sort(resort);clusterIdx=cell2mat(clusterIdx(resort,:));
+% get cluster index from database
+clusterIdx=getclusterindex(dbConn,unitList,'sort_id_fk');
+
 % clusterIdx=[clusterIdx{resort}]';
 % check behavioral data: keep only ones with correct behavior data
 badapl=isnan(clusterIdx(:,1)) | cellfun('isempty',data.(dataField).allsacdelay);
 %remove bad apples
-sortsIDs=clusterIdx(~badapl,2);
+clusterIdx=clusterIdx(~badapl,:);
 
+sortsIDs=clusterIdx(:,2);
 recIDs = fetch(dbConn, ['SELECT recording_id_fk FROM sorts s WHERE s.sort_id IN (' ...
     sprintf('%.0f,' ,sortsIDs(1:end-1)) num2str(sortsIDs(end)) ')']);
 [~,resort]=sort(sortsIDs);[~,resort]=sort(resort);recIDs=cell2mat(recIDs(resort,:));
@@ -49,6 +49,6 @@ for gridIdx=1:size(recInfo,1)
         gridInfo(gridIdx,:)=ugridInfo(allIdx(gridIdx),:);    
 end
 
-% Filename	Monkey	Chamber Location	M-L	A-P	Chamber Rotation   Depth
-recInfo=[recInfo(:,1) gridInfo(:,1:2) recInfo(:,2:3) gridInfo(:,3) recInfo(:,4)];
+% Filename	Monkey	Chamber Location	M-L	A-P	Chamber Rotation   Depth   ClusterID
+recInfo=[recInfo(:,1) gridInfo(:,1:2) recInfo(:,2:3) gridInfo(:,3) recInfo(:,4) mat2cell(clusterIdx(:,1),ones(size(clusterIdx,1),1))];
 
