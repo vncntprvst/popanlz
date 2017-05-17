@@ -3,7 +3,7 @@ global directory slash;
 %% settings
 userinfo=SetUserDir;
 directory=userinfo.directory;
-slash=userinfo.slash;
+slash=filesep;
 recloc='dentate'; %dentate %top_cortex
 rectask='gapstop'; %gapstop %st_saccades
 try

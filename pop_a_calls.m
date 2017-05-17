@@ -5,7 +5,7 @@ global directory slash;
 %% settings
 userinfo=SetUserDir;
 directory=userinfo.directory;
-slash=userinfo.slash;
+slash=filesep;
 % userinfo.user,userinfo.dbldir,userinfo.mapdr,userinfo.servrep,userinfo.mapddataf
 CCNdb = connect2DB('vp_sldata');
 

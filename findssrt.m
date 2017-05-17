@@ -377,7 +377,7 @@ end
 %     
 if ~(mssrt>70 & mssrt<130)
     userinfo=SetUserDir;
-    load([userinfo.syncdir userinfo.slash 'behavData.mat']);
+    load([userinfo.syncdir filesep 'behavData.mat']);
     SSRTs=[behavData.mssrt];
     if strcmp('R',recname(1))
         indivSSRTs=SSRTs(cellfun(@(x) strcmp(x,'Rigel'), {behavData.subject}));
