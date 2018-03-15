@@ -94,6 +94,25 @@ if plotfig
     title('Cumulative distribution')
     legend('RTs for NSS preceded by NSS trial','RTs for NSS preceded by SS trial','location','southeast')
     legend('boxoff')
+    
+    % make violin plot with gramm
+    clear RTdistrib
+conditionIdx=cell(length([behav{:,6:7}]),1);
+[conditionIdx{sum(~cellfun('isempty', conditionIdx))+1:length([behav{:,7}])}]=deal('RTs for NSS preceded by NSS trial');
+[conditionIdx{sum(~cellfun('isempty', conditionIdx))+1:sum(~cellfun('isempty', conditionIdx))+...
+    length([behav{:,6}])}]=deal('RTs for NSS preceded by SS trial');
+
+RTdistrib=gramm('x',conditionIdx,'y',[behav{:,7}, behav{:,6}],'color',conditionIdx);
+RTdistrib.stat_violin('normalization','area','dodge',0,'fill','edge');%('fill','transparent');
+RTdistrib.stat_boxplot('width',0.15);
+RTdistrib.set_names('x','Trial conditions','y','RTs');
+RTdistrib.set_title('RTs for NSS');
+RTdistrib.set_order_options('x',{'RTs for NSS preceded by NSS trial','RTs for NSS preceded by SS trial'});
+RTdistrib.set_color_options('map','brewer_dark');
+figure;
+RTdistrib.draw();
+    
+    
 end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

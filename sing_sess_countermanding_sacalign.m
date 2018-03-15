@@ -1,4 +1,4 @@
-function sing_sess_countermanding(fileInfo,cmdData)
+function sing_sess_countermanding_sacalign(fileInfo,cmdData)
 % Analyze and display data from a single session of countermanding task
 
 global directory slash;
@@ -407,12 +407,12 @@ if ~isfield(cmdData,'allssds')
 end
 
 %% session recording
-singleSSD=true;
-alignCondition='basic_tgt';
+singleSSD=false;
+alignCondition='allconditions_sac'; %basic_sac
 
-alignedata=cmdData.allndata{1, 2};
-if strcmp(alignCondition,'basic_tgt')
-    alignedata=alignedata(1:2);
+alignedata=cmdData.allndata{1, 1};
+if strcmp(alignCondition,'basic_sac')
+    alignedata=alignedata(1:2:3);
 end
 
 numrast=length(alignedata);
@@ -474,7 +474,7 @@ if singleSSD
         end
     end
     
-    if ~strcmp(alignCondition,'basic_tgt')
+    if ~strcmp(alignCondition,'basic_sac')
         %NCS trials
         for lp=1:length(fieldName)
             try
@@ -493,13 +493,14 @@ else
 end
 
 %plot related variables
-plotstart=200;
+plotstart=600;
 plotstop=600;
 fsigma=30;
 causker=0;
 chrono=1;
 
-mainfig=figure('position',[1186 321 374 601]); cmap=colormap('lines');
+mainfig=figure('position',[757   251   560   420]); %cmap=colormap('lines');
+cmap=(lines+prism)/2;
 
 for rastnum=1:numrast
     rasters=alignedata(rastnum).rast;
@@ -559,7 +560,11 @@ for rastnum=1:numrast
     isnantrial = isnan(sum(cut_rasters,2)); % Identify nantrials
     cut_rasters(isnan(cut_rasters)) = 0; % take nans out so they don't get plotted
     if chrono
+        try
         cut_chrasters(chronoidx,:)=cut_rasters;
+        catch
+            continue
+        end
         [indy, indx] = ind2sub(size(cut_chrasters),find(cut_chrasters)); %find row and column coordinates of spikes
     else
         [indy, indx] = ind2sub(size(cut_rasters),find(cut_rasters)); %find row and column coordinates of spikes
@@ -652,8 +657,11 @@ for rastnum=1:numrast
         %    plot confidence intervals
         patch([1:length(sdf),fliplr(1:length(sdf))],[sdf-rastsem,fliplr(sdf+rastsem)],cmap(rastnum,:),'EdgeColor','none','FaceAlpha',0.1);
         %plot sdf
-        plot(sdf,'Color',cmap(rastnum,:),'LineWidth',1.8);
-        
+        if strcmp(alignCondition,'allconditions_sac') && rastnum ==2
+            lineplot(rastnum)=plot(sdf,'Color',cmap(rastnum,:),'LineWidth',2,'LineStyle','--'); % plot rasters
+        else
+            lineplot(rastnum)=plot(sdf,'Color',cmap(rastnum,:),'LineWidth',2);
+        end
 %         if ~isempty(difftime_preal)
 %             plot(difftime_preal,max([sdf(difftime_preal)-40 1]),'r*')
 %         end
@@ -667,12 +675,12 @@ for rastnum=1:numrast
     box off;
     set(gca,'Color','white','TickDir','out','FontName','calibri','FontSize',8); %'YAxisLocation','rigth'
     set(gca,'XTick',1:100:length(sdf),'XTickLabel',-plotstart:100:plotstop,'TickDir','out','box','off'); %
-    
+
     %     hxlabel=xlabel(gca,'Time (ms)','FontName','calibri','FontSize',8);
     %     set(hxlabel,'Position',get(hxlabel,'Position') - [180 -0.2 0]); %doesn't stay there when export !
     hylabel=ylabel(gca,'Firing rate (spikes/s)','FontName','Calibri','FontSize',8);
     
-%     %% Plot eye velocities
+%%     %% Plot eye velocities
 %     heyevelplot=subplot(2,1,(2*2/3)+1:2,'Layer','top','Parent', mainfig);
 %     title('Mean Eye Velocity','FontName','calibri','FontSize',11);
 %     hxlabel=xlabel(gca,'Time (ms)','FontName','calibri','FontSize',8);
@@ -772,17 +780,28 @@ if ~isempty(rasters)
 end
 
 if singleSSD
-    % plot SSD bar
+    % plot target bar 
     axes(sdfplot)
     currylim=get(gca,'YLim');
-    alignTime=alignidx-start+prevssd;
-    patch([repmat((alignTime)-2,1,2) repmat((alignTime)+2,1,2)], ...
+    cueTime=mean(cellfun(@(x) x(1,1), alignedata(1).evttime))-start
+        patch([repmat((cueTime)-2,1,2) repmat((cueTime)+2,1,2)], ...
+        [[0 currylim(2)] fliplr([0 currylim(2)])], ...
+        [0 0 0 0],[0 1 0],'EdgeColor','none','FaceAlpha',0.5);
+    % plot SSD bar
+    cueTime=cueTime+prevssd;
+    patch([repmat((cueTime)-2,1,2) repmat((cueTime)+2,1,2)], ...
         [[0 currylim(2)] fliplr([0 currylim(2)])], ...
         [0 0 0 0],[1 0 0],'EdgeColor','none','FaceAlpha',0.5);
     % plot SSRT
-    alignTime=alignTime+cmdData.allmssrt_tacho{1, 1}{1};
-        patch([repmat((alignTime)-2,1,2) repmat((alignTime)+2,1,2)], ...
+    cueTime=cueTime+cmdData.allmssrt_tacho{1, 1}{1};
+        patch([repmat((cueTime)-2,1,2) repmat((cueTime)+2,1,2)], ...
         [[0 currylim(2)] fliplr([0 currylim(2)])], ...
         [0 0 0 0],[.5 .5 .5],'EdgeColor','none','FaceAlpha',0.5);
+end
+
+%legends
+try
+legend(lineplot(1:rastnum),{'NSST','CSST','NCSST'})
+catch
 end
 
