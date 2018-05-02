@@ -14,11 +14,11 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % parameters
-    options.sigma=10;
-    options.baselineLength=500;
-    options.short_wds=200;
-    options.short_wde=199;
-    options.long_wds=400;
+options.sigma=10;
+options.baselineLength=500;
+options.short_wds=200;
+options.short_wde=199;
+options.long_wds=400;
 
 % units profiles
 % unitsProfile=comp_sacresp(data,options);
@@ -65,26 +65,29 @@ end
 % end
 
 %%  get unit cluster info and profiles
-
-unitList=data.alldb.unit_id; %unit_ids=cellfun(@(x) x.unit_id,data.alldb);
-[sorted_unit_ids,sunitid_idx]=sort(unitList);
-query = ['SELECT c.profile, c.profile_type FROM clusters c WHERE cluster_id IN (' sprintf('%.0f,' ,sorted_unit_ids(1:end-1)') num2str(sorted_unit_ids(end)) ')'];
-profiles = fetch(conn,query);
-sunitid_revidx(sunitid_idx)=1:length(unitList);
-clusidx=[profiles{sunitid_revidx,2}];
-clustypes={profiles{sunitid_revidx,1}};
-
-data.clusters=[cell2table(clustypes','VariableNames',{'Profile'})...
-    array2table(clusidx','VariableNames',{'SaccadeAlignedCluster'})];
-
-% kernel
-    conv_sigma=50;
-    half_sixsig=conv_sigma*3; %half kernel window
+if ~isfield(data,'clusters')
+    unitList=data.alldb.unit_id; %unit_ids=cellfun(@(x) x.unit_id,data.alldb);
+    [sorted_unit_ids,sunitid_idx]=sort(unitList);
+    query = ['SELECT c.profile, c.profile_type FROM clusters c WHERE cluster_id IN (' sprintf('%.0f,' ,sorted_unit_ids(1:end-1)') num2str(sorted_unit_ids(end)) ')'];
+    profiles = fetch(conn,query);
+    sunitid_revidx(sunitid_idx)=1:length(unitList);
+    clusidx=[profiles{sunitid_revidx,2}];
+    clustypes={profiles{sunitid_revidx,1}};
+    
+    data.clusters=[cell2table(clustypes','VariableNames',{'Profile'})...
+        array2table(clusidx','VariableNames',{'SaccadeAlignedCluster'})];
+end
 if proc_option.ssdpkalign==1
     % Instead, classify according to when peak occurs with respect to stop signal
-    [clusidx,clusterIDs]=SS_reclustering(data);
+    % if need to recluster:
+    %     [clusidx,clusterIDs]=SS_reclustering(data);
+    clusidx=data.clusters.StopSignalAlignedCluster;
+    clusterIDs=unique(clusidx);
+    clusterIDs=clusterIDs(clusterIDs>0);
 else
-    clusterIDs=[2 101 102 103];
+    clusidx=data.clusters.SaccadeAlignedCluste;
+    clusterIDs=unique(clusidx);
+    clusterIDs=clusterIDs(clusterIDs>0);%[2 101 102 103];
 end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -119,16 +122,16 @@ for clusixdnum=1:length(clusterIDs)
     
     % baseline
     %     clussblmean{clusixdnum}=bslresp_mean(clusidx==clusterIDs(clusixdnum));
-%     clussblresp{clusixdnum}=bslresps(clusidx==clusterIDs(clusixdnum),:);
+    %     clussblresp{clusixdnum}=bslresps(clusidx==clusterIDs(clusixdnum),:);
     % baseline sd
-%     clussbslresp_sd{clusixdnum}=bslresp_sd(clusidx==clusterIDs(clusixdnum));
+    %     clussbslresp_sd{clusixdnum}=bslresp_sd(clusidx==clusterIDs(clusixdnum));
     % full mean
-%     clussfrmean{clusixdnum}=fr_mean(clusidx==clusterIDs(clusixdnum));
+    %     clussfrmean{clusixdnum}=fr_mean(clusidx==clusterIDs(clusixdnum));
     % full sd
-%     clussfr_sd{clusixdnum}=fr_sd(clusidx==clusterIDs(clusixdnum));
-
+    %     clussfr_sd{clusixdnum}=fr_sd(clusidx==clusterIDs(clusixdnum));
+    
     clusNormFactor{clusixdnum}=data.normFactor(clusidx==clusterIDs(clusixdnum),1);
-
+    
     % prefered direction
     clusprefdir{clusixdnum}=data.allprefdir(clusidx==clusterIDs(clusixdnum),:);
     % ssds
@@ -140,12 +143,13 @@ for clusixdnum=1:length(clusterIDs)
     % ssrts
     clusmssrt{clusixdnum}=data.allmssrt_tacho(clusidx==clusterIDs(clusixdnum));
     % database info
-    clusdbinfo{clusixdnum}=data.alldb(clusidx==clusterIDs(clusixdnum));
+    clusdbinfo{clusixdnum}=data.alldb(clusidx==clusterIDs(clusixdnum),:);
 end
 
 %% prealloc compile data
-arraysz=max([sum(clusidx==clusterIDs(1)), sum(clusidx==clusterIDs(2)), sum(clusidx==clusterIDs(3)), sum(clusidx==clusterIDs(4))]);
-compgssdf=struct('clus',{'earlyFall','rampSacFall','sacBurst','allTheWay'},...%{'rampfallclus','sacburstclus','rampatw','fallatw'},...
+arraysz=max(hist(clusidx,unique(clusidx))); %[sum(clusidx==clusterIDs(1)), sum(clusidx==clusterIDs(2)), sum(clusidx==clusterIDs(3)), sum(clusidx==clusterIDs(4))]);
+if proc_option.ssdpkalign==1
+     compgssdf=struct('clus',{'Rise','Fall','Junk'},...%{'rampfallclus','sacburstclus','rampatw','fallatw'},...
     'align',struct('sac',struct('NSStrial',nan(arraysz,1301),'CStrial',nan(arraysz,1301),'NCStrial',nan(arraysz,1301),'evttimes',nan(arraysz,7)),...
     'tgt',struct('NSStrial',nan(arraysz,901),'CStrial',nan(arraysz,901),'NCStrial',nan(arraysz,901),'evttimes',nan(arraysz,7),'nnorm_nss_sdf',nan(arraysz,1301)),...
     'ssd',struct('LMCS_NSStrial',nan(arraysz,1501),'LMNCS_NSStrial',nan(arraysz,1501),'CStrial',nan(arraysz,1501),'NCStrial',nan(arraysz,1501),...
@@ -153,9 +157,23 @@ compgssdf=struct('clus',{'earlyFall','rampSacFall','sacBurst','allTheWay'},...%{
     'nxtrial_type',{},'nxtrial_pktiming',{},'nxtrial_bsline_pk',{})),...
     'corsac',struct('NSStrial',nan(arraysz,1001),'CStrial',nan(arraysz,1001),'NCStrial',nan(arraysz,1001),'evttimes',nan(arraysz,7)),...
     'rew',struct('NSStrial',nan(arraysz,1001),'CStrial',nan(arraysz,1001),'NCStrial',nan(arraysz,1001),'evttimes',nan(arraysz,7))));
+else
+    compgssdf=struct('clus',{'earlyFall','rampSacFall','sacBurst','allTheWay'},...%{'rampfallclus','sacburstclus','rampatw','fallatw'},...
+    'align',struct('sac',struct('NSStrial',nan(arraysz,1301),'CStrial',nan(arraysz,1301),'NCStrial',nan(arraysz,1301),'evttimes',nan(arraysz,7)),...
+    'tgt',struct('NSStrial',nan(arraysz,901),'CStrial',nan(arraysz,901),'NCStrial',nan(arraysz,901),'evttimes',nan(arraysz,7),'nnorm_nss_sdf',nan(arraysz,1301)),...
+    'ssd',struct('LMCS_NSStrial',nan(arraysz,1501),'LMNCS_NSStrial',nan(arraysz,1501),'CStrial',nan(arraysz,1501),'NCStrial',nan(arraysz,1501),...
+    'evttimes',nan(arraysz,7),'RPE',struct('LMCS_NSStrial',[],'LMNCS_NSStrial',[],'CStrial',[],'NCStrial',[],'PETH_REPburst_time',[],'timing',{},'amplitude',{},...
+    'nxtrial_type',{},'nxtrial_pktiming',{},'nxtrial_bsline_pk',{})),...
+    'corsac',struct('NSStrial',nan(arraysz,1001),'CStrial',nan(arraysz,1001),'NCStrial',nan(arraysz,1001),'evttimes',nan(arraysz,7)),...
+    'rew',struct('NSStrial',nan(arraysz,1001),'CStrial',nan(arraysz,1001),'NCStrial',nan(arraysz,1001),'evttimes',nan(arraysz,7))));
+end
 
 trialtype={'NSStrial','CStrial','NCStrial'};
 ssdtrialtype={'LMCS_NSStrial','LMNCS_NSStrial','CStrial','NCStrial'};
+
+% kernel
+conv_sigma=50;
+half_sixsig=conv_sigma*3; %half kernel window
 
 % data span
 sac_startstop=[900 400];
@@ -174,13 +192,11 @@ end
 
 %% calculate sdf for each outcome in each condition in each cluster (yes, that's nested loops)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% look at clusters 2,3 and 10
-
-for clusnum=1:4
-    for gsd=1:size(clusgsndata{clusnum},1) %compile data across all files for each condition
+for clusnum=1:clusixdnum
+    for cmddata=1:size(clusgsndata{clusnum},1) %compile data across all files for each condition
         
         %% sac alignment ('failed_fast')
-        gsdata=clusgsndata{clusnum}{gsd,1}; %this will be 3 structures containing rasters
+        gsdata=clusgsndata{clusnum}{cmddata,1}; %this will be 3 structures containing rasters
         % and alignments sac/cancellation/ wrong sac)
         %         try
         %             gspk=clusallpk{clusnum}{gsd,1}.sac;
@@ -191,41 +207,41 @@ for clusnum=1:4
         % Here we want to compute only single SSD data -- only if there's a
         % SSRT available. Also take the opportunity to skip this alignment
         % if there aren't enough trials
-        if proc_option.singlessd && iscell(clusmssrt{clusnum}{gsd,1}) && size(gsdata(1, 2).rast,1) > 1 && size(gsdata(1, 3).rast,1) > 5
+        if proc_option.singlessd && iscell(clusmssrt{clusnum}{cmddata,1}) && size(gsdata(1, 2).rast,1) > 1 && size(gsdata(1, 3).rast,1) > 5
             % keep NC trials with NSS trials in which a saccade would have been
             % initiated even if a stop signal had occurred, but with saccade latencies
             % greater than the stop-signal delay plus a visual-response latency.
             % We take tachomc-tachowidth/2 rather than the arbitrary 50ms
             % from Hanes et al 98 (only if tachomc>= 50)
-            if size(clussacRT{clusnum}{gsd,1}{:},2)~=size(gsdata(1, 1).rast,1)
+            if size(clussacRT{clusnum}{cmddata,1}{:},2)~=size(gsdata(1, 1).rast,1)
                 gsdata=[]; %issue should be fixed now
             else
                 try
                     %most prevalent SSD
-                    [ssdbin,ssdbinval]=hist([clusssds{clusnum}{gsd,1}{1, 1};clusssds{clusnum}{gsd,1}{1, 2}]);
-                    ssdspread=abs(clusprevssd{clusnum}{gsd,1}{:}-max(ssdbinval(ssdbin==max(ssdbin))));
-                    prevssd=clusprevssd{clusnum}{gsd,1}{:}(ssdspread==min(ssdspread));
+                    [ssdbin,ssdbinval]=hist([clusssds{clusnum}{cmddata,1}{1, 1};clusssds{clusnum}{cmddata,1}{1, 2}]);
+                    ssdspread=abs(clusprevssd{clusnum}{cmddata,1}{:}-max(ssdbinval(ssdbin==max(ssdbin))));
+                    prevssd=clusprevssd{clusnum}{cmddata,1}{:}(ssdspread==min(ssdspread));
                     %latency matched NSS trials
-                    gsdata(1, 1).rast=gsdata(1, 1).rast(clussacRT{clusnum}{gsd,1}{:}>prevssd+(max([mean(clusmssrt{clusnum}{gsd,1}{2}) 50])-clusmssrt{clusnum}{gsd,1}{3}/2) ...
-                        & clussacRT{clusnum}{gsd,1}{:}<prevssd+round(clusmssrt{clusnum}{gsd,1}{1}),:);
+                    gsdata(1, 1).rast=gsdata(1, 1).rast(clussacRT{clusnum}{cmddata,1}{:}>prevssd+(max([mean(clusmssrt{clusnum}{cmddata,1}{2}) 50])-clusmssrt{clusnum}{cmddata,1}{3}/2) ...
+                        & clussacRT{clusnum}{cmddata,1}{:}<prevssd+round(clusmssrt{clusnum}{cmddata,1}{1}),:);
                     
                     %keep relevant SS trials (with SSD within +-3ms of prevalent SSD)
                     %CS trials
                     gsdata(1, 2).rast=gsdata(1, 2).rast(logical(arrayfun(@(x) sum(prevssd<=x+3 & prevssd>=x-3),...
-                        clusssds{clusnum}{gsd,1}{1, 1})),:);
+                        clusssds{clusnum}{cmddata,1}{1, 1})),:);
                     %NCS trials
                     gsdata(1, 3).rast=gsdata(1, 3).rast(logical(arrayfun(@(x) sum(prevssd<=x+3 & prevssd>=x-3),...
-                        clusssds{clusnum}{gsd,1}{1, 2})),:);
+                        clusssds{clusnum}{cmddata,1}{1, 2})),:);
                 catch
                     gsdata=[];
                 end
             end
         else
             %still calculate most prevalent SSD
-            if iscell(clusprevssd{clusnum}{gsd,1}) && ~isempty(clusprevssd{clusnum}{gsd,1}{:})
-                [ssdbin,ssdbinval]=hist([clusssds{clusnum}{gsd,1}{1, 1};clusssds{clusnum}{gsd,1}{1, 2}]);
-                ssdspread=abs(clusprevssd{clusnum}{gsd,1}{:}-max(ssdbinval(ssdbin==max(ssdbin))));
-                prevssd=clusprevssd{clusnum}{gsd,1}{:}(ssdspread==min(ssdspread));
+            if iscell(clusprevssd{clusnum}{cmddata,1}) && ~isempty(clusprevssd{clusnum}{cmddata,1}{:})
+                [ssdbin,ssdbinval]=hist([clusssds{clusnum}{cmddata,1}{1, 1};clusssds{clusnum}{cmddata,1}{1, 2}]);
+                ssdspread=abs(clusprevssd{clusnum}{cmddata,1}{:}-max(ssdbinval(ssdbin==max(ssdbin))));
+                prevssd=clusprevssd{clusnum}{cmddata,1}{:}(ssdspread==min(ssdspread));
             else %discard?
             end
         end
@@ -239,21 +255,21 @@ for clusnum=1:4
                 try
                     rasters=gsdata(sacalg).rast;
                     if proc_option.prefdironly
-                        rasters=rasters(clusprefdir{clusnum}{gsd,1}{sacalg},:); % sorted by 3 structures containing logical indices
+                        rasters=rasters(clusprefdir{clusnum}{cmddata,1}{sacalg},:); % sorted by 3 structures containing logical indices
                     end
                     alignmtt=gsdata(sacalg).alignt;
                     start=alignmtt-sac_startstop(1)-half_sixsig; stop=alignmtt+sac_startstop(2)+half_sixsig;
-                    normsdf=conv_raster(rasters,conv_sigma,start,stop,clusNormFactor{clusnum}(gsd,:)); %normalize by baseline ,clussbslresp_sd{clusnum}(gsd)
+                    normsdf=conv_raster(rasters,conv_sigma,0,start,stop,clusNormFactor{clusnum}(cmddata,:)); %normalize by baseline ,clussbslresp_sd{clusnum}(gsd)
                     
                     %normalize sdf by baseline activity
                     %                     normsdf=(sdf-clussfrmean{clusnum}(gsd))./clussfr_sd{clusnum}(gsd);
                     %                     normsdf=(sdf-clussblmean{clusnum}(gsd))./clussbslresp_sd{clusnum}(gsd);
                     
                     %keep cue on-times
-                    compgssdf(1,clusnum).align.sac.evttimes(gsd,1)=round(median(cellfun(@(x) x(1,1), gsdata(sacalg).evttime))-(alignmtt-ssd_startstop(1))); %median rew signal time
+                    compgssdf(1,clusnum).align.sac.evttimes(cmddata,1)=round(median(cellfun(@(x) x(1,1), gsdata(sacalg).evttime))-(alignmtt-ssd_startstop(1))); %median rew signal time
                     %keep SS time
                     if sacalg==2 || sacalg==3
-                        compgssdf(1,clusnum).align.sac.evttimes(gsd,6)=compgssdf(1,clusnum).align.sac.evttimes(gsd,1)+prevssd;
+                        compgssdf(1,clusnum).align.sac.evttimes(cmddata,6)=compgssdf(1,clusnum).align.sac.evttimes(cmddata,1)+prevssd;
                     end
                     
                     %% plots (get [sdf, convrasters, convrastsem] if needed)
@@ -272,7 +288,7 @@ for clusnum=1:4
                     %                     close(colorrasth);
                     
                     %% store
-                    compgssdf(1,clusnum).align.sac.(trialtype{sacalg})(gsd,:)=normsdf;
+                    compgssdf(1,clusnum).align.sac.(trialtype{sacalg})(cmddata,:)=normsdf;
                     
                     
                     
@@ -305,7 +321,7 @@ for clusnum=1:4
                     
                     
                 catch norast
-                    compgssdf(1,clusnum).align.sac.(trialtype{sacalg})(gsd,:)=NaN;
+                    compgssdf(1,clusnum).align.sac.(trialtype{sacalg})(cmddata,:)=NaN;
                 end
             end
         else
@@ -313,20 +329,20 @@ for clusnum=1:4
         end
         
         %% tgt alignment ('correct_slow')
-        gsdata=clusgsndata{clusnum}{gsd,2}; %this will be 3 structures containing rasters
+        gsdata=clusgsndata{clusnum}{cmddata,2}; %this will be 3 structures containing rasters
         % and alignments tgt/tgt-CS/tgt-NCS)
         %         try
         %             gspk=clusallpk{clusnum}{gsd,2}.vis;
         %         catch nopeak
         %             gspk=0;
         %         end
-        if proc_option.singlessd && iscell(clusmssrt{clusnum}{gsd,1}) &&...
+        if proc_option.singlessd && iscell(clusmssrt{clusnum}{cmddata,1}) &&...
                 size(gsdata(1, 2).rast,1) > 5 && size(gsdata(1, 3).rast,1) > 1 &&...
-                ~isempty(clusprevssd{clusnum}{gsd,1}{:})
+                ~isempty(clusprevssd{clusnum}{cmddata,1}{:})
             % Keeping NSS trials with sac latencies long enough
             % that they would have occured after a stop-signal
-            if size(clussacRT{clusnum}{gsd,1}{:},2)~=size(gsdata(1, 1).rast,1)
-                bugf{clusnum}(gsd,1)=clusdbinfo{clusnum}{gsd,1}.rec_id;
+            if size(clussacRT{clusnum}{cmddata,1}{:},2)~=size(gsdata(1, 1).rast,1)
+                bugf{clusnum}(cmddata,1)=clusdbinfo{clusnum}{cmddata,1}.rec_id;
                 %                 gsdata=[]
                 %                 continue
             else
@@ -334,19 +350,19 @@ for clusnum=1:4
                 % turns out there are more empty prevssd than meet the eye:
                 %                         cellfun(@(x) isempty(x{:}),clusprevssd{1, 1}(~cellfun('isempty',clusprevssd{1, 1})))
                 
-                [ssdbin,ssdbinval]=hist([clusssds{clusnum}{gsd,1}{1, 1};clusssds{clusnum}{gsd,1}{1, 2}]);
-                ssdspread=abs(clusprevssd{clusnum}{gsd,1}{:}-max(ssdbinval(ssdbin==max(ssdbin))));
-                prevssd=clusprevssd{clusnum}{gsd,1}{:}(ssdspread==min(ssdspread));
+                [ssdbin,ssdbinval]=hist([clusssds{clusnum}{cmddata,1}{1, 1};clusssds{clusnum}{cmddata,1}{1, 2}]);
+                ssdspread=abs(clusprevssd{clusnum}{cmddata,1}{:}-max(ssdbinval(ssdbin==max(ssdbin))));
+                prevssd=clusprevssd{clusnum}{cmddata,1}{:}(ssdspread==min(ssdspread));
                 %latency matched NSS trials
-                gsdata(1, 1).rast=gsdata(1, 1).rast(clussacRT{clusnum}{gsd,1}{:}>prevssd+round(clusmssrt{clusnum}{gsd,1}{1}),:);
+                gsdata(1, 1).rast=gsdata(1, 1).rast(clussacRT{clusnum}{cmddata,1}{:}>prevssd+round(clusmssrt{clusnum}{cmddata,1}{1}),:);
                 
                 %keep relevant SS trials (with SSD within +-3ms of prevalent SSD)
                 %CS trials
                 gsdata(1, 2).rast=gsdata(1, 2).rast(logical(arrayfun(@(x) sum(prevssd<=x+3 & prevssd>=x-3),...
-                    clusssds{clusnum}{gsd,1}{1, 1})),:);
+                    clusssds{clusnum}{cmddata,1}{1, 1})),:);
                 %NCS trials
                 gsdata(1, 3).rast=gsdata(1, 3).rast(logical(arrayfun(@(x) sum(prevssd<=x+3 & prevssd>=x-3),...
-                    clusssds{clusnum}{gsd,1}{1, 2})),:);
+                    clusssds{clusnum}{cmddata,1}{1, 2})),:);
             end
             %         else
             %             gsdata=[];
@@ -359,22 +375,22 @@ for clusnum=1:4
                 try
                     rasters=gsdata(tgtalg).rast;
                     if proc_option.prefdironly
-                        rasters=rasters(clusprefdir{clusnum}{gsd,1}{tgtalg},:); % sorted by 3 structures containing logical indices
+                        rasters=rasters(clusprefdir{clusnum}{cmddata,1}{tgtalg},:); % sorted by 3 structures containing logical indices
                     end
                     alignmtt=gsdata(tgtalg).alignt;
                     start=alignmtt-tgt_startstop(1)-half_sixsig; stop=alignmtt+tgt_startstop(2)+half_sixsig;
-                    normsdf=conv_raster(rasters,conv_sigma,start,stop,clusNormFactor{clusnum}(gsd,:)); %normalize by baseline ,clussbslresp_sd{clusnum}(gsd)
+                    normsdf=conv_raster(rasters,conv_sigma,0,start,stop,clusNormFactor{clusnum}(cmddata,:)); %normalize by baseline ,clussbslresp_sd{clusnum}(gsd)
                     
                     %normalize sdf by baseline activity
                     %                     normsdf=(sdf-clussfrmean{clusnum}(gsd))./clussfr_sd{clusnum}(gsd);
                     %                     normsdf=(sdf-clussblmean{clusnum}(gsd))./clussbslresp_sd{clusnum}(gsd);
                     
                     %keep ssd+ssrt time
-                    compgssdf(1,clusnum).align.tgt.evttimes(gsd,6:7)=round([tgt_startstop(1)+prevssd+clusmssrt{1, clusnum}{gsd, 1}{1, 1}...
-                        clusmssrt{1, clusnum}{gsd, 1}{1, 3}]); %first number is ssd+ssrt, second number is tachowidth
+                    compgssdf(1,clusnum).align.tgt.evttimes(cmddata,6:7)=round([tgt_startstop(1)+prevssd+clusmssrt{1, clusnum}{cmddata, 1}{1, 1}...
+                        clusmssrt{1, clusnum}{cmddata, 1}{1, 3}]); %first number is ssd+ssrt, second number is tachowidth
                     %keep first alignment's sdf, not normalized!
                     if tgtalg==1
-                        compgssdf(1,clusnum).align.tgt.nnorm_nss_sdf(gsd,:)=conv_raster(rasters,conv_sigma,start-(600-tgt_startstop(1)),stop);
+                        compgssdf(1,clusnum).align.tgt.nnorm_nss_sdf(cmddata,:)=conv_raster(rasters,conv_sigma,0,start-(600-tgt_startstop(1)),stop);
                     end
                     %% plots (get [sdf, convrasters, convrastsem] if needed)
                     %                                                  figure(1)
@@ -387,35 +403,35 @@ for clusnum=1:4
                     %                                                  close(gcf)
                     
                     %% store
-                    compgssdf(1,clusnum).align.tgt.(trialtype{tgtalg})(gsd,:)=normsdf;
+                    compgssdf(1,clusnum).align.tgt.(trialtype{tgtalg})(cmddata,:)=normsdf;
                     
                     %% find how early curves might diverge
                     if proc_option.singlessd && tgtalg==2
-                        NSStrialSDF=compgssdf(1,clusnum).align.tgt.nnorm_nss_sdf(gsd,:);
-                        CStrialSDF=conv_raster(rasters,conv_sigma,start-(600-tgt_startstop(1)),stop);
+                        NSStrialSDF=compgssdf(1,clusnum).align.tgt.nnorm_nss_sdf(cmddata,:);
+                        CStrialSDF=conv_raster(rasters,conv_sigma,0,start-(600-tgt_startstop(1)),stop);
                         %threshold will be 2SD above mean of differential
                         %SDF in 500ms interval before target presentation
                         BslDiff=abs(NSStrialSDF(1:600)-CStrialSDF(1:600));
                         DivThd=mean(BslDiff)+2*(std(BslDiff));
                         Diffsdfs=abs(NSStrialSDF(600-tgt_startstop(1):end)-CStrialSDF(600-tgt_startstop(1):end));
-                        [DivTime,init_DivTime]=deal(tgt_startstop(1)+compgssdf(1,clusnum).align.tgt.evttimes(gsd,6));
-                        if compgssdf(1,clusnum).align.tgt.evttimes(gsd,6)<tgt_startstop(2) & ... % if SSRT within range
+                        [DivTime,init_DivTime]=deal(tgt_startstop(1)+compgssdf(1,clusnum).align.tgt.evttimes(cmddata,6));
+                        if compgssdf(1,clusnum).align.tgt.evttimes(cmddata,6)<tgt_startstop(2) & ... % if SSRT within range
                                 logical(sum(Diffsdfs(tgt_startstop(1):end)>DivThd))    %Differential sf above threshold
                             % find max divergence
                             maxDiv=max(Diffsdfs(tgt_startstop(1):end));maxDiv_t=tgt_startstop(1)+find(Diffsdfs(tgt_startstop(1):end)==maxDiv,1);
-                            [DivTime,compgssdf(1,clusnum).align.tgt.evttimes(gsd,5)]=...
+                            [DivTime,compgssdf(1,clusnum).align.tgt.evttimes(cmddata,5)]=...
                                 deal(find(Diffsdfs(maxDiv_t:end)<DivThd,1,'first')-DivTime+maxDiv_t-1); %time from SSRT: end significant divergence
                             DivTime=DivTime+init_DivTime;
                             while Diffsdfs(DivTime-1)>DivThd & DivTime>1
                                 DivTime=DivTime-1;
                             end
-                            compgssdf(1,clusnum).align.tgt.evttimes(gsd,4)=DivTime-init_DivTime; %time from SSRT: begin significant divergence
+                            compgssdf(1,clusnum).align.tgt.evttimes(cmddata,4)=DivTime-init_DivTime; %time from SSRT: begin significant divergence
                             % plot cluster one figures
                             if clusnum==1 & proc_option.printplots==1
                                 query = ['SELECT a_file FROM sorts s INNER JOIN recordings r on s.recording_id_fk = r.recording_id WHERE sort_id = ' ...
-                                    num2str(clusdbinfo{clusnum}{gsd, 1}.sort_id) ];
+                                    num2str(clusdbinfo{clusnum}{cmddata, 1}.sort_id) ];
                                 recname=fetch(conn,query); recname=recname{1}(1:end-1);
-                                figure('Name',[recname ' rec_id ' num2str(clusdbinfo{1}{gsd}.rec_id) ' Tgt align Single SSD'],'NumberTitle','off',...
+                                figure('Name',[recname ' rec_id ' num2str(clusdbinfo{1}{cmddata}.rec_id) ' Tgt align Single SSD'],'NumberTitle','off',...
                                     'position',[2100 500 560 420]);
                                 plot(NSStrialSDF(600-tgt_startstop(1):end)); hold on; plot(CStrialSDF(600-tgt_startstop(1):end));
                                 axis(gca,'tight'); box off;
@@ -430,9 +446,9 @@ for clusnum=1:4
                                     reshape(repmat(get(gca,'ylim'),5,1),1,numel(get(gca,'ylim'))*5), ...
                                     [1 0 0],'EdgeColor','none','FaceAlpha',0.5);
                                 plot(DivTime,Diffsdfs(DivTime)+1,'*');%start
-                                plot(compgssdf(1,clusnum).align.tgt.evttimes(gsd,5)+init_DivTime,Diffsdfs(compgssdf(1,clusnum).align.tgt.evttimes(gsd,5)+init_DivTime)+1,'*');%end
+                                plot(compgssdf(1,clusnum).align.tgt.evttimes(cmddata,5)+init_DivTime,Diffsdfs(compgssdf(1,clusnum).align.tgt.evttimes(cmddata,5)+init_DivTime)+1,'*');%end
                                 set(gca,'xtick',[1:100:1301],'xticklabel',{'-200' '-100' 'target' '100' '200' '300' '400' '500' '600' '700'});
-                                title([recname ' rec_id ' num2str(clusdbinfo{1}{gsd}.rec_id) ' Tgt align Single SSD'],'Interpreter','none')
+                                title([recname ' rec_id ' num2str(clusdbinfo{1}{cmddata}.rec_id) ' Tgt align Single SSD'],'Interpreter','none')
                                 legend('NSS trials','CS trials','2SD > mean bsl','Differential act.')
                                 % print
                                 choice = questdlg('Print this one?','Print figure','Yes','No','No');
@@ -454,7 +470,7 @@ for clusnum=1:4
                     end
                     
                 catch norast
-                    compgssdf(1,clusnum).align.tgt.(trialtype{tgtalg})(gsd,:)=NaN;
+                    compgssdf(1,clusnum).align.tgt.(trialtype{tgtalg})(cmddata,:)=NaN;
                 end
             end
         else
@@ -462,7 +478,7 @@ for clusnum=1:4
         end
         
         %% ssd alignment ('ssd')
-        gsdata=clusgsndata{1, clusnum}{gsd, 3}; %this will be 4 structures containing rasters
+        gsdata=clusgsndata{1, clusnum}{cmddata, 3}; %this will be 4 structures containing rasters
         % and alignment CS & NCS with corresponding
         % Lm-NSS trials (Lm-CS,Lm-NCS,CS,NCS)
         %         try
@@ -476,11 +492,11 @@ for clusnum=1:4
                 try
                     rasters=gsdata(ssdalg).rast;
                     if proc_option.prefdironly
-                        rasters=rasters(clusprefdir{clusnum}{gsd,1}{ssdalg},:); % sorted by 3 structures containing logical indices
+                        rasters=rasters(clusprefdir{clusnum}{cmddata,1}{ssdalg},:); % sorted by 3 structures containing logical indices
                     end
                     alignmtt=gsdata(ssdalg).alignt;
                     start=alignmtt-ssd_startstop(1)-half_sixsig; stop=alignmtt+ssd_startstop(2)+half_sixsig;
-                    normsdf=conv_raster(rasters,conv_sigma,start,stop,clusNormFactor{clusnum}(gsd,:)); %normalize by baseline ,clussbslresp_sd{clusnum}(gsd)
+                    normsdf=conv_raster(rasters,conv_sigma,0,start,stop); %,clusNormFactor{clusnum}(cmddata,:)); %normalize by baseline ,clussbslresp_sd{clusnum}(gsd)
                     
                     %normalize sdf by baseline activity
                     %                     normsdf=(sdf-clussfrmean{clusnum}(gsd))./clussfr_sd{clusnum}(gsd);
@@ -503,7 +519,7 @@ for clusnum=1:4
                     %                     end
                     
                     %% store
-                    compgssdf(1,clusnum).align.ssd.(ssdtrialtype{ssdalg})(gsd,:)=normsdf;
+                    compgssdf(1,clusnum).align.ssd.(ssdtrialtype{ssdalg})(cmddata,:)=normsdf;
                     
                     %% individual cell plots
                     if clusnum==1 && ssdalg==4
@@ -534,18 +550,18 @@ for clusnum=1:4
                     
                     %keep error time for NCS
                     if ssdalg==2 %keep reward time from latency-matched NSS trials
-                        compgssdf(1,clusnum).align.ssd.evttimes(gsd,4)=round(median(cellfun(@(x) x(4,2), gsdata(ssdalg).evttime))-(alignmtt-ssd_startstop(1))); %median rew signal time
+                        compgssdf(1,clusnum).align.ssd.evttimes(cmddata,4)=round(median(cellfun(@(x) x(4,2), gsdata(ssdalg).evttime))-(alignmtt-ssd_startstop(1))); %median rew signal time
                     elseif ssdalg==4 %keep error / cue off time
-                        compgssdf(1,clusnum).align.ssd.evttimes(gsd,5)=round(median(cellfun(@(x) x(5,2), gsdata(ssdalg).evttime))-(alignmtt-ssd_startstop(1))); %median error signal time
+                        compgssdf(1,clusnum).align.ssd.evttimes(cmddata,5)=round(median(cellfun(@(x) x(5,2), gsdata(ssdalg).evttime))-(alignmtt-ssd_startstop(1))); %median error signal time
                     end
                     %% keep "RPE" (late burst) info
                     % number trials by trial type (some NSS trials can be in
                     % both NSS trial type)
                     if ssdalg==1 % no need to do it every time
-                        compgssdf(1,clusnum).align.ssd.RPE(gsd,1).(ssdtrialtype{1})=gsdata(1, 1).trialnb;
-                        compgssdf(1,clusnum).align.ssd.RPE(gsd,1).(ssdtrialtype{2})=gsdata(1, 2).trialnb;
-                        compgssdf(1,clusnum).align.ssd.RPE(gsd,1).(ssdtrialtype{3})=gsdata(1, 3).trialnb;
-                        compgssdf(1,clusnum).align.ssd.RPE(gsd,1).(ssdtrialtype{4})=gsdata(1, 4).trialnb;
+                        compgssdf(1,clusnum).align.ssd.RPE(cmddata,1).(ssdtrialtype{1})=gsdata(1, 1).trialnb;
+                        compgssdf(1,clusnum).align.ssd.RPE(cmddata,1).(ssdtrialtype{2})=gsdata(1, 2).trialnb;
+                        compgssdf(1,clusnum).align.ssd.RPE(cmddata,1).(ssdtrialtype{3})=gsdata(1, 3).trialnb;
+                        compgssdf(1,clusnum).align.ssd.RPE(cmddata,1).(ssdtrialtype{4})=gsdata(1, 4).trialnb;
                     end
                     
                     if ssdalg==2 | ssdalg==4
@@ -553,17 +569,17 @@ for clusnum=1:4
                         %                   % check if PETH RPE burst
                         normsdf_peaks=normsdf(ssd_startstop(1)+200:end)>std(normsdf) & [round(diff(normsdf(ssd_startstop(1)+200:end)), 2) 0]==0;
                         if sum(normsdf_peaks) %else, keep values as NaN
-                            compgssdf(1,clusnum).align.ssd.RPE(gsd,1).PETH_REPburst_time(ssdalg)=...
+                            compgssdf(1,clusnum).align.ssd.RPE(cmddata,1).PETH_REPburst_time(ssdalg)=...
                                 find(normsdf(ssd_startstop(1)+200:end)==max(normsdf(find(normsdf_peaks)+ssd_startstop(1)+200)),1)+ssd_startstop(1)+149;
                             
                             % preallocate RPE data
                             
-                            [compgssdf(1, clusnum).align.ssd.RPE(gsd, 1).timing,...
-                                compgssdf(1, clusnum).align.ssd.RPE(gsd, 1).nxtrial_bsline,...
-                                compgssdf(1, clusnum).align.ssd.RPE(gsd, 1).nxtrial_pktiming,...
-                                compgssdf(1, clusnum).align.ssd.RPE(gsd, 1).amplitude]=deal(nan(length([gsdata.trialnb]),2));
+                            [compgssdf(1, clusnum).align.ssd.RPE(cmddata, 1).timing,...
+                                compgssdf(1, clusnum).align.ssd.RPE(cmddata, 1).nxtrial_bsline,...
+                                compgssdf(1, clusnum).align.ssd.RPE(cmddata, 1).nxtrial_pktiming,...
+                                compgssdf(1, clusnum).align.ssd.RPE(cmddata, 1).amplitude]=deal(nan(length([gsdata.trialnb]),2));
                             
-                            compgssdf(1, clusnum).align.ssd.RPE(gsd, 1).nxtrial_type=cell(length([gsdata.trialnb]),1);
+                            compgssdf(1, clusnum).align.ssd.RPE(cmddata, 1).nxtrial_type=cell(length([gsdata.trialnb]),1);
                             
                             % compute trial by trial
                             for rast=1:size(rasters,1)
@@ -571,14 +587,14 @@ for clusnum=1:4
                                 
                                 convrasters=fullgauss_filtconv(rasters(rast,start:stop),conv_sigma,0).*1000;
                                 %bin-sized calculation of mean and std
-%                                 bsl_bins=reshape(clussblresp{clusnum}(gsd,:),conv_sigma,length(clussblresp{clusnum}(gsd,:))/conv_sigma);
-%                                 meanFR=mean(nanmean(bsl_bins,2)); % should be the same as nanmean(normepochFR)
-%                                 stdFR=std(nanmean(bsl_bins,2)); % better std estimate, as std(normepochFR) just overestimates std
-%                                 
-%                                 convrasters=(convrasters-meanFR)./stdFR;
-
-                                  convrasters=convrasters/clusNormFactor{clusnum}(gsd);
-                                    
+                                %                                 bsl_bins=reshape(clussblresp{clusnum}(gsd,:),conv_sigma,length(clussblresp{clusnum}(gsd,:))/conv_sigma);
+                                %                                 meanFR=mean(nanmean(bsl_bins,2)); % should be the same as nanmean(normepochFR)
+                                %                                 stdFR=std(nanmean(bsl_bins,2)); % better std estimate, as std(normepochFR) just overestimates std
+                                %
+                                %                                 convrasters=(convrasters-meanFR)./stdFR;
+                                
+                                convrasters=convrasters/clusNormFactor{clusnum}(cmddata);
+                                
                                 % convrasters=convrasters(conv_sigma*3+1:end-3*conv_sigma);
                                 
                                 % figure; plot(convrasters);
@@ -596,27 +612,27 @@ for clusnum=1:4
                                         % burst timing
                                         % w/ respect to sac
                                         convrasters_burst_timing=find(convrasters(ssd_startstop(1)+150:end)==max(convrasters(find(convrasters_burst)+ssd_startstop(1)+150)),1)+ssd_startstop(1)+149;
-                                        compgssdf(1, clusnum).align.ssd.RPE(gsd, 1).timing(gsdata(1, ssdalg).trialnb(rast),1)=...
+                                        compgssdf(1, clusnum).align.ssd.RPE(cmddata, 1).timing(gsdata(1, ssdalg).trialnb(rast),1)=...
                                             convrasters_burst_timing-(gsdata(1, ssdalg).evttime{rast}(2,1)-gsdata(1, ssdalg).alignt+ssd_startstop(1));
                                         %and w/ respect to PETH "RPE" burst
                                         
-                                        compgssdf(1, clusnum).align.ssd.RPE(gsd, 1).timing(gsdata(1, ssdalg).trialnb(rast),2)=...
-                                            convrasters_burst_timing-compgssdf(1,clusnum).align.ssd.RPE(gsd,1).PETH_REPburst_time(ssdalg);
+                                        compgssdf(1, clusnum).align.ssd.RPE(cmddata, 1).timing(gsdata(1, ssdalg).trialnb(rast),2)=...
+                                            convrasters_burst_timing-compgssdf(1,clusnum).align.ssd.RPE(cmddata,1).PETH_REPburst_time(ssdalg);
                                         
                                         % burst amplitude: absolute and from median
-                                        compgssdf(1, clusnum).align.ssd.RPE(gsd, 1).amplitude(gsdata(1, ssdalg).trialnb(rast),1)=...
+                                        compgssdf(1, clusnum).align.ssd.RPE(cmddata, 1).amplitude(gsdata(1, ssdalg).trialnb(rast),1)=...
                                             convrasters(find(convrasters(ssd_startstop(1)+150:end)==max(convrasters(find(convrasters_burst)+ssd_startstop(1)+150)),1)+ssd_startstop(1)+149);
-                                        compgssdf(1, clusnum).align.ssd.RPE(gsd, 1).amplitude(gsdata(1, ssdalg).trialnb(rast),2)=...
+                                        compgssdf(1, clusnum).align.ssd.RPE(cmddata, 1).amplitude(gsdata(1, ssdalg).trialnb(rast),2)=...
                                             convrasters(find(convrasters(ssd_startstop(1)+150:end)==max(convrasters(find(convrasters_burst)+ssd_startstop(1)+150)),1)+ssd_startstop(1)+149)-median(convrasters);
                                         
                                         % next trial type
                                         for nxtt=1:4
-                                            if ~isempty(find(compgssdf(1,clusnum).align.ssd.RPE(gsd,1).(ssdtrialtype{nxtt})==...
+                                            if ~isempty(find(compgssdf(1,clusnum).align.ssd.RPE(cmddata,1).(ssdtrialtype{nxtt})==...
                                                     gsdata(1, ssdalg).trialnb(rast)+1, 1))
                                                 if strcmp(ssdtrialtype{nxtt},'LMCS_NSStrial') || strcmp(ssdtrialtype{nxtt},'LMNCS_NSStrial')
-                                                    compgssdf(1, clusnum).align.ssd.RPE(gsd, 1).nxtrial_type{gsdata(1, ssdalg).trialnb(rast),1}='NSStrial';
+                                                    compgssdf(1, clusnum).align.ssd.RPE(cmddata, 1).nxtrial_type{gsdata(1, ssdalg).trialnb(rast),1}='NSStrial';
                                                 else
-                                                    compgssdf(1, clusnum).align.ssd.RPE(gsd, 1).nxtrial_type{gsdata(1, ssdalg).trialnb(rast),1}=ssdtrialtype{nxtt};
+                                                    compgssdf(1, clusnum).align.ssd.RPE(cmddata, 1).nxtrial_type{gsdata(1, ssdalg).trialnb(rast),1}=ssdtrialtype{nxtt};
                                                 end
                                                 nxtrial_ssdalg=nxtt;
                                             end
@@ -624,7 +640,7 @@ for clusnum=1:4
                                         
                                         % next trial peak timing
                                         %absolute
-                                        nx_convrasters=gsdata(nxtrial_ssdalg).rast(compgssdf(1,clusnum).align.ssd.RPE(gsd,1).(ssdtrialtype{nxtrial_ssdalg})==...
+                                        nx_convrasters=gsdata(nxtrial_ssdalg).rast(compgssdf(1,clusnum).align.ssd.RPE(cmddata,1).(ssdtrialtype{nxtrial_ssdalg})==...
                                             gsdata(1, ssdalg).trialnb(rast)+1,:);
                                         nx_convrasters=fullgauss_filtconv(nx_convrasters(start:stop),conv_sigma,0).*1000;
                                         nx_convrasters=(nx_convrasters-meanFR)./stdFR;
@@ -633,23 +649,23 @@ for clusnum=1:4
                                         %                                 figure; plot(nx_convrasters)
                                         nx_convrasters_pk=nx_convrasters(nx_convrasters(1:ssd_startstop(1)+150)>std(normsdf)+min(convrasters) &...
                                             [round(diff(nx_convrasters(1:ssd_startstop(1)+150)), 2) 0.1]==0);
-                                        compgssdf(1, clusnum).align.ssd.RPE(gsd, 1).nxtrial_pktiming(gsdata(1, ssdalg).trialnb(rast),1)=...
+                                        compgssdf(1, clusnum).align.ssd.RPE(cmddata, 1).nxtrial_pktiming(gsdata(1, ssdalg).trialnb(rast),1)=...
                                             find((nx_convrasters(1:ssd_startstop(1)+150)>std(normsdf)+min(convrasters) &...
                                             [round(diff(nx_convrasters(1:ssd_startstop(1)+150)), 2) 0.1]==0),1)+find(nx_convrasters_pk==max(nx_convrasters_pk),1);
                                         
                                         % peak time diff
                                         % time diff between peak time and SS time (or presumed one for NSS)
-                                        compgssdf(1, clusnum).align.ssd.RPE(gsd, 1).nxtrial_pktiming(gsdata(1, ssdalg).trialnb(rast),2)=...
-                                            ssd_startstop(1)-compgssdf(1, clusnum).align.ssd.RPE(gsd, 1).nxtrial_pktiming(gsdata(1, ssdalg).trialnb(rast),1);
+                                        compgssdf(1, clusnum).align.ssd.RPE(cmddata, 1).nxtrial_pktiming(gsdata(1, ssdalg).trialnb(rast),2)=...
+                                            ssd_startstop(1)-compgssdf(1, clusnum).align.ssd.RPE(cmddata, 1).nxtrial_pktiming(gsdata(1, ssdalg).trialnb(rast),1);
                                         
                                         % next trial baseline and peak amplitude
                                         cue_ontime=ssd_startstop(1)-(gsdata(nxtrial_ssdalg).alignt-...
-                                            gsdata(nxtrial_ssdalg).evttime{compgssdf(1,clusnum).align.ssd.RPE(gsd,1).(ssdtrialtype{nxtrial_ssdalg})==...
+                                            gsdata(nxtrial_ssdalg).evttime{compgssdf(1,clusnum).align.ssd.RPE(cmddata,1).(ssdtrialtype{nxtrial_ssdalg})==...
                                             gsdata(1, ssdalg).trialnb(rast)+1}(1,1));
-                                        compgssdf(1, clusnum).align.ssd.RPE(gsd, 1).nxtrial_bsline_pk(gsdata(1, ssdalg).trialnb(rast),1)=...
+                                        compgssdf(1, clusnum).align.ssd.RPE(cmddata, 1).nxtrial_bsline_pk(gsdata(1, ssdalg).trialnb(rast),1)=...
                                             nanmean(nx_convrasters(1:cue_ontime));
-                                        compgssdf(1, clusnum).align.ssd.RPE(gsd, 1).nxtrial_bsline_pk(gsdata(1, ssdalg).trialnb(rast),2)=...
-                                            nx_convrasters(compgssdf(1, clusnum).align.ssd.RPE(gsd, 1).nxtrial_pktiming(gsdata(1, ssdalg).trialnb(rast),1));
+                                        compgssdf(1, clusnum).align.ssd.RPE(cmddata, 1).nxtrial_bsline_pk(gsdata(1, ssdalg).trialnb(rast),2)=...
+                                            nx_convrasters(compgssdf(1, clusnum).align.ssd.RPE(cmddata, 1).nxtrial_pktiming(gsdata(1, ssdalg).trialnb(rast),1));
                                     catch
                                         %                                     rast
                                         continue
@@ -660,7 +676,7 @@ for clusnum=1:4
                     end
                     
                 catch norast
-                    compgssdf(1,clusnum).align.ssd.(ssdtrialtype{ssdalg})(gsd,:)=NaN;
+                    compgssdf(1,clusnum).align.ssd.(ssdtrialtype{ssdalg})(cmddata,:)=NaN;
                 end
             end
             %             compgssdf
@@ -669,7 +685,7 @@ for clusnum=1:4
         end
         
         %% corrective saccade alignment ('corrsacfailed')
-        gsdata=clusgsndata{clusnum}{gsd,4}; %this will be 3 structures containing rasters
+        gsdata=clusgsndata{clusnum}{cmddata,4}; %this will be 3 structures containing rasters
         % and alignments corsac/~corsac/NCS corsac)
         %         try
         %             gspk=clusallpk{clusnum}{gsd,4}.corsac;
@@ -682,11 +698,11 @@ for clusnum=1:4
                 try
                     rasters=gsdata(csacalg).rast;
                     if proc_option.prefdironly
-                        rasters=rasters(clusprefdir{clusnum}{gsd,1}{csacalg},:); % sorted by 3 structures containing logical indices
+                        rasters=rasters(clusprefdir{clusnum}{cmddata,1}{csacalg},:); % sorted by 3 structures containing logical indices
                     end
                     alignmtt=gsdata(csacalg).alignt;
                     start=alignmtt-corsac_startstop(1)-half_sixsig; stop=alignmtt+corsac_startstop(2)+half_sixsig;
-                    normsdf=conv_raster(rasters,conv_sigma,start,stop,clusNormFactor{clusnum}(gsd,:)); %normalize by baseline ,clussbslresp_sd{clusnum}(gsd)
+                    normsdf=conv_raster(rasters,conv_sigma,0,start,stop,clusNormFactor{clusnum}(cmddata,:)); %normalize by baseline ,clussbslresp_sd{clusnum}(gsd)
                     
                     %normalize sdf by baseline activity
                     %                     normsdf=(sdf-clussblmean{clusnum}(gsd))./clussbslresp_sd{clusnum}(gsd);
@@ -702,9 +718,9 @@ for clusnum=1:4
                     %          close(gcf)
                     
                     %% store
-                    compgssdf(1,clusnum).align.corsac.(trialtype{csacalg})(gsd,:)=normsdf;
+                    compgssdf(1,clusnum).align.corsac.(trialtype{csacalg})(cmddata,:)=normsdf;
                 catch norast
-                    compgssdf(1,clusnum).align.corsac.(trialtype{csacalg})(gsd,:)=NaN;
+                    compgssdf(1,clusnum).align.corsac.(trialtype{csacalg})(cmddata,:)=NaN;
                 end
             end
         else
@@ -712,7 +728,7 @@ for clusnum=1:4
         end
         
         %% reward alignment ('rewcorrect_rewslow')
-        gsdata=clusgsndata{clusnum}{gsd,5}; %this will be 3 structures containing rasters
+        gsdata=clusgsndata{clusnum}{cmddata,5}; %this will be 3 structures containing rasters
         % and alignments NSS/CS/NCS)
         %         try
         %             gspk=clusallpk{clusnum}{gsd,5}.rew;
@@ -725,11 +741,11 @@ for clusnum=1:4
                 try
                     rasters=gsdata(rewalg).rast;
                     if proc_option.prefdironly
-                        rasters=rasters(clusprefdir{clusnum}{gsd,1}{rewalg},:); % sorted by 3 structures containing logical indices
+                        rasters=rasters(clusprefdir{clusnum}{cmddata,1}{rewalg},:); % sorted by 3 structures containing logical indices
                     end
                     alignmtt=gsdata(rewalg).alignt;
                     start=alignmtt-rew_startstop(1)-half_sixsig; stop=alignmtt+rew_startstop(2)+half_sixsig;
-                    normsdf=conv_raster(rasters,conv_sigma,start,stop,clusNormFactor{clusnum}(gsd,:)); %normalize by baseline ,clussbslresp_sd{clusnum}(gsd)
+                    normsdf=conv_raster(rasters,conv_sigma,0,start,stop,clusNormFactor{clusnum}(cmddata,:)); %normalize by baseline ,clussbslresp_sd{clusnum}(gsd)
                     if max(diff(normsdf))>1
                         %                         figure; plot(normsdf);
                     end
@@ -747,9 +763,9 @@ for clusnum=1:4
                     %          close(gcf)
                     
                     %% store
-                    compgssdf(1,clusnum).align.rew.(trialtype{rewalg})(gsd,:)=normsdf;
+                    compgssdf(1,clusnum).align.rew.(trialtype{rewalg})(cmddata,:)=normsdf;
                 catch norast
-                    compgssdf(1,clusnum).align.rew.(trialtype{rewalg})(gsd,:)=NaN;
+                    compgssdf(1,clusnum).align.rew.(trialtype{rewalg})(cmddata,:)=NaN;
                 end
             end
         else
@@ -757,7 +773,6 @@ for clusnum=1:4
         end
     end
 end
-
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% compute and plot population activity (and ci) by cluster
@@ -772,7 +787,7 @@ if proc_option.popplots
     ClusStyles = linspecer(8);
     [sacfig,tgtfig,ssdfig,corsacfig,rewfig]=deal(nan(1,3)); %handles for figures
     
-    for clusnum=1:4
+    for clusnum=1:clusixdnum
         %% basic plots
         if proc_option.basicplots
             %% saccade alignment plot
@@ -1121,7 +1136,6 @@ if proc_option.popplots
     end
 end
 
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% trial by trial analysis
@@ -1139,7 +1153,7 @@ end
 %             peak time diff with that curve for a given trial.
 % b/ amplitude and timing  of RPE correlate with peak timing or baseline level in following trial.
 %% use ssd alignment
-for clusnum=1:4
+for clusnum=1:clusixdnum
     poperrcd=compgssdf(1, clusnum).align.ssd.evttimes(:,5);
     poprew=compgssdf(1, clusnum).align.ssd.evttimes(:,4);
     
@@ -1210,7 +1224,7 @@ if proc_option.printplots
         %print png
         print(gcf, '-dpng', '-noui', '-opengl','-r300', exportfigname);
         %print svg
-%         plot2svg([exportfigname,'.svg'],gcf, 'png');
+        %         plot2svg([exportfigname,'.svg'],gcf, 'png');
         print(gcf, '-dsvg', '-noui', exportfigname);
         close(gcf)
     end

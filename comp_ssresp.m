@@ -1,6 +1,6 @@
-function [nssResps,nssRespsTrials,sscsResps,sscsRespsTrials,badapl]=comp_sacresp(data,options)
-% computes average saccade response (un-normalized and normalized )
-% also outputs individual trial activity for saccade and baseline epochs
+function [nssResps,nssRespsTrials,sscsResps,sscsRespsTrials,badapl]=comp_ssresp(data,options)
+% computes average stop signal response (un-normalized and normalized )
+% also outputs individual trial activity for stop signal and baseline epochs
 
 if exist('options','var')
     sigma=options.sigma;
@@ -15,31 +15,35 @@ else
     short_wde=199;
     long_wds=600;
 end
-%% get saccade response and baseline
+%% get stop signal response and baseline
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-% 1/ convolve rasters with short_wds ms before saccade, short_wds after saccade, 20ms kernel
+% 1/ convolve rasters with short_wds ms before stop signal, short_wds after stop signal, 20ms kernel
 %time window. Add kernel * 6 ms (see fullgauss_filtconv), e.g. 60 ms at both
 % ends, which will be cut.
 % data.allndata has 3 column for 3 aligntype. Each cell has 3 or 4 for different conditions
-badapl.nsscs=cellfun(@(x) size(x(1).rast,1)==0 | size(x(1).rast,1)==1,data.allndata(:,1));
+badapl.nsscs=cellfun(@(x) size(x(1).rast,1)==0 | size(x(1).rast,1)==1,data.allndata(:,3));
 [nssResps.baseline,nssRespsTrials.baseline]=cellfun(@(x) conv_raster(x(1,1).rast,sigma,...
     0,x(1,1).alignt-(baselineLength+sigma*3),x(1,1).alignt+(sigma*3-1)),...
     data.allndata(~badapl.nsscs,2), 'UniformOutput',false); %500ms period
 % no-stop signal trials
 [nssResps.short,nssRespsTrials.short]=cellfun(@(x) conv_raster(x(1,1).rast,sigma,...
-    0,x(1,1).alignt-(short_wds+sigma*3),x(1,1).alignt+(short_wde+sigma*3)), data.allndata(~badapl.nsscs,1), 'UniformOutput',false); %400ms period
+    0,x(1,1).alignt-(short_wds+sigma*3),x(1,1).alignt+(short_wde+sigma*3)),...
+    data.allndata(~badapl.nsscs,3), 'UniformOutput',false); %500ms period
 [nssResps.long,nssRespsTrials.long]=cellfun(@(x) conv_raster(x(1,1).rast,sigma,...
-    0,x(1,1).alignt-(long_wds+sigma*3),x(1,1).alignt+(short_wde+sigma*3)), data.allndata(~badapl.nsscs,1), 'UniformOutput',false); %400ms period
+    0,x(1,1).alignt-(long_wds+sigma*3),x(1,1).alignt+(short_wde+sigma*3)),...
+    data.allndata(~badapl.nsscs,3), 'UniformOutput',false); %700ms period
 % stop signal trials with canceled saccades
 badapl.sscs=cellfun(@(x) size(x(2).rast,1)==0 | size(x(2).rast,1)==1,data.allndata(:,2)) |...
-cellfun(@(x) size(x(2).rast,1)==0 | size(x(2).rast,1)==1,data.allndata(:,1));
+cellfun(@(x) size(x(2).rast,1)==0 | size(x(2).rast,1)==1,data.allndata(:,3));
 [sscsResps.baseline,sscsRespsTrials.baseline]=cellfun(@(x) conv_raster(x(2).rast,sigma,...
     0,x(2).alignt-(baselineLength+sigma*3),x(2).alignt+(sigma*3-1)),...
     data.allndata(~badapl.sscs,2), 'UniformOutput',false); %500ms period
 [sscsResps.short,sscsRespsTrials.short]=cellfun(@(x) conv_raster(x(2).rast,sigma,...
     0,x(2).alignt-(short_wds+sigma*3),x(2).alignt+(short_wde+sigma*3)),...
-    data.allndata(~badapl.sscs,1), 'UniformOutput',false); %500ms period
+    data.allndata(~badapl.sscs,3), 'UniformOutput',false); %500ms period
+
+% cellfun(@(x) size(x(2).rast,1)>0,data.allndata(:,3));
 
 %% remove bad apples
 % badapl=cellfun(@(x) size(x,2)==1, sscsResps.short);
@@ -63,7 +67,7 @@ sscsResps.baseline=cat(1,sscsResps.baseline{:});
 % sscsRespsTrials.baseline=sscsRespsTrials.baseline(~badapl,:);
 
 % clusterIdx=clusterIdx(~badapl,:);
-% figure; plot(mean(sacresps(clusterIdx==5,:)))
+% figure; plot(mean(ssresps(clusterIdx==5,:)))
 
 fn = fieldnames(data);
 for lp=1:length(fn)
@@ -74,18 +78,18 @@ end
 % z-score normalization by baseline - based on pre-target activity
 blRespMean=nanmean(nssResps.baseline,2);
 blRespSD=nanstd(nssResps.baseline,[],2);
-% nssResps.short_blNorm is used for clustering purposes only
+% ssResps.short_blNorm is used for clustering purposes only
 nssResps.short_blNorm=(nssResps.short-repmat(blRespMean,1,size(nssResps.short,2)))./repmat(blRespSD,1,size(nssResps.short,2));
 nssResps.long_blNorm=(nssResps.long-repmat(blRespMean,1,size(nssResps.long,2)))./repmat(blRespSD,1,size(nssResps.long,2));
 
 % z-score normalization over response period (alternative method, if typically low
 % baseline firing rate). Also forces clustering to operate on shapes rather than
 % amplitude, by squashing response range
-sacRespMean=nanmean(nssResps.short,2);
-sacRespSD=nanstd(nssResps.short,[],2);
-nssResps.short_respNorm=(nssResps.short-repmat(sacRespMean,1,size(nssResps.short,2)))./repmat(sacRespSD,1,size(nssResps.short,2));
-sacRespMean=nanmean(nssResps.long,2);
-nssResps.long_respNorm=(nssResps.long-repmat(sacRespMean,1,size(nssResps.long,2)))./repmat(sacRespSD,1,size(nssResps.long,2));
+ssRespMean=nanmean(nssResps.short,2);
+ssRespSD=nanstd(nssResps.short,[],2);
+nssResps.short_respNorm=(nssResps.short-repmat(ssRespMean,1,size(nssResps.short,2)))./repmat(ssRespSD,1,size(nssResps.short,2));
+ssRespMean=nanmean(nssResps.long,2);
+nssResps.long_respNorm=(nssResps.long-repmat(ssRespMean,1,size(nssResps.long,2)))./repmat(ssRespSD,1,size(nssResps.long,2));
 
 % multitask normalization (see Costello, Salinas, Stanford)
 if isfield(data,'normFactor')
@@ -96,39 +100,39 @@ end
 %% plot normalized population
 % figure;
 % subplot(1,3,1)
-% imagesc(sacResps.short_blNorm);
+% imagesc(ssResps.short_blNorm);
 % subplot(1,3,2)
-% imagesc(sacResps.short_respNorm);
+% imagesc(ssResps.short_respNorm);
 % subplot(1,3,3)
-% imagesc(sacResps.short_mtNorm);
+% imagesc(ssResps.short_mtNorm);
 % % colormap gray
 % % colorbar;
 % 
 % figure;
 % subplot(1,3,1)
-% imagesc(sacResps.long_blNorm);
+% imagesc(ssResps.long_blNorm);
 % subplot(1,3,2)
-% imagesc(sacResps.long_respNorm);
+% imagesc(ssResps.long_respNorm);
 % subplot(1,3,3)
-% imagesc(sacResps.long_mtNorm);
+% imagesc(ssResps.long_mtNorm);
 % % colormap parula %copper
 % % colorbar;
 
 
 %% look at "best" cells
-% midrange=size(sacResps.short_blNorm,2)/2;
+% midrange=size(ssResps.short_blNorm,2)/2;
 % % Make seed that represent midrange drop / midrange burst / ramp to end / ramp down
-% midrangedropseeds=cellfun(@(x) mean(x(1,midrange-150:midrange-50))-mean(x(1,midrange+50:midrange+150)), mat2cell(sacResps.short_blNorm,ones(size(sacResps.short_blNorm,1),1)));
+% midrangedropseeds=cellfun(@(x) mean(x(1,midrange-150:midrange-50))-mean(x(1,midrange+50:midrange+150)), mat2cell(ssResps.short_blNorm,ones(size(ssResps.short_blNorm,1),1)));
 % % ramp to end
-% outerrangerampseeds=cellfun(@(x) mean(x(1,length(x)-150:length(x)-1))-mean(x(1,1:150)), mat2cell(sacResps.short_blNorm,ones(size(sacResps.short_blNorm,1),1)));
+% outerrangerampseeds=cellfun(@(x) mean(x(1,length(x)-150:length(x)-1))-mean(x(1,1:150)), mat2cell(ssResps.short_blNorm,ones(size(ssResps.short_blNorm,1),1)));
 % % for ramps all the way down, keep only non-bursting / falling response (~monotonic)
-% leastdiff_bnorm_sacresps=sacResps.short_blNorm(max(abs(diff(sacResps.short_blNorm)),[],2)<5,:);
-% outerrangerampdownseeds=cellfun(@(x) mean(x(1,length(x)-150:length(x)-1))-mean(x(1,1:150)), mat2cell(leastdiff_bnorm_sacresps,ones(size(leastdiff_bnorm_sacresps,1),1)));
+% leastdiff_bnorm_ssresps=ssResps.short_blNorm(max(abs(diff(ssResps.short_blNorm)),[],2)<5,:);
+% outerrangerampdownseeds=cellfun(@(x) mean(x(1,length(x)-150:length(x)-1))-mean(x(1,1:150)), mat2cell(leastdiff_bnorm_ssresps,ones(size(leastdiff_bnorm_ssresps,1),1)));
 % % diff sort works for peaks as well, by opposition, and could be used
 % % to separate sharp bursts from smoth bursts (and template 2 from 3 apparently):
-% % [~,pkseeds_vals_idx]=sort(max(abs(diff(sacResps.short_blNorm)),[],2),'descend');
+% % [~,pkseeds_vals_idx]=sort(max(abs(diff(ssResps.short_blNorm)),[],2),'descend');
 % midrangepeakseeds=cellfun(@(x) (mean(x(1,midrange+50:midrange+100))-mean(x(1,midrange-150:midrange-50)))+...
-%     (mean(x(1,midrange+50:midrange+100))-mean(x(1,midrange+100:midrange+short_wds))), mat2cell(sacResps.short_blNorm,ones(size(sacResps.short_blNorm,1),1)));
+%     (mean(x(1,midrange+50:midrange+100))-mean(x(1,midrange+100:midrange+short_wds))), mat2cell(ssResps.short_blNorm,ones(size(ssResps.short_blNorm,1),1)));
 %
 % % keep 10 highest seed values
 % [~,mrdropseeds_vals_idx]=sort(midrangedropseeds);
