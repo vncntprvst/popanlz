@@ -284,3 +284,38 @@ print(gcf, '-dsvg', '-noui', exportfigname);
 % plot2svg([exportfigname,'.svg'],gcf, 'png');
 close(gcf)
 
+%% Single trial / trial-by trial examples
+% use data from 1 cluster, and maybe non-significant RT/slope correlation
+% make trial progression RT vs peak figure, if one can segment session in
+% different period (see staircase delays)
+% make scatter plot with distribution of peak vs RT, following NSST / SST
+% trial-by-trial variability: 
+%     Krakauer: https://www.physiology.org/doi/10.1152/jn.00897.2013
+% reduction in trial-by-trial variability for the trained task 
+% but not for an untrained control task, without changes in mean trajectory. 
+% The decrease in variability for the trained task was associated with increased 
+% activation in contralateral primary motor and premotor cortical areas and 
+% in ipsilateral cerebellum.
+%  -> do RT or trajectory variablity stabilize, and so response properties with it?  
+% Anne Churchland:  http://www.jneurosci.org/content/37/19/4954
+% trial-to-trial spike count variability during stimulus presentation and decision formation
+% Variability decreased sharply, suggesting that the network is stabilized by inputs
+% -> are dentate neurons activity during sensory and delay processing stabilized by inputs?
+% Chris Gomez:  evidence for the trial-by-trial strategy was obtained using 
+% random-effects GLM models with the speed or angle change category and group
+% as independent factors and the deviation from the optimal point as the dependent variable
+
+% Decoding
+% See https://www.nature.com/articles/nrn2578
+% Single-neuron discrimination analysis: https://www.nature.com/articles/nature12236
+
+% Could use ROC analysis like Robin (or Chen 2015) to find out time of divergence. But
+% this is not a discrimination task. Maybe do as follow:
+%  Chris Harvey: https://www.nature.com/articles/nature10918
+% To quantify the trajectory divergence, we used a classifier
+% based on the distance from an individual trial trajectory to the mean right 
+% and left choice trajectories at single time points
+% -> Neuronal circuit trajectories on correct and erroneous SST 
+% Use classifier to find critical period at which decision is made
+
+
