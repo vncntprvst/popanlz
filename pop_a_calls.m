@@ -3,7 +3,7 @@ function pop_a_calls(optionNb)
 global directory slash;
 
 %% settings
-userinfo=SetUserDir;
+userinfo=UserDirInfo;  %SetUserDir;
 directory=userinfo.directory;
 slash=filesep;
 % userinfo.user,userinfo.dbldir,userinfo.mapdr,userinfo.servrep,userinfo.mapddataf
