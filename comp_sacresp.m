@@ -17,29 +17,31 @@ else
 end
 %% get saccade response and baseline
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
+TestIfNans = @(rasterData,alignment) size(rasterData,1)-...
+    sum(isnan(mean(rasterData(:,sigma*3+alignment(1):alignment(2)-3*sigma),2)))<=1;
 % 1/ convolve rasters with short_wds ms before saccade, short_wds after saccade, 20ms kernel
 %time window. Add kernel * 6 ms (see fullgauss_filtconv), e.g. 60 ms at both
 % ends, which will be cut.
-% data.allndata has 3 column for 3 aligntype. Each cell has 3 or 4 for different conditions
-badapl.nsscs=cellfun(@(x) size(x(1).rast,1)==0 | size(x(1).rast,1)==1,data.allndata(:,1));
+% data has 3 column for 3 aligntype. Each cell has 3 or 4 for different conditions
+badapl.nss=cellfun(@(x) size(x(1).rast,1)==0 | size(x(1).rast,1)==1,{data.saccade});
 [nssResps.baseline,nssRespsTrials.baseline]=cellfun(@(x) conv_raster(x(1,1).rast,sigma,...
     0,x(1,1).alignt-(baselineLength+sigma*3),x(1,1).alignt+(sigma*3-1)),...
-    data.allndata(~badapl.nsscs,2), 'UniformOutput',false); %500ms period
+    {data(~badapl.nss).target}, 'UniformOutput',false); %500ms period
 % no-stop signal trials
 [nssResps.short,nssRespsTrials.short]=cellfun(@(x) conv_raster(x(1,1).rast,sigma,...
-    0,x(1,1).alignt-(short_wds+sigma*3),x(1,1).alignt+(short_wde+sigma*3)), data.allndata(~badapl.nsscs,1), 'UniformOutput',false); %400ms period
+    0,x(1,1).alignt-(short_wds+sigma*3),x(1,1).alignt+(short_wde+sigma*3)), {data(~badapl.nss).saccade}, 'UniformOutput',false); %400ms period
 [nssResps.long,nssRespsTrials.long]=cellfun(@(x) conv_raster(x(1,1).rast,sigma,...
-    0,x(1,1).alignt-(long_wds+sigma*3),x(1,1).alignt+(short_wde+sigma*3)), data.allndata(~badapl.nsscs,1), 'UniformOutput',false); %400ms period
+    0,x(1,1).alignt-(long_wds+sigma*3),x(1,1).alignt+(short_wde+sigma*3)), {data(~badapl.nss).saccade}, 'UniformOutput',false); %400ms period
 % stop signal trials with canceled saccades
-badapl.sscs=cellfun(@(x) size(x(2).rast,1)==0 | size(x(2).rast,1)==1,data.allndata(:,2)) |...
-cellfun(@(x) size(x(2).rast,1)==0 | size(x(2).rast,1)==1,data.allndata(:,1));
+badapl.sscs=cellfun(@(x) size(x(2).rast,1)<=1,{data.target}) |...
+cellfun(@(x) size(x(2).rast,1)<=1 || TestIfNans(x(2).rast,[x(2).alignt-...
+(short_wds+sigma*3) x(2).alignt+(short_wde+sigma*3)]),{data.saccade});
 [sscsResps.baseline,sscsRespsTrials.baseline]=cellfun(@(x) conv_raster(x(2).rast,sigma,...
     0,x(2).alignt-(baselineLength+sigma*3),x(2).alignt+(sigma*3-1)),...
-    data.allndata(~badapl.sscs,2), 'UniformOutput',false); %500ms period
+    {data(~badapl.sscs).target}, 'UniformOutput',false); %500ms period
 [sscsResps.short,sscsRespsTrials.short]=cellfun(@(x) conv_raster(x(2).rast,sigma,...
     0,x(2).alignt-(short_wds+sigma*3),x(2).alignt+(short_wde+sigma*3)),...
-    data.allndata(~badapl.sscs,1), 'UniformOutput',false); %500ms period
+    {data(~badapl.sscs).saccade}, 'UniformOutput',false); %500ms period
 
 %% remove bad apples
 % badapl=cellfun(@(x) size(x,2)==1, sscsResps.short);
@@ -67,7 +69,7 @@ sscsResps.baseline=cat(1,sscsResps.baseline{:});
 
 fn = fieldnames(data);
 for lp=1:length(fn)
-    data.(fn{lp})=data.(fn{lp})(~badapl.nsscs,:);
+    [data.(fn{lp})]=deal(data(~badapl.nss).(fn{lp}));
 end
 
 %% normalization
@@ -143,8 +145,8 @@ end
 % figure;
 % for topfig=1:size(top_drop,1)
 %     try
-%     align=data.allndata{top_drop(topfig), 3}(4).alignt;
-%     rasters=((data.allndata{top_drop(topfig), 3}(4).rast(:,align-800:align+800)));
+%     align=data{top_drop(topfig), 3}(4).alignt;
+%     rasters=((data{top_drop(topfig), 3}(4).rast(:,align-800:align+800)));
 %     subplot(2,1,2)
 %     hold on
 %     plot(conv_raster(rasters))

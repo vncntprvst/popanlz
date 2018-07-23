@@ -1,7 +1,8 @@
 % Find SSRT for single file
 function [mssrt,inhibfun,ccssd,nccssd,ssds,...
-    tachomc,tachowidth,sacdelay,rewtimes,prevssds,trialidx,alltacho]=findssrt(recname, plots)
-global directory;
+    tachomc,tachowidth,sacdelay,rewtimes,...
+    prevssds,trialidx,alltacho,trialdirs]=findssrt(recname, plots)
+global recDir;
 
 if nargin < 2 | isempty(plots)
     plots = 0;
@@ -303,7 +304,7 @@ if plots
     set(gca,'TickDir','out','box','off');
     newpos =  get(gcf,'Position')/60;
     set(gcf,'PaperUnits','inches','PaperPosition',newpos);
-    exportfigname=[cell2mat(regexp(directory,'\w+:\\\w+\\','match')),...
+    exportfigname=[cell2mat(regexp(recDir,'\w+:\\\w+\\','match')),...
         'Analysis\Countermanding\',recname(1:end-4),'_PsyCurves'];
     %             print(psychoplots, '-dpng', '-noui', '-opengl','-r600', exportfigname);
     %            plot2svg([exportfigname,'.svg'],psychoplots, 'png');
@@ -400,5 +401,12 @@ if ~(mssrt>70 & mssrt<130)
 %         mssrt=round(mssrt/3+foSSRT*2/3);
 %     end
 end
+
+%findings all used directions from ecodes
+trialtypes=allcodes(:,2);
+if trialtypes(1) < 4000; % twoafc drops the basecode in allcodes(:, 4)
+    trialtypes = allcodes(:, 4);
+end
+trialdirs=unique(trialtypes-floor(trialtypes./10)*10);
 
 end

@@ -1,5 +1,5 @@
 %% functional clustering
-function clusterIdx=clus_pop(traces,SNRs)
+function [clusterIdx,clusterSort,zTraces]=clus_pop(traces,SNRs,numClus)
 
 if nargin==1
     SNRs=[];
@@ -25,8 +25,12 @@ seedTraces=zTraces(SeedCells_Idx,:);
 eDistance = pdist(seedTraces); %'cityblock'
 % hierarchical clustering tree
 clustTree= linkage(eDistance,'complete'); %'average'
+% leafOrder = optimalleaforder(clustTree,eDistance); 
+%,'Criteria','group','Transformation','inverse');
 % clusters
-numClus=3;
+if ~exist('numClus','var')
+    numClus=3;
+end
 clusIdx = cluster(clustTree,'maxclust',numClus); %'criterion','distance','cutoff',2.5*10^4
 
 [proportions,clusterIDs]=hist(clusIdx,unique(clusIdx))
@@ -80,24 +84,41 @@ profileCorrelation=corr(zTraces',clusterProfile');
 % figure; hold on
 % plot(nanmean(zTraces(clusterIdx==1,:)));
 % plot(nanmean(zTraces(clusterSortedIdx(initialRank)==1,:)))
-% also sort each cluster by trough time
-for clusNum=1:numClus
-    clusTraces=zTraces(clusterIdx==clusNum,:);
-    [~,troughSortIdx]=min(clusTraces,[],2);
-    [~,clusOrder]=sort(troughSortIdx);
-    thatClusterIdx=clusterSort(clusterSortedIdx==clusNum);
-    clusterSort(clusterSortedIdx==clusNum)=thatClusterIdx(clusOrder);
-end
+
+% sort each cluster by trough time
+% for clusNum=1:numClus
+%     clusTraces=zTraces(clusterIdx==clusNum,:);
+%     [~,troughSortIdx]=min(clusTraces,[],2);
+%     [~,clusOrder]=sort(troughSortIdx);
+%     thatClusterIdx=clusterSort(clusterSortedIdx==clusNum);
+%     clusterSort(clusterSortedIdx==clusNum)=thatClusterIdx(clusOrder);
+% end
+
+% sort clusters as 3/4/1/2
+clusterSort=[clusterSort(clusterSortedIdx==3);clusterSort(clusterSortedIdx==1);...
+    clusterSort(clusterSortedIdx==4);clusterSort(clusterSortedIdx==2)];
+% clusterIdx=[clusterSortedIdx(clusterSortedIdx==4);clusterSortedIdx(clusterSortedIdx==3);...
+%     clusterSortedIdx(clusterSortedIdx==2);clusterSortedIdx(clusterSortedIdx==1)];
 distanceMatrix=pdist(zTraces(clusterSort,:),'correlation');
+
+% clusterIDs=[1;4;2;3]; %[2;1;3]; %[3;4;1;2]
 
 %% summary figure
 figure;
 %order by cluster to plot heatmap
 subplot(3,numClus*2,[1:numClus,numClus*2+1:numClus*3]);
-imagesc(squareform(distanceMatrix)), colormap(hot); colorbar
+% imagesc(squareform(distanceMatrix)); %colormap('jet') % for redbluecmap: install  Bioinformatics Toolbox
 heatmap(squareform(distanceMatrix),'ColorMethod','median');
 colorbar('northoutside')
-
+if size(zTraces,2) == 500 %short
+    tickVals=100:100:500;
+    tickLabelVals=[-200 -100 0 100 200];
+    patchLoc=[299 300 300 299];
+elseif size(zTraces,2) == 700 %long
+    tickVals=100:100:700;
+    tickLabelVals=[-400 -300 -200 -100 0 100 200];
+    patchLoc=[499 500 500 499];
+end
 cmap=lines; cmap=[0,0,0;cmap];
 clusterProfile=nan(numClus,size(zTraces,2));
 for clusNum = 1:numClus
@@ -109,10 +130,10 @@ for clusNum = 1:numClus
         clusterProfile(clusNum,:)=zTraces(clust,:);
     end
     plot(clusterProfile(clusNum,:),'Color',cmap(clusNum+1,:),'Linewidth',2);
-    set(gca,'xtick', 100:100:500, 'xticklabel',[-200 -100 0 100 200])
+    set(gca,'xtick', tickVals, 'xticklabel',tickLabelVals)
     yLims=get(gca,'YLim');
     %     set(gca,'YLim',[0 max(yLims)]);
-    patch([299 300 300 299],[min(yLims) max(yLims) max(yLims) min(yLims)],...
+    patch(patchLoc,[min(yLims) max(yLims) max(yLims) min(yLims)],...
         cmap(clusNum,:),'FaceAlpha',0.5);
     text(1,round(max(yLims)-1),['n=' num2str(size(zTraces(clust,:),1))]);
     axis tight
@@ -120,7 +141,7 @@ end
 
 subplot(2,numClus*2,[numClus+1:numClus*2,numClus*3+1:numClus*4]);
 imagesc(zTraces(clusterSort,:)); axis tight; yLims=get(gca,'YLim');
-patch([299 300 300 299],[min(yLims) max(yLims) max(yLims) min(yLims)],...
+patch(patchLoc,[min(yLims) max(yLims) max(yLims) min(yLims)],...
     cmap(clusNum,:),'FaceAlpha',0.5);
-    set(gca,'xtick', 100:100:500, 'xticklabel',[-200 -100 0 100 200])
+    set(gca,'xtick', tickVals, 'xticklabel',tickLabelVals)
 colorbar;

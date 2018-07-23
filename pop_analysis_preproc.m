@@ -805,7 +805,8 @@ stdata.alldb=reshape({alldata(stdlist,:).db},size(alldata(stdlist,:))); stdata.a
 
 
 %% Save processed file
-cd('E:\BoxSync\Box Sync\Home Folder vp35\Sync\CbTimingPredict\data')
+% cd('E:\BoxSync\Box Sync\Home Folder vp35\Sync\CbTimingPredict\data')
+cd('E:\Dropbox\Vincent Docs\CbTimingPredict\data\reprocess');
 if strcmp(rectask,'gapstop')
     task='gsdata';
 elseif strcmp(rectask,'st_saccades')

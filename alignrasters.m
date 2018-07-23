@@ -7,7 +7,7 @@ function [alignedrasters, alignindex, trialindex, alltrigtosac, ...
 
 % based on rdd_rasters, but GUI independent
 
-global rexnumtrials;
+global rexnumtrials rexloadedname;
 
 if strcmp(tasktype,'gapstop') || strcmp(tasktype,'base2rem50')
     multicodetask=1;
@@ -109,8 +109,12 @@ while ~islast
     
     %[ecodeout, etimeout, spkchan, spk, arate, h, v, start_time, badtrial ] = rex_trial(name, d );
     try %conditional breakpoint: logical(sum(ismember(ecodeout,alignto)))
-        [ecodeout, etimeout, spkchan, spk, arate, h, v, start_time, isbadtrial, curtrialsacInfo] = rdd_rex_trial(name, d, selclus);%, rdt_includeaborted);
+        [ecodeout, etimeout, spkchan, spk, arate, h, v, start_time, isbadtrial, curtrialsacInfo] =...
+            rdd_rex_trial(name, d, selclus);%, rdt_includeaborted);
         curdir=ecodeout(2)-floor(ecodeout(2)/10)*10;
+%         if isempty(rexloadedname)
+            rexloadedname=name;
+%         end
     catch
         disp('call to rdd_rex_trial in alignrasters failed');
         [ecodeout, etimeout, spkchan, spk, arate, h, v, start_time, isbadtrial, curtrialsacInfo] = deal([]);
@@ -165,9 +169,9 @@ while ~islast
                         falign = fnext(1);
                     else
                         falign = [falign;fnext(1)];
-                    end;
-                end;
-            end;
+                    end
+                end
+            end
             
             if isempty( falign )
                 s = sprintf( 'In rdd_rasters, trial %d has a matching base code (%d?), but does not contain any alignment code requested.', d, ecodeout(2) );
@@ -370,7 +374,7 @@ while ~islast
                             failedsac=1;
                             alignmentfound = 0;
                         elseif strcmp(aligntype,'rew') && alignmentfound &&... % case of reward aligned where the "good" 
-                                curtrialsacInfo(1,goodsacnum).starttime > etimeout(ecodeout==alignmentfound) % saccade occurs after reward
+                                curtrialsacInfo(1,goodsacnum(1)).starttime > etimeout(ecodeout==alignmentfound) % saccade occurs after reward
                             failedsac=1;
                             alignmentfound = 0; %same punishment: out
                         end
@@ -638,14 +642,14 @@ while ~islast
                     %                     allcondtime = cat_variable_size_row(allcondtime, condmattime);
                     
                     
-                end;
-            end;
-        end;
-    end;
+                end
+            end
+        end
+    end
     
     [d, islast] = rex_next_trial( name, d, allowbadtrials );
     
-end;
+end
 
 
 if isempty( rasters )
@@ -654,7 +658,7 @@ if isempty( rasters )
     alignindex = 0;
     sphisto = [];
     return;
-end;
+end
 
 % We have rows of spike trains (rasters), and indices on which to align
 % them (alignindexlist).  Now shift, or align, each of the rows so that the

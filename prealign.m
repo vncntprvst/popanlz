@@ -5,7 +5,7 @@
 % based on rdd_rasters_sdf, made GUI independent
 % the option argument passes some additional data
 
-global directory slash;
+% global directory;
 
 if nargin < 11
     option = [];
@@ -466,6 +466,6 @@ else
     parsename=unique({datalign.alignlabel});
 end
 
-datalign(1).savealignname = cat( 2, directory, 'processed',slash, 'aligned',slash, filename, '_', cell2mat(parsename),'_c',num2str(spikechannel));
+% datalign(1).savealignname = cat( 2, directory, 'processed',slash, 'aligned',slash, filename, '_', cell2mat(parsename),'_c',num2str(spikechannel));
 
 end

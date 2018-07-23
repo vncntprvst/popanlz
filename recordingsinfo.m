@@ -1,4 +1,4 @@
-function recCoordInfo=recordingsinfo
+function [recCoordInfo,badapl]=recordingsinfo
 % from a defined dataset returns three columns:
 % file name / recording location / whether location is congruent 
 % between database and curated list in xls file
@@ -6,7 +6,7 @@ function recCoordInfo=recordingsinfo
 userinfo=SetUserDir; 
 cd(userinfo.syncdir);
 
-datasets={'cDn_gsdata','top_cortex_gsdata'};
+datasets={'cDn_cmdata','top_cortex_cmdata'};
 [datasetNum,okgo] = listdlg('PromptString','Select dataset to load:',...
     'SelectionMode','single',...
     'ListString',datasets,...
@@ -14,10 +14,10 @@ datasets={'cDn_gsdata','top_cortex_gsdata'};
 if okgo
     dataset=datasets{datasetNum};
 else %default
-    dataset='cDn_gsdata';
+    dataset='cDn_cmdata';
 end
 
-data=load([dataset '.mat']); %cDn_gsdata.mat  top_cortex_gsdata.mat
+data=load([dataset '.mat']); %cDn_cmdata.mat  top_cortex_cmdata.mat
 dataField=cell2mat(fieldnames(data));
 unitsDBinfo=data.(dataField).alldb;
 dbConn = connect2DB('vp_sldata');
