@@ -8,7 +8,7 @@ end
 %% zscore traces
 zTraces=zscore(traces,[],2);
 
-%% "seed" traces
+%% Either use "seed" traces (ref)
 % if SNRs are provided, make first round of clustering based on top 50 cells
 if ~isempty(SNRs)
     [~,SeedCells_Idx]=sort(SNRs,'descend'); SeedCells_Idx=...
@@ -20,9 +20,16 @@ else
 end
 
 seedTraces=zTraces(SeedCells_Idx,:);
-
 %Euclidean distance
 eDistance = pdist(seedTraces); %'cityblock'
+
+%% Or use PCA
+% https://www.sciencedirect.com/science/article/pii/S0896627317303434
+coeffs = pca(traces); %or zTraces
+
+%Euclidean distance
+eDistance = pdist(coeffs(:,1:3)); %'cityblock'
+
 % hierarchical clustering tree
 clustTree= linkage(eDistance,'complete'); %'average'
 % leafOrder = optimalleaforder(clustTree,eDistance); 
