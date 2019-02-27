@@ -19,16 +19,17 @@ else
     SeedCells_Idx=1:size(traces,1);
 end
 
-seedTraces=zTraces(SeedCells_Idx,:);
-%Euclidean distance
+seedTraces=traces(SeedCells_Idx,:); %zTraces
+
+%% Go direct for Euclidean distance
 eDistance = pdist(seedTraces); %'cityblock'
 
 %% Or use PCA
 % https://www.sciencedirect.com/science/article/pii/S0896627317303434
-coeffs = pca(traces); %or zTraces
-
+[coeffs,~,~,~,explained] = pca(seedTraces'); %or zTraces  
+ninetyfiveVariancePoint=find(cumsum(explained)>=95,1)-1;  %-1 for more narrow range, typically new clusters
 %Euclidean distance
-eDistance = pdist(coeffs(:,1:3)); %'cityblock'
+eDistance = pdist(coeffs(:,1:ninetyfiveVariancePoint)); %'cityblock'
 
 % hierarchical clustering tree
 clustTree= linkage(eDistance,'complete'); %'average'
@@ -93,17 +94,17 @@ profileCorrelation=corr(zTraces',clusterProfile');
 % plot(nanmean(zTraces(clusterSortedIdx(initialRank)==1,:)))
 
 % sort each cluster by trough time
-% for clusNum=1:numClus
-%     clusTraces=zTraces(clusterIdx==clusNum,:);
-%     [~,troughSortIdx]=min(clusTraces,[],2);
-%     [~,clusOrder]=sort(troughSortIdx);
-%     thatClusterIdx=clusterSort(clusterSortedIdx==clusNum);
-%     clusterSort(clusterSortedIdx==clusNum)=thatClusterIdx(clusOrder);
-% end
+for clusNum=1:numClus
+    clusTraces=zTraces(clusterIdx==clusNum,:);
+    [~,troughSortIdx]=min(clusTraces,[],2);
+    [~,clusOrder]=sort(troughSortIdx);
+    thatClusterIdx=clusterSort(clusterSortedIdx==clusNum);
+    clusterSort(clusterSortedIdx==clusNum)=thatClusterIdx(clusOrder);
+end
 
 % sort clusters as 3/4/1/2
-clusterSort=[clusterSort(clusterSortedIdx==3);clusterSort(clusterSortedIdx==1);...
-    clusterSort(clusterSortedIdx==4);clusterSort(clusterSortedIdx==2)];
+% clusterSort=[clusterSort(clusterSortedIdx==3);clusterSort(clusterSortedIdx==1);...
+%     clusterSort(clusterSortedIdx==4);clusterSort(clusterSortedIdx==2)];
 % clusterIdx=[clusterSortedIdx(clusterSortedIdx==4);clusterSortedIdx(clusterSortedIdx==3);...
 %     clusterSortedIdx(clusterSortedIdx==2);clusterSortedIdx(clusterSortedIdx==1)];
 distanceMatrix=pdist(zTraces(clusterSort,:),'correlation');
