@@ -1,3 +1,6 @@
+% If data in the structures (eg, cDN_cmdata) looks wrong for some
+% reason, check and correct data wit this script
+
 %% definitions
 clearvars; clear global;
 taskType= 'st_saccades'; %gapstop
@@ -12,7 +15,7 @@ alignTypes={'saccade';'target';'reward'}; %'corrective saccade' 'stopsignal'
 allProcData=struct('saccade',struct([]),'target',struct([]),...
     'reward',struct([])); % 'stopsignal',struct([]),
 %% load cmdata
-load('E:\Dropbox\Vincent Docs\CbTimingPredict\data\cDn_stdata.mat'); % top_cortex_cmdata %cDn_cmdata
+load('E:\Dropbox\Vincent Docs\CbTimingPredict\data\top_cortex_stdata.mat'); % cDn_stdata top_cortex_cmdata %cDn_cmdata
 if ~isfield(stdata,'fileNames')
     try
         stdata.fileNames=stdata.alldb.recNames;
@@ -213,4 +216,4 @@ end
             taskType allProcData
         clear global
     end
-    save('cDN_stdata_alldata','allProcData','-v7.3'); %top_cortex_cmdata_alldata
+    save('top_cortex_stdata_alldata','allProcData','-v7.3'); %cDN_stdata_alldata top_cortex_cmdata_alldata
