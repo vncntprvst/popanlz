@@ -1,4 +1,4 @@
-function [commoncells,cm,st]=pop_a_gsVSst(cmdata,stdata,conn)
+function [commoncells,cm,st]=pop_a_gsVSst(cmdata,stdata,conn,matchingFileIdx)
 
 %number cells
 cm.goodrecs=~cellfun('isempty',cmdata.allsacdelay);
@@ -24,7 +24,8 @@ queries{1} = ['SELECT a_file FROM sorts s INNER JOIN recordings r on s.recording
 % gs.recnames=fetch(conn,query);
 
 queries{2} = ['SELECT a_file FROM sorts s INNER JOIN recordings r on s.recording_id_fk = r.recording_id WHERE sort_id IN (' ...
-    sprintf('%.0f,' ,cellfun(@(x) x.sort_id,stdata.alldb(1:end-1,1))) num2str(stdata.alldb{end,1}.sort_id) ')'];
+    sprintf('%.0f,' ,stdata.alldb.sort_id(1:end-1)) num2str(stdata.alldb.sort_id(end)) ')'];
+%     cellfun(@(x) x.sort_id, alldb(1:end-1,1))) num2str(stdata.alldb{end,1}.sort_id) ')'];
 % st.recnames=fetch(conn,query);
 
 [commoncells,fileidx]=compare_db_filelists(queries,conn);
