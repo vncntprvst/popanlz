@@ -568,7 +568,11 @@ while ~islast
                     elseif ~exist('ampsacofint') 
                         sacspecs(nummatch).latency=[getfield(curtrialsacInfo, {find(arrayfun(@(x) ~isempty(x.latency), curtrialsacInfo) ,1)}, 'latency')];
                     else
-                        sacspecs(nummatch).latency=[getfield(curtrialsacInfo, {find(ampsacofint>2.5,1)}, 'latency')];
+                        try
+                            sacspecs(nummatch).latency=[getfield(curtrialsacInfo, {find(ampsacofint>2.4,1)}, 'latency')];
+                        catch
+                            sacspecs(nummatch).latency=[];
+                        end
                     end
                     train = [0];
                     if ~isempty( spk )
@@ -577,7 +581,7 @@ while ~islast
                             train=nan(1,length(h));
                             last=length(h);
                         end
-                    end;
+                    end
                     if aligntime > length(train) %that's weird (added max([aligntime+300, length(h)] above)
 %                         aligntime;
                     end

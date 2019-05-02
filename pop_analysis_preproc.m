@@ -3,14 +3,15 @@ global directory slash;
 %% settings
 userinfo=SetUserDir;
 directory=userinfo.directory;
+user=userinfo.user;
 slash=filesep;
-recloc='dentate'; %dentate %top_cortex
-rectask='gapstop'; %gapstop %st_saccades
+recloc='top_cortex'; %dentate %top_cortex
+rectask='st_saccades'; %gapstop %st_saccades
 try
     CCNdb = connect2DB('vp_sldata');
     %     query = 'SELECT FileName FROM b_dentate';
     %     results = fetch(CCNdb,query);
-    dentatefiles =fetch(CCNdb,['select r.a_file FROM recordings r WHERE r.task=''' rectask ''' AND r.recloc=''' recloc '''']);
+    fileList =fetch(CCNdb,['select r.a_file FROM recordings r WHERE r.task=''' rectask ''' AND r.recloc=''' recloc '''']);
 catch db_fail
     results = [];
 end
@@ -41,8 +42,8 @@ alldata=struct('fname',{},'task',{},'aligntype',{},'prevssd',{},'allmssrt_tacho'
 noclusfiles=[];
 
 %% process files
-for flbn=1:length(dentatefiles)
-    dfile=dentatefiles{flbn}; %dfile=[dfile '_REX'];
+for flbn=1:length(fileList)
+    dfile=fileList{flbn}; %dfile=[dfile '_REX'];
     if strcmp('A',dfile(end))
         dfile=dfile(1:end-1);
     end
@@ -113,7 +114,7 @@ for flbn=1:length(dentatefiles)
             continue
         else
             query = ['SELECT s.sort_id FROM sorts s WHERE s.recording_id_fk = '...
-                num2str(task_rec_id{2}) ' AND s.origin = ''' rectype ''' AND s.user = ''' user ''''];
+                num2str(task_rec_id{2}) ' AND s.origin = ''' rectype '''']; % ''' AND s.user = ''' user
             sort_id=fetch(CCNdb,query);
             if length(sort_id)==1
                 usesort=1;
@@ -204,8 +205,9 @@ for flbn=1:length(dentatefiles)
             end
             
             %%% keep sac delays %%%
-            alldata(flbn,1).sacdelay={[getaligndata(cell2mat(arrayfun(@(x) ~isempty(x.sacspecs),...
-                getaligndata, 'UniformOutput', false))).sacspecs.latency]};
+            sacspecs=[getaligndata(cell2mat(arrayfun(@(x) ~isempty(x.sacspecs),...
+                getaligndata, 'UniformOutput', false))).sacspecs];
+            alldata(flbn,1).sacdelay={[sacspecs.latency]};
             
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             %% get peak firing rate for future normalization. Find prefered dir.
@@ -246,7 +248,7 @@ for flbn=1:length(dentatefiles)
                     prefdir={prefdir{:}(find(prefdirnbtrial==max(prefdirnbtrial),1))};
                 end
                 alldata(flbn,algn).prefdiridx=arrayfun(@(x) x.dir==prefdir{:},getaligndata,'UniformOutput',false);
-                convrasters=conv_raster(colrast,10,1,size(colrast,2));
+                convrasters=conv_raster(colrast,10,0,1,size(colrast,2));
                 alldata(flbn,algn).pk.sac=max(convrasters);
                 pk_or_tro_time=find(convrasters==max(convrasters) | convrasters==min(convrasters),1);
                 %% make some stats on sac alignment
@@ -368,7 +370,7 @@ for flbn=1:length(dentatefiles)
         
         fails=[];
         alignments={'failed_fast','correct_slow','ssd','corrsacfailed','rewcorrect_rewslow'};
-        for algn=1:5
+        for algn=3 %1:5
             %% set parameter values
             if algn==1 % sac vs stop: 3 alignements 'sac' (correct sac) / 'stop_cancel' (to SS + SSRT) / 'stop_non_cancel' (incorrect sac)
                 firstalign=6;

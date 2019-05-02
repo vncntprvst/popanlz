@@ -10,13 +10,13 @@ slash=userinfo.slash;
 % CmdData=struct('file',[],'ssrt',[],'tach',[],'saclat',[],'sdf',[],...
 %     'rast',[],'algidx',[],'allviscuetimes',[]);
 if ~exist('cmdData','var')
-cmdData=struct('file',[],'allalignmnt',[],'allprevssd',[],'allssds',[],'allsacdelay',[],...
-    'allprefdir',[],'allndata',[],'allmssrt_tacho',[],'alldb',[],'normFactor',[]);
+    cmdData=struct('file',[],'allalignmnt',[],'allprevssd',[],'allssds',[],'allsacdelay',[],...
+        'allprefdir',[],'allndata',[],'allmssrt_tacho',[],'alldb',[],'normFactor',[]);
     cd(userinfo.syncdir);
 end
 if strcmp(fileInfo{1},'get')
     %% finding best candidate
-   
+    
     % userinfo.user,userinfo.dbldir,userinfo.mapdr,userinfo.servrep,userinfo.mapddataf
     CCNdb = connect2DB('vp_sldata');
     
@@ -162,13 +162,17 @@ if isempty(cmdData.allndata) %redundant now
     cmdData=load('cDn_gsdata.mat','gsdata'); %cDn_gsdata.mat  top_cortex_gsdata.mat
     cmdData=cmdData.gsdata;
 end
-if size(cmdData.allndata,1)>1
-    cellIdx=cellfun(@(dbInfo) dbInfo.rec_id==str2double(fileInfo{2}), cmdData.alldb);
+if size(cmdData.allndata,2)>1
+    cellIdx=ismember(cmdData.alldb.rec_id,fileInfo{2}); %_id cellfun(@(dbInfo) dbInfo.rec_id==fileInfo{2}, cmdData.alldb); %str2double
     fn = fieldnames(cmdData); fn=fn(~cellfun(@(fieldname) strcmp(fieldname,'fileName'),fn));
     for lp=1:length(fn)
-        cmdData.(fn{lp})=cmdData.(fn{lp})(cellIdx,:);
+        try
+            cmdData.(fn{lp})=cmdData.(fn{lp})(cellIdx,:);
+        catch
+            [cmdData.(fn{lp})]=deal(cmdData.(fn{lp})(cellIdx));
+        end
     end
-%     cmdData.fileName=fileInfo{1};
+    %     cmdData.fileName=fileInfo{1};
 end
 
 if isempty(cmdData.allmssrt_tacho)
@@ -410,7 +414,7 @@ end
 singleSSD=true;
 alignCondition='basic_tgt';
 
-alignedata=cmdData.allndata{1, 2};
+alignedata=cmdData.allndata.target; %{1, 2};
 if strcmp(alignCondition,'basic_tgt')
     alignedata=alignedata(1:2);
 end
@@ -431,8 +435,8 @@ if singleSSD
     allSSDs=[cmdData.allssds{1, 1}{1, 1};cmdData.allssds{1, 1}{1, 2}];
     [~,~,uniqSSDsIdx]=unique(floor(allSSDs/5)*5);
     % if plotting second most frequent
-%     prevssdIdx=uniqSSDsIdx==mode(uniqSSDsIdx);
-%     allSSDs=allSSDs(~prevssdIdx);uniqSSDsIdx=uniqSSDsIdx(~prevssdIdx);
+    %     prevssdIdx=uniqSSDsIdx==mode(uniqSSDsIdx);
+    %     allSSDs=allSSDs(~prevssdIdx);uniqSSDsIdx=uniqSSDsIdx(~prevssdIdx);
     prevssd=mode(allSSDs(uniqSSDsIdx==mode(uniqSSDsIdx)));
     %categorize prevalent SSD
     SSDplace=prevssd/median(allSSDs);
@@ -628,38 +632,38 @@ for rastnum=1:numrast
     % vided the difference reached 6 SD and remained >2 SD
     % threshold for 50 ms.
     
-%     if numrast==2 && rastnum==numrast
-%         diff_trials=mean(first_smtrials)-mean(smoothtrial);
-%         diff_preal_epoch=diff_trials(1:alignidx-start); %alignidx-start-200
-%         difftime_preal=find(abs(diff_preal_epoch)>2*(std(diff_preal_epoch)),1);
-%         diff_postal_epoch=diff_trials(alignidx-start:alignidx-start+200);
-%         difftime_postal=find(abs(diff_postal_epoch)>2*(std(diff_postal_epoch)),1);
-%         if ~isempty(difftime_preal)
-%             %recursive time search
-%             difftime_preal=difftime_preal-find(abs(diff_trials(alignidx-start-200+difftime_preal+1:-1:1))<=2*(std(diff_preal_epoch)),1);
-%             difftime_preal=alignidx-start-200+1+difftime_preal;
-%         end
-%         if ~isempty(difftime_postal)
-%             %recursive time search
-%             difftime_postal=difftime_postal-find(abs(diff_trials(alignidx-start+difftime_postal+1:-1:1))<=2*(std(diff_preal_epoch)),1);
-%             difftime_postal=alignidx-start+1+difftime_postal;
-%         end
-%     else
-%         difftime_preal=[];
-%         difftime_postal=[];
-%     end
+    %     if numrast==2 && rastnum==numrast
+    %         diff_trials=mean(first_smtrials)-mean(smoothtrial);
+    %         diff_preal_epoch=diff_trials(1:alignidx-start); %alignidx-start-200
+    %         difftime_preal=find(abs(diff_preal_epoch)>2*(std(diff_preal_epoch)),1);
+    %         diff_postal_epoch=diff_trials(alignidx-start:alignidx-start+200);
+    %         difftime_postal=find(abs(diff_postal_epoch)>2*(std(diff_postal_epoch)),1);
+    %         if ~isempty(difftime_preal)
+    %             %recursive time search
+    %             difftime_preal=difftime_preal-find(abs(diff_trials(alignidx-start-200+difftime_preal+1:-1:1))<=2*(std(diff_preal_epoch)),1);
+    %             difftime_preal=alignidx-start-200+1+difftime_preal;
+    %         end
+    %         if ~isempty(difftime_postal)
+    %             %recursive time search
+    %             difftime_postal=difftime_postal-find(abs(diff_trials(alignidx-start+difftime_postal+1:-1:1))<=2*(std(diff_preal_epoch)),1);
+    %             difftime_postal=alignidx-start+1+difftime_postal;
+    %         end
+    %     else
+    %         difftime_preal=[];
+    %         difftime_postal=[];
+    %     end
     if size(rasters(~isnantrial,:),1)>=5
         %    plot confidence intervals
         patch([1:length(sdf),fliplr(1:length(sdf))],[sdf-rastsem,fliplr(sdf+rastsem)],cmap(rastnum,:),'EdgeColor','none','FaceAlpha',0.1);
         %plot sdf
         plot(sdf,'Color',cmap(rastnum,:),'LineWidth',1.8);
         
-%         if ~isempty(difftime_preal)
-%             plot(difftime_preal,max([sdf(difftime_preal)-40 1]),'r*')
-%         end
-%         if ~isempty(difftime_postal)
-%             plot(difftime_postal,max([sdf(difftime_postal)-40 1]),'r*')
-%         end
+        %         if ~isempty(difftime_preal)
+        %             plot(difftime_preal,max([sdf(difftime_preal)-40 1]),'r*')
+        %         end
+        %         if ~isempty(difftime_postal)
+        %             plot(difftime_postal,max([sdf(difftime_postal)-40 1]),'r*')
+        %         end
     end
     
     % axis([0 stop-start 0 200])
@@ -672,89 +676,89 @@ for rastnum=1:numrast
     %     set(hxlabel,'Position',get(hxlabel,'Position') - [180 -0.2 0]); %doesn't stay there when export !
     hylabel=ylabel(gca,'Firing rate (spikes/s)','FontName','Calibri','FontSize',8);
     
-%     %% Plot eye velocities
-%     heyevelplot=subplot(2,1,(2*2/3)+1:2,'Layer','top','Parent', mainfig);
-%     title('Mean Eye Velocity','FontName','calibri','FontSize',11);
-%     hxlabel=xlabel(gca,'Time (ms)','FontName','calibri','FontSize',8);
-%     
-%     hold on;
-%     if ~isempty(rasters)
-%         eyevel=alignedata(rastnum).eyevel;
-%         eyevel=mean(eyevel(:,start:stop));
-%         heyevelline(rastnum)=plot(eyevel,'Color',cmap(rastnum,:),'LineWidth',1.8);
-%         axis(gca,'tight');
-%         %         eyevelymax=max(eyevel);
-%         %         if eyevelymax>0.8
-%         %             eyevelymax=eyevelymax*1.1;
-%         %         else
-%         %             eyevelymax=0.8;
-%         %         end
-%         %         axis([0 stop-start 0 eyevelymax]);
-%         set(gca,'Color','none','TickDir','out','FontSize',8,'FontName','calibri','box','off');
-%         set(gca,'XTick',1:100:length(sdf),'XTickLabel',-plotstart:100:plotstop,'TickDir','out','box','off'); %
-%         ylabel(gca,'Eye velocity (deg/ms)','FontName','calibri','FontSize',8);
-%         
-%         % get directions for the legend
-%         if isfield(alignedata,'dir')
-%             curdir{rastnum}=alignedata(rastnum).dir;
-%         else
-%             curdir{rastnum}='no';
-%             %             % need eyeh and eyev. But see cmdData.allprefdir
-%             %             sacdeg=nan(size(alignedata(1,rastnum).trialnb,2),1);
-%             %             for eyetr=1:size(alignedata(1,rastnum).trialnb,2)
-%             %                 thissach=alignedata(1,rastnum).eyeh(eyetr,alignedata(1,rastnum).alignt:alignedata(1,rastnum).alignt+100);
-%             %                 thissacv=alignedata(1,rastnum).eyev(eyetr,alignedata(1,rastnum).alignt:alignedata(1,rastnum).alignt+100);
-%             %                 minwidth=5;
-%             %                 [~, ~, thissacvel, ~, ~, ~] = cal_velacc(thissach,thissacv,minwidth);
-%             %                 peakvel=find(thissacvel==max(thissacvel),1);
-%             %                 sacendtime=peakvel+find(thissacvel(peakvel:end)<=...
-%             %                     (min(thissacvel(peakvel:end))+(max(thissacvel(peakvel:end))-min(thissacvel(peakvel:end)))/10),1);
-%             %                 try
-%             %                     sacdeg(eyetr)=abs(atand((thissach(sacendtime)-thissach(1))/(thissacv(sacendtime)-thissacv(1))));
-%             %                 catch
-%             %                     thissacv;
-%             %                 end
-%             %
-%             %                 % sign adjustements
-%             %                 if thissacv(sacendtime)<thissacv(1) % negative vertical amplitude -> vertical flip
-%             %                     sacdeg(eyetr)=180-sacdeg(eyetr);
-%             %                 end
-%             %                 if thissach(sacendtime)>thissach(1)%inverted signal: leftward is in postive range. Correcting to negative.
-%             %                     sacdeg(eyetr)=360-sacdeg(eyetr); % mirror image;
-%             %                 end
-%             %             end
-%             %             % a quick fix to be able to put "upwards" directions together
-%             %             distrib=hist(sacdeg,3); %floor(length(sacdeg)/2)
-%             %             if max(bwlabel(distrib,4))>1 && distrib(1)>1 && distrib(end)>1 %=bimodal distribution with more than 1 outlier
-%             %                 sacdeg=sacdeg+45;
-%             %                 sacdeg(sacdeg>360)=-(360-(sacdeg(sacdeg>360)-45));
-%             %                 sacdeg(sacdeg>0)= sacdeg(sacdeg>0)-45;
-%             %             end
-%             %             sacdeg=abs(median(sacdeg));
-%             %
-%             %             if sacdeg>45/2 && sacdeg <= 45+45/2
-%             %                 curdir{rastnum}='up_right';
-%             %             elseif sacdeg>45+45/2 && sacdeg <= 90+45/2
-%             %                 curdir{rastnum}='rightward';
-%             %             elseif sacdeg>90+45/2 && sacdeg <= 135+45/2
-%             %                 curdir{rastnum}='down_right';
-%             %             elseif sacdeg>135+45/2 && sacdeg < 180+45/2
-%             %                 curdir{rastnum}='downward';
-%             %             elseif sacdeg>=180+45/2 && sacdeg <= 225+45/2
-%             %                 curdir{rastnum}='down_left';
-%             %             elseif sacdeg>225+45/2 && sacdeg <= 270+45/2
-%             %                 curdir{rastnum}='leftward';
-%             %             elseif sacdeg>270+45/2 && sacdeg <= 315+45/2
-%             %                 curdir{rastnum}='up_left';
-%             %             else
-%             %                 curdir{rastnum}='upward';
-%             %             end
-%         end
-%         aligntype{rastnum}=alignedata(rastnum).alignlabel;
-%     else
-%         curdir{rastnum}='no';
-%         aligntype{rastnum}='data';
-%     end
+    %     %% Plot eye velocities
+    %     heyevelplot=subplot(2,1,(2*2/3)+1:2,'Layer','top','Parent', mainfig);
+    %     title('Mean Eye Velocity','FontName','calibri','FontSize',11);
+    %     hxlabel=xlabel(gca,'Time (ms)','FontName','calibri','FontSize',8);
+    %
+    %     hold on;
+    %     if ~isempty(rasters)
+    %         eyevel=alignedata(rastnum).eyevel;
+    %         eyevel=mean(eyevel(:,start:stop));
+    %         heyevelline(rastnum)=plot(eyevel,'Color',cmap(rastnum,:),'LineWidth',1.8);
+    %         axis(gca,'tight');
+    %         %         eyevelymax=max(eyevel);
+    %         %         if eyevelymax>0.8
+    %         %             eyevelymax=eyevelymax*1.1;
+    %         %         else
+    %         %             eyevelymax=0.8;
+    %         %         end
+    %         %         axis([0 stop-start 0 eyevelymax]);
+    %         set(gca,'Color','none','TickDir','out','FontSize',8,'FontName','calibri','box','off');
+    %         set(gca,'XTick',1:100:length(sdf),'XTickLabel',-plotstart:100:plotstop,'TickDir','out','box','off'); %
+    %         ylabel(gca,'Eye velocity (deg/ms)','FontName','calibri','FontSize',8);
+    %
+    %         % get directions for the legend
+    %         if isfield(alignedata,'dir')
+    %             curdir{rastnum}=alignedata(rastnum).dir;
+    %         else
+    %             curdir{rastnum}='no';
+    %             %             % need eyeh and eyev. But see cmdData.allprefdir
+    %             %             sacdeg=nan(size(alignedata(1,rastnum).trialnb,2),1);
+    %             %             for eyetr=1:size(alignedata(1,rastnum).trialnb,2)
+    %             %                 thissach=alignedata(1,rastnum).eyeh(eyetr,alignedata(1,rastnum).alignt:alignedata(1,rastnum).alignt+100);
+    %             %                 thissacv=alignedata(1,rastnum).eyev(eyetr,alignedata(1,rastnum).alignt:alignedata(1,rastnum).alignt+100);
+    %             %                 minwidth=5;
+    %             %                 [~, ~, thissacvel, ~, ~, ~] = cal_velacc(thissach,thissacv,minwidth);
+    %             %                 peakvel=find(thissacvel==max(thissacvel),1);
+    %             %                 sacendtime=peakvel+find(thissacvel(peakvel:end)<=...
+    %             %                     (min(thissacvel(peakvel:end))+(max(thissacvel(peakvel:end))-min(thissacvel(peakvel:end)))/10),1);
+    %             %                 try
+    %             %                     sacdeg(eyetr)=abs(atand((thissach(sacendtime)-thissach(1))/(thissacv(sacendtime)-thissacv(1))));
+    %             %                 catch
+    %             %                     thissacv;
+    %             %                 end
+    %             %
+    %             %                 % sign adjustements
+    %             %                 if thissacv(sacendtime)<thissacv(1) % negative vertical amplitude -> vertical flip
+    %             %                     sacdeg(eyetr)=180-sacdeg(eyetr);
+    %             %                 end
+    %             %                 if thissach(sacendtime)>thissach(1)%inverted signal: leftward is in postive range. Correcting to negative.
+    %             %                     sacdeg(eyetr)=360-sacdeg(eyetr); % mirror image;
+    %             %                 end
+    %             %             end
+    %             %             % a quick fix to be able to put "upwards" directions together
+    %             %             distrib=hist(sacdeg,3); %floor(length(sacdeg)/2)
+    %             %             if max(bwlabel(distrib,4))>1 && distrib(1)>1 && distrib(end)>1 %=bimodal distribution with more than 1 outlier
+    %             %                 sacdeg=sacdeg+45;
+    %             %                 sacdeg(sacdeg>360)=-(360-(sacdeg(sacdeg>360)-45));
+    %             %                 sacdeg(sacdeg>0)= sacdeg(sacdeg>0)-45;
+    %             %             end
+    %             %             sacdeg=abs(median(sacdeg));
+    %             %
+    %             %             if sacdeg>45/2 && sacdeg <= 45+45/2
+    %             %                 curdir{rastnum}='up_right';
+    %             %             elseif sacdeg>45+45/2 && sacdeg <= 90+45/2
+    %             %                 curdir{rastnum}='rightward';
+    %             %             elseif sacdeg>90+45/2 && sacdeg <= 135+45/2
+    %             %                 curdir{rastnum}='down_right';
+    %             %             elseif sacdeg>135+45/2 && sacdeg < 180+45/2
+    %             %                 curdir{rastnum}='downward';
+    %             %             elseif sacdeg>=180+45/2 && sacdeg <= 225+45/2
+    %             %                 curdir{rastnum}='down_left';
+    %             %             elseif sacdeg>225+45/2 && sacdeg <= 270+45/2
+    %             %                 curdir{rastnum}='leftward';
+    %             %             elseif sacdeg>270+45/2 && sacdeg <= 315+45/2
+    %             %                 curdir{rastnum}='up_left';
+    %             %             else
+    %             %                 curdir{rastnum}='upward';
+    %             %             end
+    %         end
+    %         aligntype{rastnum}=alignedata(rastnum).alignlabel;
+    %     else
+    %         curdir{rastnum}='no';
+    %         aligntype{rastnum}='data';
+    %     end
 end
 
 if ~isempty(rasters)
@@ -764,11 +768,11 @@ if ~isempty(rasters)
     patch([repmat((alignidx-start)-2,1,2) repmat((alignidx-start)+2,1,2)], ...
         [[0 currylim(2)] fliplr([0 currylim(2)])], ...
         [0 0 0 0],[0 0 1],'EdgeColor','none','FaceAlpha',0.5);
-%     axes(heyevelplot)
-%     currylim=get(gca,'YLim');
-%     patch([repmat((alignidx-start)-2,1,2) repmat((alignidx-start)+2,1,2)], ...
-%         [[0 currylim(2)] fliplr([0 currylim(2)])], ...
-%         [0 0 0 0],[0 0 1],'EdgeColor','none','FaceAlpha',0.5);
+    %     axes(heyevelplot)
+    %     currylim=get(gca,'YLim');
+    %     patch([repmat((alignidx-start)-2,1,2) repmat((alignidx-start)+2,1,2)], ...
+    %         [[0 currylim(2)] fliplr([0 currylim(2)])], ...
+    %         [0 0 0 0],[0 0 1],'EdgeColor','none','FaceAlpha',0.5);
 end
 
 if singleSSD
@@ -781,8 +785,16 @@ if singleSSD
         [0 0 0 0],[1 0 0],'EdgeColor','none','FaceAlpha',0.5);
     % plot SSRT
     alignTime=alignTime+cmdData.allmssrt_tacho{1, 1}{1};
-        patch([repmat((alignTime)-2,1,2) repmat((alignTime)+2,1,2)], ...
+    patch([repmat((alignTime)-2,1,2) repmat((alignTime)+2,1,2)], ...
         [[0 currylim(2)] fliplr([0 currylim(2)])], ...
         [0 0 0 0],[.5 .5 .5],'EdgeColor','none','FaceAlpha',0.5);
 end
+
+% Save figure
+
+figDir='E:\Dropbox\Vincent Docs\CbTimingPredict\figures\SingleNeuronExample\';
+exportfigname=[figDir cmdData.fileName 'targetalign'];
+%     print(exportfig, '-dpng', '-noui', '-opengl','-r600', exportfigname);
+print(gcf, '-dsvg', '-noui', '-painters','-r600', exportfigname);
+delete(gcf);
 
