@@ -1,5 +1,5 @@
 %% functional clustering
-function [clusterIdx,clusterSort,zTraces]=clus_pop(traces,SNRs,numClus)
+function [clusterIdx,clusterSort,zTraces,distanceMatrix]=clus_pop(traces,SNRs,numClus)
 
 if nargin==1
     SNRs=[];
@@ -7,7 +7,9 @@ end
 
 %% zscore traces
 zTraces=zscore(traces,[],2);
-
+for traceNum=1:size(zTraces,1)
+    zTraces(traceNum,:)=smooth(zTraces(traceNum,:),50);
+end
 %% Either use "seed" traces (ref)
 % if SNRs are provided, make first round of clustering based on top 50 cells
 if ~isempty(SNRs)
@@ -27,7 +29,7 @@ eDistance = pdist(seedTraces); %'cityblock'
 %% Or use PCA
 % https://www.sciencedirect.com/science/article/pii/S0896627317303434
 [coeffs,~,~,~,explained] = pca(seedTraces'); %or zTraces  
-ninetyfiveVariancePoint=find(cumsum(explained)>=95,1)-1;  %-1 for more narrow range, typically new clusters
+ninetyfiveVariancePoint=find(cumsum(explained)>=95,1);  %-1 for more narrow range, typically new clusters
 %Euclidean distance
 eDistance = pdist(coeffs(:,1:ninetyfiveVariancePoint)); %'cityblock'
 
@@ -87,24 +89,40 @@ end
 %% now classify all traces into those clusters
 profileCorrelation=corr(zTraces',clusterProfile');
 [~,clusterIdx]=min(1-profileCorrelation,[],2);
+
+%rename clusters
+%cDN, ss aligned
+% clusterIdx(clusterIdx==3)=6;clusterIdx(clusterIdx==4)=7;
+% clusterIdx(clusterIdx==1)=5;clusterIdx(clusterIdx==2)=8;
+% clusterIdx=clusterIdx-4;
+% clusterIdx([2,4,5])=1; %48,49,50
+% clusterIdx([6])=3;
+%CbCx, sac aligned
+% clusterIdx(clusterIdx==2)=5;clusterIdx(clusterIdx==1)=6;clusterIdx(clusterIdx==4)=7;
+% clusterIdx(clusterIdx==3)=8;clusterIdx=clusterIdx-4;
+% [clusterSortedIdx,clusterSort]=sort(clusterIdx);
+% % clusterIdx([52,    55,     9,    13])=1;
+% clusterIdx(clusterIdx==3)=2;clusterIdx(clusterIdx==4)=3;numClus=3;
 [clusterSortedIdx,clusterSort]=sort(clusterIdx);
+
 % [~,initialRank]=sort(clusterSort);
 % figure; hold on
 % plot(nanmean(zTraces(clusterIdx==1,:)));
 % plot(nanmean(zTraces(clusterSortedIdx(initialRank)==1,:)))
 
-% sort each cluster by trough time
+% sort each cluster by peak or trough time
 for clusNum=1:numClus
     clusTraces=zTraces(clusterIdx==clusNum,:);
+%     [~,troughSortIdx]=max(abs(clusTraces),[],2);
     [~,troughSortIdx]=min(clusTraces,[],2);
     [~,clusOrder]=sort(troughSortIdx);
     thatClusterIdx=clusterSort(clusterSortedIdx==clusNum);
     clusterSort(clusterSortedIdx==clusNum)=thatClusterIdx(clusOrder);
 end
-
+% clusterIdx(clusterSort(23:26))
 % sort clusters as 3/4/1/2
-% clusterSort=[clusterSort(clusterSortedIdx==3);clusterSort(clusterSortedIdx==1);...
-%     clusterSort(clusterSortedIdx==4);clusterSort(clusterSortedIdx==2)];
+% clusterSort=[clusterSort(clusterSortedIdx==2);clusterSort(clusterSortedIdx==1);...
+%     clusterSort(clusterSortedIdx==4);clusterSort(clusterSortedIdx==3)];
 % clusterIdx=[clusterSortedIdx(clusterSortedIdx==4);clusterSortedIdx(clusterSortedIdx==3);...
 %     clusterSortedIdx(clusterSortedIdx==2);clusterSortedIdx(clusterSortedIdx==1)];
 distanceMatrix=pdist(zTraces(clusterSort,:),'correlation');
